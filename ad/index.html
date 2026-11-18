@@ -636,6 +636,45 @@ document.addEventListener('change',async e=>{if(e.target.matches('.wkfile')){con
   if(e.target.id=='wksel'){UI.wk=e.target.value;rWk()}else if(e.target.id=='wmet'){UI.wmet=e.target.value;rWk()}});
 
 
+/* ---------- 자동 판단 · 액션 ---------- */
+const R50=x=>Math.ceil(x/50)*50;
+const ST={stop:['중단 검토','bad'],cut:['축소','warn'],keep:['유지','mute'],grow:['확대','good'],none:['광고 없음','mute']};
+function judge(v,hist,mode){if(!v||(v.c<=0&&v.s<=0))return null;
+  const per=mode=='wk'?'주':'달',room=v.p-v.sh,roas=v.c?v.as/v.c*100:null,kr=v.conv>0&&v.q>0&&v.s>0?(v.as/v.conv)/(v.s/v.q):1.2,k=Math.min(2.5,Math.max(1,kr)),bep=room>0&&v.s>0?k*v.s/room*100:null,rec=bep?R50(bep*1.3):null,acts=[];
+  const adProfit=room>0&&v.s?v.as/k*room/v.s:0,stopGain=v.c-adProfit;let st;
+  if(v.c>0&&v.s<=0){st=v.as>0?'cut':'stop';acts.push({pri:1,t:v.as>0?'광고 효율 점검 (매출 집계 확인)':'광고 중단 검토 — 판매 0',why:`광고비 ${W(v.c)}원을 썼는데 매출액 ${WN(v.s)}원${v.as?` (쿠팡 전환매출 ${W(v.as)}원)`:''}`,eff:v.as>0?0:v.c,how:v.as>0?'이카운트 매출 반영 시점 확인 후 다음 기간 재판단':'광고 OFF, 상세페이지·가격·재고 점검 후 재개'})}
+  else if(room<=0&&v.s>0){st=v.c>0?'stop':'none';acts.push({pri:1,t:v.c>0?'광고 중단 + 판매 구조 점검':'판매 구조 점검',why:`매출이익 ${WN(v.p)}원 − 배송비 ${W(v.sh)}원 = ${WN(room)}원 — 팔수록 손해라 광고로 해결 안 됨`,eff:v.c,how:`${v.c>0?`광고 끄면 광고비 ${W(v.c)}원 절감. `:''}판매가 인상·묶음(1+1) 구성·원가/배송비 재협상이 먼저`})}
+  else if(v.c>0&&bep&&roas<bep){st=roas<bep*.7&&v.after<0?'stop':'cut';acts.push({pri:v.after<0?1:2,t:roas<bep*.7&&v.after<0?`광고 중단 검토 (유지하려면 목표 ROAS ${P(rec)})`:`목표 ROAS ${P(rec)}로 상향${v.tgt?` (현재 ${P(v.tgt)})`:''}`,why:`실제 ROAS ${P(roas)} < 손익분기 ROAS ${P(bep)} — ${v.after<0?'광고가 이익을 깎는 중':'품목은 흑자지만 광고분은 손해, 광고를 줄이면 이익이 더 커질 가능성'}`,eff:Math.max(0,stopGain),how:stopGain>0?`광고를 끄기만 해도 순이익 약 +${W(stopGain)}원/${per}(추정). 목표 ROAS를 올려 비효율 노출부터 정리`:'목표 ROAS 상향으로 비효율 노출 정리'})}
+  else if(v.c>0&&bep&&roas>=bep*1.6&&v.after>0){st='grow';const add=v.c*.25,gain=Math.max(0,add*(roas/100*room/v.s-1)*.6);acts.push({pri:3,t:`예산 +25% 증액 · 목표 ROAS ${P(Math.max(rec,R50(roas*.8)))}로 완화`,why:`ROAS ${P(roas)}가 손익분기 ${P(bep)}의 ${(roas/bep).toFixed(1)}배 — 여유 있음`,eff:gain,how:`광고비 +${W(add)}원 넣으면 순이익 약 +${W(gain)}원(지금 효율의 60% 가정)`})}
+  else if(v.c>0){st='keep';if(bep&&roas<bep*1.25)acts.push({pri:2,t:`목표 ROAS ${P(rec)} 이상 유지`,why:`ROAS ${P(roas)}가 손익분기 ${P(bep)}에 가까움 — 조금만 떨어져도 적자`,eff:0,how:'전환 없는 키워드부터 정리해 여유 확보'})}
+  else st='none';
+  if(v.tgt&&rec&&st!='stop'&&Math.abs(v.tgt-rec)/rec>.4&&!acts.some(a=>/목표 ROAS/.test(a.t)))acts.push({pri:2,t:`목표 ROAS ${P(v.tgt)} → ${P(rec)} 조정 검토`,why:`손익분기 ${P(bep)} 기준 권장값과 차이가 큼 — ${v.tgt>rec?'너무 높아 노출이 막히고 판매 기회를 놓칠 수 있음':'너무 낮아 적자 위험'}`,eff:0,how:''});
+  if(room>0&&v.p>0&&v.sh/v.p>.4)acts.push({pri:2,t:'배송비 부담 줄이기',why:`배송비가 매출이익의 ${P(v.sh/v.p*100)}`,eff:0,how:'묶음 구성·객단가 상향·배송 방식 재검토'});
+  const pv=hist[hist.length-1];
+  if(pv){const cpc=v.clk?v.c/v.clk:null,pcpc=pv.clk?pv.c/pv.clk:null;
+    if(cpc&&pcpc&&cpc>pcpc*1.3)acts.push({pri:2,t:`입찰가 점검 (CPC ${W(pcpc)} → ${W(cpc)}원)`,why:`클릭당 비용이 ${mode=='wk'?'전주':'전월'}보다 ${P((cpc/pcpc-1)*100)} 올랐음`,eff:0,how:'상위 키워드 입찰가·경쟁 상품 가격 확인'});
+    const ctr=v.imp?v.clk/v.imp:null,pctr=pv.imp?pv.clk/pv.imp:null;
+    if(ctr&&pctr&&ctr<pctr*.7&&v.imp>5000)acts.push({pri:2,t:'썸네일·상품명 개선',why:`클릭률 ${P1(pctr*100)} → ${P1(ctr*100)}`,eff:0,how:'대표 이미지·가격 표기·리뷰 수를 경쟁 상품과 비교'});
+    const cvr=v.clk?v.conv/v.clk:null,pcvr=pv.clk?pv.conv/pv.clk:null;
+    if(cvr!=null&&pcvr&&cvr<pcvr*.6&&v.clk>100)acts.push({pri:2,t:'상세페이지·가격 경쟁력 점검',why:`전환율 ${P1(pcvr*100)} → ${P1(cvr*100)}`,eff:0,how:'쿠폰·가격·품절 옵션·최근 리뷰 확인'})}
+  const seq=[...hist,v];let ls=0;for(let i=seq.length-1;i>=0&&seq[i].after<0;i--)ls++;
+  if(ls>=3)acts.push({pri:1,t:`${ls}${per} 연속 적자 — 운영 재검토`,why:`최근 ${ls}${per} 누적 순이익 ${WN(seq.slice(-ls).reduce((a,x)=>a+x.after,0))}원`,eff:0,how:'광고를 멈추고 자연 판매만으로 손익을 한 번 확인'});
+  const kw=(v.kw||[]).filter(k=>k.k!='-'),dash=(v.kw||[]).find(k=>k.k=='-');
+  const BR=['라이브박스','livebox','케민','kemin','사운드피츠','soundpeats','한일','온트레일러','캔스톤','브이스팀','퓨어',...(modelOf(v.name||'')?[modelOf(v.name).toLowerCase()]:[])],isBr=k=>{const t=norm(k.k);return BR.some(b=>t.includes(norm(b)))};
+  if(kw.length&&v.c>0){const zAll=kw.filter(k=>k.c>0&&!AW(k)).sort((a,b)=>b.c-a.c),z=zAll.filter(k=>!isBr(k)),zb=zAll.filter(isBr),zc=z.reduce((a,k)=>a+k.c,0);
+    if(zb.length&&zb.reduce((a,k)=>a+k.c,0)>v.c*.03)acts.push({pri:2,t:`자사 브랜드 키워드 ${zb.length}개 전환 0 — 제외하지 말고 점검`,why:`브랜드·모델명 검색인데 광고비 ${W(zb.reduce((a,k)=>a+k.c,0))}원에 주문 0건`,eff:0,how:`${zb.slice(0,5).map(k=>k.k).join(', ')} — 가격·품절·상세페이지·리뷰 확인, 입찰가만 낮추기`});
+    if(z.length&&zc>v.c*.03)acts.push({pri:zc>v.c*.12?1:2,t:`제외 키워드 등록 ${Math.min(z.length,10)}개`,why:`전환 0건 키워드에 ${W(zc)}원(광고비의 ${P(zc/v.c*100)})`,eff:z.slice(0,10).reduce((a,k)=>a+k.c,0),how:z.slice(0,10).map(k=>`${k.k}(${W(k.c)})`).join(', ')});
+    const up=kw.filter(k=>k.c>0&&OW(k)>=1&&bep&&AW(k)/k.c*100>=Math.max(bep*2,(roas||0)*1.3)).sort((a,b)=>AW(b)-AW(a)).slice(0,6);
+    if(up.length&&st!='stop')acts.push({pri:3,t:`잘 팔리는 키워드 입찰 상향 ${up.length}개`,why:'손익분기의 2배 이상 ROAS + 주문 있음',eff:0,how:up.map(k=>`${k.k}(${P(AW(k)/k.c*100)})`).join(', ')});
+    const dn=kw.filter(k=>k.c>v.c*.02&&OW(k)>=1&&bep&&AW(k)/k.c*100<bep).sort((a,b)=>b.c-a.c).slice(0,6);
+    if(dn.length)acts.push({pri:2,t:`효율 낮은 키워드 입찰 하향 ${dn.length}개`,why:`주문은 있지만 손익분기 ROAS ${P(bep)} 미만`,eff:0,how:dn.map(k=>`${k.k}(${P(AW(k)/k.c*100)})`).join(', ')});
+    if(dash&&dash.c>v.c*.3){const dr=AW(dash)/dash.c*100,sc=kw.reduce((a,k)=>a+k.c,0),sr=sc?kw.reduce((a,k)=>a+AW(k),0)/sc*100:0;
+      if(bep&&dr<bep)acts.push({pri:2,t:'비검색·외부 노출 입찰 낮추기',why:`키워드 없는 노출 ROAS ${P(dr)} < 손익분기 ${P(bep)} · 광고비의 ${P(dash.c/v.c*100)}`,eff:0,how:'쿠팡 광고 설정에서 비검색 영역 입찰가 하향'});
+      else if(sr&&dr>sr*1.5)acts.push({pri:3,t:'비검색 노출 유지·확대',why:`비검색 ROAS ${P(dr)} > 검색 ${P(sr)}`,eff:0,how:'비검색 예산 유지, 검색 키워드는 상위만 남기기'})}}
+  const cms=cmList(v.cm);if(cms.length>=2&&bep)cms.forEach(([c,t])=>{const r=t.c?t.as/t.c*100:0;if(t.c>v.c*.05&&r<bep)acts.push({pri:t.as?2:1,t:`광고 그룹 '${c}' ${t.as?'예산 축소':'중단'}`,why:`그룹 ROAS ${P(r)} < 손익분기 ${P(bep)} (광고비 ${W(t.c)}원)`,eff:t.as?0:t.c,how:t.as?'예산을 절반으로 줄이고 다음 기간 다시 확인':'전환이 없어 중단하고 잘 되는 그룹에 예산 집중'})});
+  acts.sort((a,b)=>a.pri-b.pri||b.eff-a.eff);return{st,roas,bep,rec,room,acts}}
+const PRI={1:['긴급','bad'],2:['개선','warn'],3:['기회','good']};
+const actRow=(a,nm)=>`<tr><td><span class="chip ${PRI[a.pri][1]}">${PRI[a.pri][0]}</span></td>${nm!=null?`<td class="w"><b>${esc(short(nm).t)}</b></td>`:''}<td class="w"><b>${esc(a.t)}</b><small>${esc(a.why)}</small></td><td class="w" style="max-width:420px">${esc(a.how)}</td><td class="n">${a.eff?(a.pri==3?'+':'')+W(a.eff)+'원':''}</td></tr>`;
 /* ---------- 품목 분석 ---------- */
 const kwMerge=lists=>{const m={};for(const L of lists)for(const x of L||[]){const o=m[x.k]||(m[x.k]={k:x.k,c:0,i:0,k2:0,o1:0,o14:0,a1:0,a14:0});for(const f of['c','i','k2','o1','o14','a1','a14'])o[f]+=n(x[f])}return Object.values(m)};
 const norm1=(o,src)=>({cm:o.cm||null,imp:n(src=='w'?o.imp:o.i),clk:n(src=='w'?o.clk:o.k),c:n(o.c),conv:n(src=='w'?o.conv:o.o),as:n(src=='w'?o.as:o.a),s:n(o.s),q:n(o.q),p:n(o.p),sh:n(o.sh),after:n(o.after),tgt:o.tgt||null});
@@ -662,6 +701,22 @@ function rPa(){const sec=tab=='pm'?'pm':'pw',el=$('#t-'+sec),D=paData(),mode=sec
    <span class="note">${mode=='wk'?'주간 탭 자료 기준':'대시보드(이카운트·광고 리포트·직접 입력) 기준'} · 순이익 = 매출이익 − 배송비 − 광고비</span></div>`;
   if(!list.length){el.innerHTML=h+'<div class="box pad">이 기준으로 볼 품목 자료가 없습니다.</div>';return}
   const T=sumV(list.map(x=>x.t)),last=per[per.length-1];
+  const J={};list.forEach(x=>{if(!src(x.p)[last])return;const ps=per.filter(k=>src(x.p)[k]),V=ps.map(k=>src(x.p)[k]);J[x.p.pid]=judge({...V[V.length-1],name:x.p.name},V.slice(0,-1),mode)});
+  const AL=[];list.forEach(x=>{const j=J[x.p.pid];if(j)j.acts.forEach(a=>AL.push({...a,nm:x.p.name}))});AL.sort((a,b)=>a.pri-b.pri||b.eff-a.eff);
+  const cnt=k=>Object.values(J).filter(j=>j&&j.st==k).length,saveE=AL.filter(a=>a.pri<3).reduce((a,x)=>a+x.eff,0),growE=AL.filter(a=>a.pri==3).reduce((a,x)=>a+x.eff,0);
+  const LT=sumV(list.map(x=>src(x.p)[last]).filter(Boolean)),PTt=per.length>1?sumV(list.map(x=>src(x.p)[per[per.length-2]]).filter(Boolean)):null;
+  const worst=list.filter(x=>J[x.p.pid]&&src(x.p)[last].after<0).sort((a,b)=>src(a.p)[last].after-src(b.p)[last].after).slice(0,3),growL=list.filter(x=>J[x.p.pid]&&J[x.p.pid].st=='grow').slice(0,3);
+  h+=`<div class="box" style="border-color:var(--blue)"><h3 style="background:light-dark(#e8efff,#1c2740)">${lab(last)} 판단과 할 일 <small>손익분기 ROAS = (쿠팡 판매단가 ÷ 이카운트 단가) × 매출액 ÷ (매출이익 − 배송비) · 권장 목표 ROAS = 손익분기 × 1.3 · 효과는 추정</small></h3>
+   <ol class="ins">
+    <li>${lab(last)} 전체 순이익 <b class="${LT.after<0?'dn':''}">${WN(LT.after)}원</b>${PTt?` (${mode=='wk'?'전주':'전월'} ${WN(PTt.after)}원)`:''}, 광고 ROAS ${P(LT.c?LT.as/LT.c*100:null)}. 광고 품목 판단: <b class="dn">중단 검토 ${cnt('stop')}</b> · <b>축소 ${cnt('cut')}</b> · 유지 ${cnt('keep')} · <b class="up">확대 ${cnt('grow')}</b>.</li>
+    ${worst.length?`<li>손실이 가장 큰 품목: ${worst.map(x=>`<b>${esc(short(x.p.name).t)}</b>(${WN(src(x.p)[last].after)}원)`).join(', ')}. 아래 '긴급' 항목부터 처리하세요.</li>`:''}
+    ${saveE?`<li>긴급·개선 항목을 실행하면 <b class="up">약 ${W(saveE)}원/${mode=='wk'?'주':'월'}</b>의 낭비 광고비·손실을 줄일 수 있습니다(추정).</li>`:''}
+    ${growL.length?`<li>여유가 있어 키울 품목: ${growL.map(x=>`<b>${esc(short(x.p.name).t)}</b>(ROAS ${P(J[x.p.pid].roas)}, 손익분기 ${P(J[x.p.pid].bep)})`).join(', ')}${growE?` — 예산 확대 시 순이익 약 +${W(growE)}원(추정)`:''}.</li>`:''}
+   </ol>
+   <div class="scroll"><table><thead><tr><th>우선</th><th>품목</th><th>할 일 · 근거</th><th>방법 · 대상</th><th class="n">예상 효과</th></tr></thead><tbody>${AL.slice(0,15).map(a=>actRow(a,a.nm)).join('')||'<tr><td colspan="5" class="note">특별히 손댈 항목이 없습니다.</td></tr>'}</tbody></table></div>
+   ${AL.length>15?`<p class="note pad" style="margin:0">나머지 ${AL.length-15}개 항목은 품목을 눌러 상세에서 확인하세요.</p>`:''}</div>
+   <div class="box"><h3>품목별 판단 <small>${lab(last)} · 줄을 누르면 품목 상세</small></h3><div class="scroll"><table class="pv"><thead><tr><th>품목</th><th>판단</th><th class="n">ROAS</th><th class="n">손익분기 ROAS</th><th class="n">권장 목표 ROAS</th><th class="n">현재 목표</th><th class="n">광고비</th><th class="n">순이익</th><th>가장 먼저 할 일</th></tr></thead><tbody>
+   ${list.filter(x=>J[x.p.pid]&&(J[x.p.pid].st!='none'||src(x.p)[last].after<0)).map(x=>{const j=J[x.p.pid],v=src(x.p)[last];return`<tr data-pid="${esc(x.p.pid)}" tabindex="0" style="cursor:pointer"><td class="w">${esc(x.p.name)}</td><td><span class="chip ${ST[j.st][1]}">${ST[j.st][0]}</span></td><td class="n ${j.bep&&j.roas!=null&&j.roas<j.bep?'dn':''}">${P(j.roas)}</td><td class="n">${j.bep?P(j.bep):'<span class="dn">불가</span>'}</td><td class="n"><b>${j.rec?P(j.rec):'–'}</b></td><td class="n">${v.tgt?P(v.tgt):''}</td><td class="n">${W(v.c)}</td><td class="n">${WN(v.after)}</td><td class="w">${j.acts[0]?esc(j.acts[0].t):'–'}</td></tr>`}).join('')}</tbody></table></div></div>`;
   h+=`<div class="box"><h3>전체 품목 비교 <small>${lab(per[0])} ~ ${lab(last)} 합계 · 줄을 누르면 아래에 품목 상세</small></h3><div class="scroll"><table class="pv"><thead><tr><th>품목</th><th class="n">기간</th><th class="n">광고비</th><th class="n">전환매출</th><th class="n">ROAS</th><th class="n">매출액</th><th class="n">매출액 ROAS</th><th class="n">매출이익</th><th class="n">배송비</th><th class="n">순이익</th><th class="n">순이익률</th><th class="n">최근(${lab(last)}) 순이익</th><th>추세</th></tr></thead><tbody>
    ${list.map(({p,vs,t})=>{const lv=src(p)[last],sp=per.map(x=>src(p)[x]?src(p)[x].after:null);return`<tr data-pid="${esc(p.pid)}" tabindex="0" class="${p.pid==pid?'on':''}" style="cursor:pointer"><td class="w">${esc(p.name)}</td><td class="n">${vs.length}</td><td class="n">${W(t.c)}</td><td class="n">${W(t.as)}</td><td class="n">${P(t.c?t.as/t.c*100:null)}</td><td class="n">${W(t.s)}</td><td class="n">${P(t.c&&t.s?t.s/t.c*100:null)}</td><td class="n">${WN(t.p)}</td><td class="n">${W(t.sh)}</td><td class="n ${t.after<0?'dn':''}"><b>${WN(t.after)}</b></td><td class="n">${P1(t.s?t.after/t.s*100:null)}</td><td class="n ${lv&&lv.after<0?'dn':''}">${lv?WN(lv.after):'–'}</td><td>${spark(sp)}</td></tr>`}).join('')}
    <tr class="gt"><td>합계</td><td></td><td class="n">${W(T.c)}</td><td class="n">${W(T.as)}</td><td class="n">${P(T.c?T.as/T.c*100:null)}</td><td class="n">${W(T.s)}</td><td class="n">${P(T.c&&T.s?T.s/T.c*100:null)}</td><td class="n">${WN(T.p)}</td><td class="n">${W(T.sh)}</td><td class="n">${WN(T.after)}</td><td class="n">${P1(T.s?T.after/T.s*100:null)}</td><td class="n">${WN(list.reduce((a,x)=>a+(src(x.p)[last]?src(x.p)[last].after:0),0))}</td><td></td></tr></tbody></table></div></div>`;
@@ -671,6 +726,7 @@ function rPa(){const sec=tab=='pm'?'pm':'pw',el=$('#t-'+sec),D=paData(),mode=sec
    <div class="kpi" style="margin-bottom:12px"><div><span>최근 ${lab(ps[ps.length-1])} 순이익</span><b class="${lv.after<0?'dn':''}">${WN(lv.after)}원</b>${pv?dP(lv.after,pv.after).replace('전주',mode=='wk'?'전주':'전월'):''}</div>
     <div><span>최근 ROAS</span><b>${P(ro(lv))}</b>${pv?dP(ro(lv),ro(pv),1).replace('전주',mode=='wk'?'전주':'전월'):''}</div><div><span>최근 광고비</span><b>${W(lv.c)}원</b>${pv?dP(lv.c,pv.c).replace('전주',mode=='wk'?'전주':'전월'):''}</div>
     <div><span>기간 합계 순이익</span><b class="${t.after<0?'dn':''}">${WN(t.after)}원</b><i class="note">${ps.length}${mode=='wk'?'주':'개월'}</i></div><div><span>기간 평균 ROAS</span><b>${P(t.c?t.as/t.c*100:null)}</b><i class="note">${tg?'목표 '+P(tg):'목표 없음'}</i></div><div><span>광고비 ÷ 매출액</span><b>${P1(t.s?t.c/t.s*100:null)}</b><i class="note">매출액 ROAS ${P(t.c&&t.s?t.s/t.c*100:null)}</i></div></div>`;
+  {const jj=judge({...lv,name:p.name},V.slice(0,-1),mode);if(jj)h+=`<div style="margin-bottom:12px"><div class="row" style="margin-bottom:6px"><b>${lab(ps[ps.length-1])} 판단</b><span class="chip ${ST[jj.st][1]}">${ST[jj.st][0]}</span><span class="note">손익분기 ROAS ${jj.bep?P(jj.bep):'불가(이익−배송비 ≤ 0)'} · 권장 목표 ROAS <b>${jj.rec?P(jj.rec):'–'}</b> · 실제 ROAS ${P(jj.roas)}</span></div>${jj.acts.length?`<div class="scroll"><table><thead><tr><th>우선</th><th>할 일 · 근거</th><th>방법 · 대상</th><th class="n">예상 효과</th></tr></thead><tbody>${jj.acts.map(a=>actRow(a,null)).join('')}</tbody></table></div>`:'<p class="note">지금은 유지하면 됩니다.</p>'}</div>`}
   const L=[];const nm=`<b>${esc(short(p.name).t)}</b>`;
   if(V.length>1){L.push(`최근 ${lab(ps[ps.length-1])} 순이익 ${WN(lv.after)}원, ${mode=='wk'?'전주':'전월'} ${WN(pv.after)}원보다 <b class="${lv.after>=pv.after?'up':'dn'}">${WN(lv.after-pv.after)}원</b>. 광고비 ${W(pv.c)} → ${W(lv.c)}원, ROAS ${P(ro(pv))} → ${P(ro(lv))}.`)}
   let streak=0;for(let i=V.length-1;i>=0&&V[i].after<0;i--)streak++;if(streak)L.push(`<span class="dn">최근 ${streak}${mode=='wk'?'주':'개월'} 연속 적자</span>입니다. 광고비를 줄이거나 판매가·원가를 점검할 시점이에요.`);
