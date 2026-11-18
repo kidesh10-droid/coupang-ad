@@ -108,6 +108,9 @@ textarea{width:100%;min-height:120px;font-size:14px}
 .mmgrid input:focus{outline:2px solid var(--blue);outline-offset:-2px;text-align:left!important;font-family:ui-monospace,Consolas,monospace}.mmgrid input.num{text-align:right}.mmgrid input.fx{background:light-dark(#f4f8ff,#16202e)}.mmgrid input.err{color:var(--red)}.mmgrid input.neg{color:var(--red);font-weight:600}
 .mmv{display:block;width:100%;text-align:left;padding:10px 12px;border:1px solid var(--line);background:var(--panel);cursor:pointer;font:inherit;color:inherit}.mmv b{display:block}.mmv.on{border-color:var(--blue);background:var(--sel)}button.mmv:hover{border-color:var(--blue)}
 @media(max-width:760px){.mm{grid-template-columns:1fr}.mm aside{max-height:none;border-right:0;border-bottom:1px solid var(--line)}}
+table.xl th.hl{background:light-dark(#fff59d,#4a4520)}
+.upguide{border:1px solid var(--red);border-left:4px solid var(--red);padding:10px 12px;color:var(--red);font-size:13px;line-height:1.6}.upguide table{margin:6px 0;border-collapse:collapse}.upguide th,.upguide td{border:1px solid light-dark(#f3c1c1,#5a2a2a);padding:3px 8px;text-align:left;color:var(--red)}.upguide code{font-size:12px;background:light-dark(#fff0f0,#2a1616);padding:0 3px}.upguide ul{margin:4px 0 0;padding-left:18px}
+.mmgrid input.pick{outline:2px dashed var(--blue);outline-offset:-2px}
 </style>
 </head>
 <body>
@@ -148,11 +151,20 @@ textarea{width:100%;min-height:120px;font-size:14px}
 <section id="t-up" hidden>
   <div class="box"><h3>파일 업로드 <small>여러 파일 한 번에 가능</small></h3>
     <div class="pad">
-      <label class="drop" id="drop" tabindex="0"><b>이카운트 품목별 이익현황</b> · <b>네이버 광고 리포트</b> · <b>주간 광고 리포트</b> · <b>배송비 표</b> 엑셀을 끌어다 놓거나 눌러서 선택<input type="file" id="file" accept=".xlsx,.xls,.csv,.tsv,.txt" multiple hidden></label>
+      <label class="drop" id="drop" tabindex="0"><b>이카운트 품목별 이익현황</b> · <b>네이버 광고 리포트</b> · <b>주간 광고 리포트</b> · <b>일별 성과(품목)</b> · <b>배송비 표</b> 엑셀을 끌어다 놓거나 눌러서 선택<input type="file" id="file" accept=".xlsx,.xls,.csv,.tsv,.txt" multiple hidden></label>
       <div class="row" style="margin-top:10px"><span class="note">광고 리포트 기간</span>
         <select id="adscope" aria-label="광고 리포트 기간"><option value="auto">자동 (파일 이름의 날짜·월)</option><option value="month">위에서 고른 월 전체</option><option value="day">특정 일자 →</option></select>
         <input class="t" type="date" id="addate" aria-label="광고 리포트 일자"></div>
       <p class="note">이카운트는 조회 기간을 읽어서, 하루치(예: 11/18~11/18)면 <b>일자별</b>에, 여러 날이면 <b>그 달</b>에 넣습니다. 광고 리포트는 파일 이름에 '20261118'·'11월18일' 같은 날짜가 있으면 일자로, '11월'만 있으면 월로 넣습니다. 열 이름에 '배송비'가 있는 표는 배송비 기준표로 읽습니다.</p>
+      <div class="upguide"><b>정확하게 넣으려면: 네이버 광고 리포트는 파일 이름에 기간을 적어 주세요</b>
+        <table><thead><tr><th>구분</th><th>파일 이름 예시</th><th>들어가는 곳</th></tr></thead><tbody>
+        <tr><td>일별</td><td><code>광고_20261118.xlsx</code> · <code>11월18일 광고.xlsx</code></td><td>일자별 탭 (그날)</td></tr>
+        <tr><td>주간</td><td><code>광고_20261105_20261111.xlsx</code> (시작일_끝일, 네이버 다운로드 이름 그대로 가능)</td><td>주간 탭 (그 주)</td></tr>
+        <tr><td>월별</td><td><code>11월 네이버광고 리포트.xlsx</code> · <code>광고_2026-11.xlsx</code></td><td>월별 집계·대시보드 (그 달)</td></tr></tbody></table>
+        <ul><li>날짜를 못 찾으면 위에서 고른 달 전체로 들어갑니다. 헷갈리면 위 '광고 리포트 기간'에서 직접 고르세요.</li>
+        <li>이카운트 품목별 이익현황은 파일 안의 조회 기간(예: 2026/11/01 ~ 2026/11/18)을 읽으므로 이름은 상관없습니다. 하루치로 조회하면 일별, 여러 날이면 월로 들어갑니다.</li>
+        <li>주간 광고 시트·일별 성과 시트(네이버 광고 일별 성과 — 품목명)는 시트 안의 날짜를 읽습니다.</li>
+        <li><b>엑셀 기본 양식(열 순서, 추가 열, 서식)은 상관없습니다.</b> 열 이름(광고비, 노출수, 매출이익 등)으로 찾아 읽습니다.</li></ul></div>
     </div></div>
   <div id="upmsg"></div>
   <div class="box" id="mapbox" hidden><h3>열 맞추기 <small id="mapinfo"></small></h3>
@@ -735,8 +747,8 @@ function paData(){const B=wkBuild(),ms=[...new Set([...Object.keys(S.mon),...Obj
   const RP={};months.forEach(m=>{const X=MX[m],cnt={};X.rows.forEach(r=>{const k=K[r.name];cnt[k]=(cnt[k]||0)+1});X.rows.forEach(r=>{let k=K[r.name];if(!r.grp&&(!wkP.has(k)||cnt[k]>1))k='C:'+r.key;(RP[m]||(RP[m]={}))[r.key]=k;const p=get(k,r.name);nice(p,r.name);const v=norm1(r,'m');v.kw=X.ad&&r.adNames&&r.adNames.some(nm=>X.ad.prods[nm]&&X.ad.prods[nm].kw)?kwMerge(r.adNames.map(nm=>X.ad.prods[nm]&&X.ad.prods[nm].kw)):null;
     const e=p.mon[m];if(e){for(const f in v)if(typeof v[f]=='number')e[f]+=v[f];e.kw=kwMerge([e.kw,v.kw]);e.cm=cmAdd(e.cm,v.cm)}else p.mon[m]=v})});
   return{B,MX,months,P,RP}}
-const PF=[['imp','노출'],['clk','클릭'],['ctr','CTR'],['cpc','CPC'],['c','광고비'],['conv','전환'],['cvr','CVR'],['as','전환매출'],['roas','ROAS'],['s','매출액'],['sroas','매출액 ROAS'],['q','수량'],['p','매출이익'],['sh','배송비'],['after','순이익'],['per','개당 순이익']];
-const pfv=(v,f)=>f=='ctr'?P1(v.imp?v.clk/v.imp*100:null):f=='cpc'?(v.clk?W(v.c/v.clk):'–'):f=='cvr'?P1(v.clk?v.conv/v.clk*100:null):f=='roas'?P(v.c?v.as/v.c*100:null):f=='sroas'?P(v.c&&v.s?v.s/v.c*100:null):f=='per'?(v.q?WN(v.after/v.q):'–'):f=='after'||f=='p'?WN(v[f]):W(v[f]);
+const PF=[['imp','노출'],['clk','클릭'],['ctr','CTR'],['cpc','CPC'],['c','광고비'],['conv','전환'],['cvr','CVR'],['as','전환매출'],['roas','ROAS'],['s','매출액'],['sroas','매출액 ROAS'],['q','수량'],['p','매출이익'],['sh','배송비'],['psh','배송비 차감이익'],['after','순이익'],['per','개당 순이익']];
+const pfv=(v,f)=>f=='ctr'?P1(v.imp?v.clk/v.imp*100:null):f=='cpc'?(v.clk?W(v.c/v.clk):'–'):f=='cvr'?P1(v.clk?v.conv/v.clk*100:null):f=='roas'?P(v.c?v.as/v.c*100:null):f=='sroas'?P(v.c&&v.s?v.s/v.c*100:null):f=='per'?(v.q?WN(v.after/v.q):'–'):f=='psh'?WN(n(v.p)-n(v.sh)):f=='after'||f=='p'?WN(v[f]):W(v[f]);
 const sumV=L=>{const t={imp:0,clk:0,c:0,conv:0,as:0,s:0,q:0,p:0,sh:0,after:0};L.forEach(v=>{for(const f in t)t[f]+=n(v[f])});return t};
 function planFor(D,mode,key){const per=mode=='wk'?D.B.ids:D.months,src=p=>mode=='wk'?p.wk:p.mon,lab=x=>mode=='wk'?wlab(D.B.W[x]):`${x.slice(0,4)}.${x.slice(5)}`,idx=per.indexOf(key);if(idx<0)return null;
   const perU=per.slice(0,idx+1),last=key,list=Object.values(D.P).map(p=>{const vs=perU.map(x=>src(p)[x]).filter(Boolean);return{p,vs,t:sumV(vs)}}).filter(x=>x.vs.length&&src(x.p)[last]).sort((a,b)=>b.t.c-a.t.c||b.t.s-a.t.s);
@@ -784,9 +796,9 @@ function rPa(){const sec=tab=='pm'?'pm':'pw',el=$('#t-'+sec),D=paData(),mode=sec
   if(!list.length){el.innerHTML=h+'<div class="box pad">이 기준으로 볼 품목 자료가 없습니다.</div>';return}
   const T=sumV(list.map(x=>x.t)),last=per[per.length-1];
   const PL=planFor(D,mode,last),J=PL.J,tgtOf=PL.tgtOf;h+=PL.h;
-  h+=`<div class="box"><h3>전체 품목 비교 <small>${lab(per[0])} ~ ${lab(last)} 합계 · 줄을 누르면 아래에 품목 상세</small></h3><div class="scroll"><table class="pv"><thead><tr><th>품목</th><th class="n">기간</th><th class="n">광고비</th><th class="n">전환매출</th><th class="n">ROAS</th><th class="n">매출액</th><th class="n">매출액 ROAS</th><th class="n">매출이익</th><th class="n">배송비</th><th class="n">순이익</th><th class="n">순이익률</th><th class="n">최근(${lab(last)}) 순이익</th><th>추세</th></tr></thead><tbody>
-   ${list.map(({p,vs,t})=>{const lv=src(p)[last],sp=per.map(x=>src(p)[x]?src(p)[x].after:null);return`<tr data-pid="${esc(p.pid)}" tabindex="0" class="${p.pid==pid?'on':''}" style="cursor:pointer"><td class="w">${esc(p.name)}</td><td class="n">${vs.length}</td><td class="n">${W(t.c)}</td><td class="n">${W(t.as)}</td><td class="n">${P(t.c?t.as/t.c*100:null)}</td><td class="n">${W(t.s)}</td><td class="n">${P(t.c&&t.s?t.s/t.c*100:null)}</td><td class="n">${WN(t.p)}</td><td class="n">${W(t.sh)}</td><td class="n ${t.after<0?'dn':''}"><b>${WN(t.after)}</b></td><td class="n">${P1(t.s?t.after/t.s*100:null)}</td><td class="n ${lv&&lv.after<0?'dn':''}">${lv?WN(lv.after):'–'}</td><td>${spark(sp)}</td></tr>`}).join('')}
-   <tr class="gt"><td>합계</td><td></td><td class="n">${W(T.c)}</td><td class="n">${W(T.as)}</td><td class="n">${P(T.c?T.as/T.c*100:null)}</td><td class="n">${W(T.s)}</td><td class="n">${P(T.c&&T.s?T.s/T.c*100:null)}</td><td class="n">${WN(T.p)}</td><td class="n">${W(T.sh)}</td><td class="n">${WN(T.after)}</td><td class="n">${P1(T.s?T.after/T.s*100:null)}</td><td class="n">${WN(list.reduce((a,x)=>a+(src(x.p)[last]?src(x.p)[last].after:0),0))}</td><td></td></tr></tbody></table></div></div>`;
+  h+=`<div class="box"><h3>전체 품목 비교 <small>${lab(per[0])} ~ ${lab(last)} 합계 · 줄을 누르면 아래에 품목 상세</small></h3><div class="scroll"><table class="pv"><thead><tr><th>품목</th><th class="n">기간</th><th class="n">광고비</th><th class="n">전환매출</th><th class="n">ROAS</th><th class="n">매출액</th><th class="n">매출액 ROAS</th><th class="n">매출이익</th><th class="n">배송비</th><th class="n">배송비 차감이익</th><th class="n">순이익</th><th class="n">순이익률</th><th class="n">최근(${lab(last)}) 순이익</th><th>추세</th></tr></thead><tbody>
+   ${list.map(({p,vs,t})=>{const lv=src(p)[last],sp=per.map(x=>src(p)[x]?src(p)[x].after:null);return`<tr data-pid="${esc(p.pid)}" tabindex="0" class="${p.pid==pid?'on':''}" style="cursor:pointer"><td class="w">${esc(p.name)}</td><td class="n">${vs.length}</td><td class="n">${W(t.c)}</td><td class="n">${W(t.as)}</td><td class="n">${P(t.c?t.as/t.c*100:null)}</td><td class="n">${W(t.s)}</td><td class="n">${P(t.c&&t.s?t.s/t.c*100:null)}</td><td class="n">${WN(t.p)}</td><td class="n">${W(t.sh)}</td><td class="n ${t.p-t.sh<0?'dn':''}">${WN(t.p-t.sh)}</td><td class="n ${t.after<0?'dn':''}"><b>${WN(t.after)}</b></td><td class="n">${P1(t.s?t.after/t.s*100:null)}</td><td class="n ${lv&&lv.after<0?'dn':''}">${lv?WN(lv.after):'–'}</td><td>${spark(sp)}</td></tr>`}).join('')}
+   <tr class="gt"><td>합계</td><td></td><td class="n">${W(T.c)}</td><td class="n">${W(T.as)}</td><td class="n">${P(T.c?T.as/T.c*100:null)}</td><td class="n">${W(T.s)}</td><td class="n">${P(T.c&&T.s?T.s/T.c*100:null)}</td><td class="n">${WN(T.p)}</td><td class="n">${W(T.sh)}</td><td class="n">${WN(T.p-T.sh)}</td><td class="n">${WN(T.after)}</td><td class="n">${P1(T.s?T.after/T.s*100:null)}</td><td class="n">${WN(list.reduce((a,x)=>a+(src(x.p)[last]?src(x.p)[last].after:0),0))}</td><td></td></tr></tbody></table></div></div>`;
   const cur1=list.find(x=>x.p.pid==pid),p=cur1.p,ps=per.filter(x=>src(p)[x]),V=ps.map(x=>src(p)[x]),t=cur1.t,lv=V[V.length-1],pv=V.length>1?V[V.length-2]:null,tg=V.map(v=>v.tgt).filter(Boolean).pop()||null;
   const ro=v=>v&&v.c?v.as/v.c*100:null;
   h+=`<div class="box" id="pad"><h3>${esc(p.name)} · ${mode=='wk'?'주간':'월간'} 상세 <span style="flex:1"></span><select id="pasel" aria-label="품목 선택">${list.map(x=>`<option value="${esc(x.p.pid)}" ${x.p.pid==pid?'selected':''}>${esc(short(x.p.name).t)}</option>`).join('')}</select></h3><div class="pad">
@@ -805,7 +817,7 @@ function rPa(){const sec=tab=='pm'?'pm':'pw',el=$('#t-'+sec),D=paData(),mode=sec
   h+=`<ol class="ins" style="padding-left:20px">${L.map(s=>`<li>${s}</li>`).join('')||'<li>기간이 하나뿐이라 추이 비교는 다음 기간 자료가 쌓이면 나옵니다.</li>'}</ol></div>
    <div class="lg"><span><i style="background:var(--blue)"></i>매출액</span><span><i style="background:var(--sky)"></i>전환매출</span><span><i style="background:var(--gray)"></i>광고비</span><span><i style="background:var(--red);height:3px"></i>ROAS(오른쪽 축)</span></div><div class="fig" style="min-height:280px"><svg id="cpa"></svg></div>
    <div class="scroll"><table><thead><tr><th>${mode=='wk'?'주차':'월'}</th>${PF.map(([,l])=>`<th class="n">${l}</th>`).join('')}<th>판정</th></tr></thead><tbody>
-   ${ps.map((x,i)=>{const v=V[i];return`<tr class="${x==UI.pkp?'today':''}"><td>${lab(x)}</td>${PF.map(([f])=>`<td class="n ${(f=='after'||f=='p')&&v[f]<0?'dn':''} ${f=='roas'&&v.tgt&&v.c&&ro(v)<v.tgt?'dn':''}">${pfv(v,f)}</td>`).join('')}<td>${v.after<0?'<span class="chip bad">적자</span>':v.tgt&&v.c&&ro(v)<v.tgt?'<span class="chip warn">목표 미달</span>':v.c||v.s?'<span class="chip good">양호</span>':''}</td></tr>`}).join('')}
+   ${ps.map((x,i)=>{const v=V[i];return`<tr class="${x==UI.pkp?'today':''}"><td>${lab(x)}</td>${PF.map(([f])=>`<td class="n ${(f=='after'||f=='p')&&v[f]<0||f=='psh'&&n(v.p)-n(v.sh)<0?'dn':''} ${f=='roas'&&v.tgt&&v.c&&ro(v)<v.tgt?'dn':''}">${pfv(v,f)}</td>`).join('')}<td>${v.after<0?'<span class="chip bad">적자</span>':v.tgt&&v.c&&ro(v)<v.tgt?'<span class="chip warn">목표 미달</span>':v.c||v.s?'<span class="chip good">양호</span>':''}</td></tr>`}).join('')}
    <tr class="gt"><td>합계</td>${PF.map(([f])=>`<td class="n">${pfv(t,f)}</td>`).join('')}<td></td></tr></tbody></table></div></div>`;
   {const cps=ps.filter((x,i)=>cmList(V[i].cm).length);if(cps.length){const camps={};cps.forEach(x=>cmList(src(p)[x].cm).forEach(([c,t])=>{camps[c]=(camps[c]||0)+t.c}));const CL=Object.keys(camps).sort((a,b)=>camps[b]-camps[a]),lastP=cps[cps.length-1],LV=src(p)[lastP].cm;
     const tt=cmList(LV).reduce((a,[,t])=>{for(const f in a)a[f]+=t[f];return a},{imp:0,clk:0,c:0,conv:0,as:0});
@@ -890,18 +902,21 @@ function rDL(){const L=(S.dl&&S.dl.blocks)||[],b=L.find(x=>x.id==UI.dlb)||L[0],[
     const per=(b.periods||[]).filter(p=>p.from.slice(0,7)==cur||p.to.slice(0,7)==cur);
     /* 목표 로하스 변경 기준 자동 기간: 날짜별 목표값을 이어 받아 같은 목표끼리 묶음 */
     const AG=[];{let tg=null;const prevD=Object.keys(b.rows).filter(d=>d<ds[0]).sort().reverse().find(d=>b.rows[d].tgt!=null);if(prevD)tg=n(b.rows[prevD].tgt);
-      for(const d of ds){const o=b.rows[d];if(o&&o.tgt!=null&&o.tgt!=='')tg=n(o.tgt);const has=o&&DLF.some(k=>o[k]!=null&&o[k]!=='');if(!has||tg==null)continue;const L=AG[AG.length-1];if(L&&L.tgt==tg&&L.last==addDays(d,-1)){L.days.push(d);L.last=d}else AG.push({tgt:tg,days:[d],last:d})}}
+      for(const d of ds){const o=b.rows[d];if(o&&o.tgt!=null&&o.tgt!==''&&n(o.tgt)>0)tg=n(o.tgt);const has=o&&['imp','g','nw','as','clk','s','q','p'].some(k=>n(o[k])!==0);if(!has||tg==null)continue;const L=AG[AG.length-1];if(L&&L.tgt==tg&&L.last==addDays(d,-1)){L.days.push(d);L.last=d}else AG.push({tgt:tg,days:[d],last:d})}}
     const avgRow=(lab,ds2)=>{const t=dlSum(b,ds2),k2=ds2.length||1,a={};DLF.forEach(x=>a[x]=t[x]/k2);const k=dlCalc(t,u),ka=dlCalc(a,u);return`<tr class="avg"><td colspan="2">${esc(lab)}</td><td class="n">${W(a.imp)}</td><td class="n">${(a.conv).toFixed(1)}</td><td class="n">${pc2(k.cvr)}</td><td class="n">${W(a.g)}</td><td class="n">${W(a.nw)}</td><td class="n">${W(a.as)}</td><td class="n">${pc2(k.roas)}</td><td class="n">${W(a.clk)}</td><td class="n">${nn(k.cpc)}</td><td class="n">${W(a.s)}</td><td class="n">${(a.q).toFixed(1)}</td><td class="n">${WN(a.p)}</td><td class="n">${nn(ka.sh)}</td><td class="n">${ka.after!=null?WN(ka.after):''}</td><td class="n">${nn(k.per)}</td><td class="n">${nn(k.adper)}</td><td class="n">${nn(k.clkc)}</td><td class="n">${nn(k.price)}</td><td class="n">${pc2(k.sroas)}</td><td></td><td></td><td></td></tr>`};
     const agLab=g=>`목표 ${P(g.tgt)} · ${+g.days[0].slice(5,7)}/${+g.days[0].slice(8)}~${+g.last.slice(5,7)}/${+g.last.slice(8)} (${g.days.length}일)`;
     const agRows=AG.map(g=>sumRow(agLab(g)+' 합산',g.days,'st',g.tgt)+avgRow('　└ 일평균',g.days)).join('');
-    const cmpT=AG.length?(()=>{const R=AG.map(g=>{const t=dlSum(b,g.days),k=dlCalc(t,u),dn=g.days.length;return{g,dn,c:(t.g+t.nw)/dn,roas:k.roas,sroas:k.sroas,after:k.after!=null?k.after/dn:null,q:t.q/dn,imp:t.imp/dn}});
+    const kLab=g=>{const a=g.days[0],z=g.last,am=+a.slice(5,7),zm=+z.slice(5,7);return a==z?`${am}월 ${+a.slice(8)}일`:`${am}월 ${+a.slice(8)}일 부터 ${am==zm?'':zm+'월 '}${+z.slice(8)}일`};
+    const cmpT=AG.length?(()=>{const R=AG.map(g=>{const t=dlSum(b,g.days),k=dlCalc(t,u),dn=g.days.length;return{g,dn,t,k,c:(t.g+t.nw)/dn,roas:k.roas,after:k.after!=null?k.after/dn:null,imp:t.imp/dn}});
       const best=R.filter(r=>r.after!=null).sort((a,b)=>b.after-a.after)[0],worst=R.filter(r=>r.after!=null).sort((a,b)=>a.after-b.after)[0],L=[];
-      if(best&&R.length>1)L.push(`하루 순이익이 가장 좋았던 목표는 <b>${P(best.g.tgt)}</b>(${agLab(best.g)}): 일평균 ${WN(best.after)}원, 광고비 ${W(best.c)}원, ROAS ${pc2(best.roas)}.`);
+      if(best&&R.length>1)L.push(`하루 순이익이 가장 좋았던 목표는 <b>${P(best.g.tgt)}</b>(${kLab(best.g)}): 일평균 ${WN(best.after)}원, 광고비 ${W(best.c)}원, ROAS ${pc2(best.roas)}.`);
       if(worst&&worst!==best&&R.length>1)L.push(`가장 나빴던 목표는 <b>${P(worst.g.tgt)}</b>: 일평균 ${WN(worst.after)}원(광고비 ${W(worst.c)}원, ROAS ${pc2(worst.roas)}).`);
       for(let i=1;i<R.length;i++){const a=R[i-1],c=R[i];L.push(`${P(a.g.tgt)} → <b>${P(c.g.tgt)}</b>로 ${c.g.tgt>a.g.tgt?'올린':'내린'} 뒤: 일평균 광고비 ${W(a.c)} → ${W(c.c)}원, 노출 ${W(a.imp)} → ${W(c.imp)}, ROAS ${pc2(a.roas)} → ${pc2(c.roas)}, 일평균 순이익 <b class="${c.after>=a.after?'up':'dn'}">${WN(a.after)} → ${WN(c.after)}원</b>.`)}
-      return`<div class="pad"><b>목표 로하스 변경 효과</b> <span class="note">날짜별 '네이버 설정 목표 로하스'가 바뀐 지점에서 자동으로 기간을 나눔 · 일수가 달라 일평균으로 비교</span>
-       <div class="scroll" style="margin-top:6px"><table><thead><tr><th>기간</th><th class="n">목표 로하스</th><th class="n">일수</th><th class="n">일평균 노출</th><th class="n">일평균 광고비</th><th class="n">ROAS</th><th class="n">매출액 ROAS</th><th class="n">일평균 판매</th><th class="n">일평균 순이익</th></tr></thead><tbody>
-       ${R.map(r=>`<tr class="${r===best&&R.length>1?'today':''}"><td>${+r.g.days[0].slice(5,7)}/${+r.g.days[0].slice(8)}~${+r.g.last.slice(5,7)}/${+r.g.last.slice(8)}</td><td class="n"><b>${P(r.g.tgt)}</b></td><td class="n">${r.dn}</td><td class="n">${W(r.imp)}</td><td class="n">${W(r.c)}</td><td class="n">${pc2(r.roas)}</td><td class="n">${pc2(r.sroas)}</td><td class="n">${r.q.toFixed(1)}</td><td class="n"><b>${r.after!=null?WN(r.after):''}</b></td></tr>`).join('')}</tbody></table></div>
+      const tot={t:dlSum(b,AG.flatMap(g=>g.days))};tot.k=dlCalc(tot.t,u);tot.dn=AG.reduce((a,g)=>a+g.days.length,0);
+      const row=(lab,dn,t,k,tg,cls)=>`<tr class="${cls||''}"><td class="w" style="white-space:nowrap"><b>${esc(lab)}</b></td><td class="n">${dn}</td><td class="n">${W(t.imp)}</td><td class="n">${W(t.conv)}</td><td class="n">${pc2(k.cvr)}</td><td class="n">${W(t.g)}</td><td class="n">${W(t.nw)}</td><td class="n">${W(t.as)}</td><td class="n">${pc2(k.roas)}</td><td class="n">${W(t.clk)}</td><td class="n">${nn(k.cpc)}</td><td class="n"><b>${W(t.s)}</b></td><td class="n">${(t.q/dn).toFixed(1)}</td><td class="n"><b>${W(t.q)}</b></td><td class="n">${WN(t.p)}</td><td class="n">${nn(k.sh)}</td><td class="n">${k.after!=null?WN(k.after):''}</td><td class="n">${k.after!=null?WN(k.after/dn):''}</td><td class="n">${nn(k.per)}</td><td class="n">${nn(k.adper)}</td><td class="n">${nn(k.clkc)}</td><td class="n"><b>${tg?P(tg):''}</b></td></tr>`;
+      return`<div class="pad"><b>목표 로하스 변경 효과</b> <span class="note">엑셀 '기간별 합산' 양식 · 날짜별 '네이버 설정 목표 로하스'가 바뀐 날에서 자동으로 기간을 나눔 · 값은 기간 합계, 일평균 판매·일평균 순이익으로 기간 길이 차이를 맞춰 비교</span>
+       <div class="scroll" style="margin-top:6px"><table class="xl"><thead><tr><th>기간</th><th class="n">일수</th><th class="n">총 노출수</th><th class="n">광고 전환<br>판매 수</th><th class="n">전환율<br>(CVR)</th><th class="n hl">네이버<br>매출성장형</th><th class="n hl">네이버 신규<br>고객 광고</th><th class="n">총 전환매출</th><th class="n">총 ROAS</th><th class="n">클릭수<br>(회)</th><th class="n">클릭당비용<br>(CPS)</th><th class="n">매출액<br>(이카운트 기준)</th><th class="n">일평균<br>판매</th><th class="n">총 판매<br>수량</th><th class="n">매출이익<br>(이카운트 기준)</th><th class="n">배송비</th><th class="n">순 광고비<br>제외 이익</th><th class="n">일평균<br>순이익</th><th class="n">개당<br>순이익</th><th class="n">개당<br>광고비</th><th class="n">클릭당<br>광고비</th><th class="n">목표<br>로하스</th></tr></thead><tbody>
+       ${R.map(r=>row(kLab(r.g),r.dn,r.t,r.k,r.g.tgt,r===best&&R.length>1?'today':'')).join('')}${R.length>1?row('합계',tot.dn,tot.t,tot.k,null,'gt'):''}</tbody></table></div>
        <ol class="ins" style="padding-left:20px">${L.map(x=>`<li>${x}</li>`).join('')}</ol></div>`})():'';
     h+=`<div class="pad" style="padding-top:0"><div style="font-size:18px;font-weight:700;margin-bottom:6px">네이버 광고 일별 성과 — <input class="t" data-dlmeta="title" value="${esc(b.title)}" style="font-size:16px;font-weight:700;min-width:220px" aria-label="품목 이름"></div>
      <div class="row" style="margin-bottom:8px"><label class="note">개당 배송비 <input class="t" data-dlmeta="unit" inputmode="numeric" value="${b.unit?W(b.unit):''}" style="width:110px;background:#ffff8c;color:#000" aria-label="개당 배송비"></label><label class="note">관리주체 <input class="t" data-dlmeta="owner" value="${esc(b.owner||'')}" style="width:140px" aria-label="관리주체"></label><label class="note">메모 <input class="t" data-dlmeta="sub" value="${esc(b.sub||'')}" style="width:180px" aria-label="메모"></label><span style="flex:1"></span><button class="b s r" id="dldel">이 시트 삭제</button></div></div>
@@ -1241,10 +1256,17 @@ function fParse(src){const T=[],re=/\s*(?:(\d+(?:\.\d+)?|\.\d+)|("(?:[^"]|"")*")
     if(t[0]=='id'){p++;if(t[1]=='TRUE')return['n',true];if(t[1]=='FALSE')return['n',false];eat('(');const a=[];if(!isOp(')')){a.push(cmp());while(isOp(',')){p++;a.push(cmp())}}eat(')');return['f',t[1],a]}
     if(isOp('(')){p++;const x=cmp();eat(')');return x}throw new FE('#ERR')};
   const ast=cmp();if(p<T.length)throw new FE('#ERR');return ast}
+/* 한/영 키가 한글일 때 친 수식(=ㅁ2+ㅠ2 → =A2+B2)도 읽기 */
+const HK={'ㅂ':'q','ㅈ':'w','ㄷ':'e','ㄱ':'r','ㅅ':'t','ㅛ':'y','ㅕ':'u','ㅑ':'i','ㅐ':'o','ㅔ':'p','ㅁ':'a','ㄴ':'s','ㅇ':'d','ㄹ':'f','ㅎ':'g','ㅗ':'h','ㅓ':'j','ㅏ':'k','ㅣ':'l','ㅋ':'z','ㅌ':'x','ㅊ':'c','ㅍ':'v','ㅠ':'b','ㅜ':'n','ㅡ':'m','ㅃ':'Q','ㅉ':'W','ㄸ':'E','ㄲ':'R','ㅆ':'T','ㅒ':'O','ㅖ':'P',
+  'ㅘ':'hk','ㅙ':'ho','ㅚ':'hl','ㅝ':'nj','ㅞ':'np','ㅟ':'nl','ㅢ':'ml','ㄳ':'rt','ㄵ':'sw','ㄶ':'sg','ㄺ':'fr','ㄻ':'fa','ㄼ':'fq','ㄽ':'ft','ㄾ':'fx','ㄿ':'fv','ㅀ':'fg','ㅄ':'qt'};
+const CHO='ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ',JUNG='ㅏㅐㅑㅒㅓㅔㅕㅖㅗㅘㅙㅚㅛㅜㅝㅞㅟㅠㅡㅢㅣ',JONG=['','ㄱ','ㄲ','ㄳ','ㄴ','ㄵ','ㄶ','ㄷ','ㄹ','ㄺ','ㄻ','ㄼ','ㄽ','ㄾ','ㄿ','ㅀ','ㅁ','ㅂ','ㅄ','ㅅ','ㅆ','ㅇ','ㅈ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
+const hanEn=src=>{let out='',q=false;for(const ch of src){if(ch=='"')q=!q;if(q){out+=ch;continue}const c=ch.charCodeAt(0);
+  if(c>=0xAC00&&c<=0xD7A3){const i=c-0xAC00,a=CHO[Math.floor(i/588)],b=JUNG[Math.floor(i%588/28)],z=JONG[i%28];out+=(HK[a]||'')+(HK[b]||'')+(z?HK[z]||'':'')}else out+=HK[ch]||ch}return out};
+const fParseK=src=>{try{return fParse(src)}catch(e){if(/[ㄱ-ㅣ가-힣]/.test(src)){try{return fParse(hanEn(src))}catch(x){}}throw e}};
 function sheetCalc(cells){const memo={},stk=new Set(),ast={};
   const raw2v=raw=>{const t=String(raw).trim(),c=t.replace(/,/g,'');if(c!==''&&!isNaN(c))return+c;if(/^-?[\d.]+%$/.test(c))return parseFloat(c)/100;return t};
   const val=ref=>{if(ref in memo)return memo[ref];if(stk.has(ref))return new FE('#순환');const raw=cells[ref];let v;
-    if(raw==null||raw==='')v=null;else if(String(raw)[0]=='='){stk.add(ref);try{if(!ast[ref])ast[ref]=fParse(String(raw).slice(1));v=ev(ast[ref]);if(Array.isArray(v))v=v[0]}catch(e){v=e instanceof FE?e:new FE('#ERR')}stk.delete(ref)}else v=raw2v(raw);
+    if(raw==null||raw==='')v=null;else if(String(raw)[0]=='='){stk.add(ref);try{if(!ast[ref])ast[ref]=fParseK(String(raw).slice(1));v=ev(ast[ref]);if(Array.isArray(v))v=v[0]}catch(e){v=e instanceof FE?e:new FE('#ERR')}stk.delete(ref)}else v=raw2v(raw);
     memo[ref]=v;return v};
   const num=v=>{if(v instanceof FE)throw v;if(v==null||v==='')return 0;if(typeof v=='boolean')return+v;if(typeof v=='number')return v;const c=String(v).replace(/,/g,'').trim();if(c!==''&&!isNaN(c))return+c;throw new FE('#값')};
   const range=(a,b)=>{const pa=a.match(/^([A-Z]+)(\d+)$/),pb=b.match(/^([A-Z]+)(\d+)$/);const c1=Math.min(colN(pa[1]),colN(pb[1])),c2=Math.max(colN(pa[1]),colN(pb[1])),r1=Math.min(+pa[2],+pb[2]),r2=Math.max(+pa[2],+pb[2]);
@@ -1307,7 +1329,7 @@ function rMemo(){const el=$('#mm');if(!el)return;MM.drawn=MM.ver;
         g+=`<td><input data-c="${ref}" value="${esc(raw==null||raw===''?'':fmtV(v))}" class="${typeof v=='number'?'num':''} ${typeof v=='number'&&v<0?'neg':''} ${isF?'fx':''} ${v instanceof FE?'err':''}" spellcheck="false" autocomplete="off"></td>`}g+='</tr>'}
       ed=`<div class="pad">${head}<div class="mmbar"><b id="mmref">${MM.cell||'A1'}</b><input class="t" id="mmfx" placeholder="값 또는 수식 (= 로 시작)" value="${esc(MM.cell&&C[MM.cell]||'')}" spellcheck="false"></div>
         <div class="scroll mmgw"><table class="mmgrid">${g}</table></div>
-        <div class="row" style="gap:6px;margin-top:8px"><button class="b s" id="mmrow">행 10개 추가</button><button class="b s" id="mmcol">열 추가</button><span class="note">수식은 = 로 시작 · SUM AVERAGE MIN MAX COUNT ROUND IF SUMIF IFERROR · + − * / ^ & · 예) =SUM(B2:B10) · =B2*C2 · =ROUND(D2/E2*100,1) · Enter 아래 칸 · 방향키 이동</span></div></div>`}}
+        <div class="row" style="gap:6px;margin-top:8px"><button class="b s" id="mmrow">행 10개 추가</button><button class="b s" id="mmcol">열 추가</button><span class="note">수식은 = 로 시작 · 수식 치는 중 다른 칸을 누르면 그 칸 주소가 들어감(Shift+클릭 = 범위) · SUM AVERAGE MIN MAX COUNT ROUND IF SUMIF IFERROR · + − * / ^ & · 예) =SUM(B2:B10) · =B2*C2 · =ROUND(D2/E2*100,1) · Enter 아래 칸 · 방향키 이동</span></div></div>`}}
   el.innerHTML=`<div class="box"><h3>${esc(o.name)} <small>열림 · 30분 동안 쓰지 않으면 자동으로 잠김</small><span style="flex:1"></span><span class="note" id="mmst">${esc(MM.st)}</span>
       <button class="b s" id="mmpwc">비밀번호 변경</button><button class="b s r" id="mmvdel">폴더 전체 삭제</button><button class="b s p" id="mmlock">잠그기</button></h3>
     <div id="mmpwf"></div><div class="mm"><aside>${side}<button class="b s" id="mmaddf" style="margin-top:6px">+ 폴더 추가</button></aside><div class="mmed">${ed}</div></div></div>`}
@@ -1353,6 +1375,13 @@ document.addEventListener('change',e=>{const t=e.target;if(!t.closest||!t.closes
 document.addEventListener('focusin',e=>{const t=e.target;if(!t.matches||!t.matches('#mm input[data-c]'))return;const d=mDoc();MM.cell=t.dataset.c;const raw=d.cells[MM.cell]??'';t.value=raw;
   const r=$('#mmref');if(r)r.textContent=MM.cell;const fx=$('#mmfx');if(fx)fx.value=raw;t.select()});
 document.addEventListener('focusout',e=>{const t=e.target;if(t.matches&&t.matches('#mm input[data-c]'))setTimeout(mRefresh,0)});
+/* 엑셀처럼: 수식을 치는 중(= 뒤, 연산자·괄호·쉼표 뒤)에 다른 칸을 누르면 그 칸 주소가 들어감 · Shift+클릭 = 범위 */
+document.addEventListener('mousedown',e=>{const c=e.target.closest&&e.target.closest('#mm input[data-c]');if(!c)return;const a=document.activeElement;
+  if(!a||a===c||!a.matches('#mm input[data-c],#mmfx'))return;const v=a.value;if(v[0]!='=')return;const pos=a.selectionStart??v.length,pt=MM.pt&&MM.pt.el===a&&MM.pt.end===pos&&v.slice(0,MM.pt.start)===MM.pt.pre?MM.pt:null;
+  const before=pt?v.slice(0,pt.start):v.slice(0,pos);if(!pt&&!/[=(,;+\-*/^&<>:\s]$/.test(before))return;e.preventDefault();
+  const anchor=e.shiftKey&&pt?pt.anchor:c.dataset.c,ref=e.shiftKey&&pt&&pt.anchor!=c.dataset.c?pt.anchor+':'+c.dataset.c:c.dataset.c,nv=before+ref+v.slice(pt?pt.end:pos),np=before.length+ref.length;
+  a.value=nv;a.setSelectionRange(np,np);MM.pt={el:a,start:before.length,end:np,anchor,pre:before};a.dispatchEvent(new Event('input',{bubbles:true}));
+  $$('#mm input.pick').forEach(x=>x.classList.remove('pick'));c.classList.add('pick');setTimeout(()=>c.classList.remove('pick'),700)});
 document.addEventListener('keydown',e=>{const t=e.target;if(!t.matches)return;
   if(t.id=='mmpw'&&e.key=='Enter')$('#mmgo').click();if(t.id=='mmn2'&&e.key=='Enter')$('#mmmk').click();if(t.id=='mmc2'&&e.key=='Enter')$('#mmcgo').click();
   if(t.id=='mmfx'&&e.key=='Enter'){e.preventDefault();mRefresh();const c=$(`#mm input[data-c="${MM.cell}"]`);if(c)c.focus()}
