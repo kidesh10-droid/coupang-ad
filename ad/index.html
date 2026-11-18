@@ -180,8 +180,11 @@ const DEF_SHIP=[["[PE11821W] 휴대용 커피머신 2세대 화이트",4600],["[
 /* 기본 합산 그룹: 이름에 kw가 들어간 품목은 한 줄로 */
 const DEF_GRP=[{kws:['탄소매트','전기매트'],name:'라이브박스 탄소매트 [한일]',code:'E4-036-03063'}];
 /* 기본 광고 상품 → 이카운트 품목 연결 (광고 상품명 앞부분) */
+/* 쿠팡 광고 그룹(캠페인)별 현재 목표 ROAS — 2026-11-18 쿠팡 광고센터 기준 */
+const DEF_CTGT={'AI 스마트 광고_기타상품':850,'퓨어스팀 다리미_디앤디컴 관리':350,'진공포장기_디앤디컴 관리':200,'스팀다리미_디앤디컴 관리':850,'[매출최적화] 한일 의료기 매트_스피츠애드_시즌강화':400,'헤어드라이기_디앤디컴 관리':562,'사운드피츠(T3 Pro)_디앤디컴 관리':650,'라이브박스 가습기_디앤디컴 관리':750,'온트레일러_에어건_디앤디컴 관리':600,'휴대용 커피머신_디앤디컴 관리':950};
+const ctgtOf=c=>{const k=norm(c);for(const x in S.ctgt)if(norm(x)==k)return n(S.ctgt[x]);for(const x in DEF_CTGT)if(norm(x)==k)return DEF_CTGT[x];return null};
 const DEF_ADMAP=[['가정용 진공포장기 진공기 압축기 음식보관 유럽인증 진공롤 식품보관','E4-036-02021']];
-let S={wk:{},days:{},months:{},camps:{},mon:{},day:{},map:{},ship:{},grp:{},names:{},shipNames:null,cfg:{...DEF}};
+let S={ctgt:{},wk:{},days:{},months:{},camps:{},mon:{},day:{},map:{},ship:{},grp:{},names:{},shipNames:null,cfg:{...DEF}};
 const pad=v=>String(v).padStart(2,'0');
 const iso=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
 const TODAY=iso(new Date());
@@ -299,21 +302,21 @@ async function flush(){
   try{for(const k of[...dirty]){dirty.delete(k);const b=docBody(k);if(b)await col.doc(k).set(b);else await col.doc(k).delete()}setSt('클라우드에 저장됨')}
   catch(e){setSt(e&&e.code=='quota_exceeded'?'저장 공간 초과':'저장 실패 · 브라우저에만 보관')}
   saving=false}
-function docBody(k){if(k=='cfg')return{cfg:S.cfg,months:S.months,map:S.map,ship:S.ship,grp:S.grp,names:S.names,shipNames:S.shipNames};
+function docBody(k){if(k=='cfg')return{cfg:S.cfg,months:S.months,map:S.map,ship:S.ship,grp:S.grp,names:S.names,shipNames:S.shipNames,ctgt:S.ctgt};
   if(k[0]=='m'){const v=S.mon[k.slice(1)];return v?{mon:v}:null}
   if(k=='wk')return Object.keys(S.wk).length?{wk:S.wk}:null;
   if(k[0]=='d'){const v=S.day[k.slice(1)];return v?{day:v}:null}
   const y=k.slice(1),o={days:{},camps:{}};
   for(const d in S.days)if(d.startsWith(y))o.days[d]=S.days[d];for(const m in S.camps)if(m.startsWith(y))o.camps[m]=S.camps[m];return o}
-function fix(){for(const k of['wk','days','months','camps','mon','day','map','ship','grp','names'])if(!S[k]||typeof S[k]!='object'||Array.isArray(S[k]))S[k]={};
+function fix(){for(const k of['ctgt','wk','days','months','camps','mon','day','map','ship','grp','names'])if(!S[k]||typeof S[k]!='object'||Array.isArray(S[k]))S[k]={};
   if(!Array.isArray(S.shipNames))S.shipNames=null;S.cfg=Object.assign({},DEF,S.cfg);
   const learn=ec=>ec&&ec.items&&ec.items.forEach(([c,nm])=>{if(!S.names[c])S.names[c]=nm});
   for(const m in S.mon)learn(S.mon[m].ec);for(const d in S.day)learn(S.day[d].ec);FEE=null}
 const KEY=()=>{try{return localStorage.getItem('cpad_key')||''}catch(e){return''}};
 let kvLast=0;
 async function kvGet(){return fetch('/api/store',{headers:{'x-team-key':KEY()},cache:'no-store'})}
-function applyDocs(entries){const N={wk:{},days:{},months:{},camps:{},mon:{},day:{},map:{},ship:{},grp:{},names:{},shipNames:null,cfg:S.cfg};
-  for(const[id,v0]of entries){const v=v0||{};if(id=='cfg'){N.cfg=v.cfg||N.cfg;for(const k of['months','map','ship','grp','names'])N[k]={...v[k]};N.shipNames=v.shipNames||null}
+function applyDocs(entries){const N={ctgt:{},wk:{},days:{},months:{},camps:{},mon:{},day:{},map:{},ship:{},grp:{},names:{},shipNames:null,cfg:S.cfg};
+  for(const[id,v0]of entries){const v=v0||{};if(id=='cfg'){N.cfg=v.cfg||N.cfg;for(const k of['months','map','ship','grp','names','ctgt'])N[k]={...v[k]};N.shipNames=v.shipNames||null}
     else if(id=='wk'){N.wk=v.wk||{}}else if(id[0]=='m'){if(v.mon)N.mon[id.slice(1)]=v.mon}else if(id[0]=='d'){if(v.day)N.day[id.slice(1)]=v.day}else{Object.assign(N.days,v.days);Object.assign(N.camps,v.camps)}}
   S=JSON.parse(JSON.stringify(N));fix();try{localStorage.setItem('cpad',JSON.stringify(S))}catch(e){}renderAll()}
 function showKey(msg){$('#keybar').hidden=false;$('#keymsg').textContent=msg||'';}
@@ -495,6 +498,9 @@ function rItem(){const FE=fees(),cat=catalog(),X=analyze(cur),qty={};if(X)X.rows
    ${items.length?`<div class="scroll" style="max-height:70vh"><table id="it"><thead><tr><th>품목코드</th><th>품목명</th><th>합산 그룹</th><th class="n">배송비(개당) 직접입력</th><th class="n">적용 배송비</th><th>배송비 출처</th></tr></thead><tbody>
     ${items.map(i=>`<tr data-c="${esc(i.c)}" class="${qty[i.c]?'':''}"><td>${esc(i.c)}</td><td class="w">${esc(i.nm)}</td><td class="in"><input class="l" data-g value="${esc(S.grp[i.c]??'')}" placeholder="${esc(i.g&&S.grp[i.c]==null?i.g.name+' (기본)':'없음')}" aria-label="${esc(i.nm)} 합산 그룹"></td><td class="in"><input data-f inputmode="numeric" value="${S.ship[i.c]!=null&&S.ship[i.c]!==''?W(n(S.ship[i.c])):''}" placeholder="${i.f&&i.f.src!='직접입력'?W(i.f.f)+' 자동':''}" aria-label="${esc(i.nm)} 배송비"></td><td class="n">${i.f?W(i.f.f):'<span class="chip warn">미입력</span>'}</td><td class="note">${i.f?esc(i.f.src):''}</td></tr>`).join('')}</tbody></table></div>
     <p class="note pad" style="margin:0">합산 그룹: 같은 이름을 적은 품목은 대시보드·일자별에서 한 줄로 합쳐집니다(기본: 이름에 '탄소매트'가 들어간 품목 → '라이브박스 탄소매트 [한일]', 대표 코드 E4-036-03063). 묶지 않으려면 '-'를 적으세요. 배송비 직접입력을 비우면 아래 기준표에서 자동으로 찾고, 그룹 안에 배송비가 있는 품목이 하나라도 있으면 같은 그룹의 다른 품목에도 그 값을 씁니다.</p>`:'<p class="pad">이카운트 품목별 이익현황을 먼저 올리면 품목 목록이 생깁니다.</p>'}</div>
+   ${(()=>{const cs=new Set(Object.keys(DEF_CTGT));Object.keys(S.ctgt).forEach(c=>cs.add(c));Object.values(S.mon).forEach(M=>{if(M.ad)Object.keys(M.ad.camps||{}).forEach(c=>cs.add(c))});Object.values(S.wk).forEach(w=>w.rows.forEach(r=>r.cm&&Object.keys(r.cm).forEach(c=>cs.add(c))));
+     const seen=new Set(),L=[...cs].filter(c=>{const k=norm(c);if(seen.has(k))return false;seen.add(k);return true});
+     return`<div class="box"><h3>광고 그룹(캠페인) 목표 ROAS <small>쿠팡 광고센터에 설정한 값 · 분석 탭이 이 값과 권장 목표를 비교</small></h3><div class="scroll"><table id="ctg"><thead><tr><th>광고 그룹</th><th class="n">현재 목표 ROAS(%)</th><th>출처</th></tr></thead><tbody>${L.map(c=>{const own=Object.keys(S.ctgt).find(x=>norm(x)==norm(c)),d=Object.keys(DEF_CTGT).find(x=>norm(x)==norm(c));return`<tr><td class="w">${esc(c)}</td><td class="in"><input data-ctg="${esc(c)}" inputmode="numeric" value="${own!=null?W(n(S.ctgt[own])):''}" placeholder="${d?W(DEF_CTGT[d])+' (11/18 기준)':'미입력'}" aria-label="${esc(c)} 목표 ROAS"></td><td class="note">${own!=null?'직접 입력':d?'쿠팡 화면 11/18':''}</td></tr>`}).join('')}</tbody></table></div></div>`})()}
    <div class="grid2"><div class="box"><h3>배송비 기준표 <small>${L.length}줄 · 상품명으로 이카운트 품목을 자동으로 찾음</small></h3><div class="scroll" style="max-height:50vh"><table><tr><th>상품명</th><th class="n">배송비</th><th>연결된 품목</th><th></th></tr>
     ${L.map(([nm,f],i)=>{const code=Object.keys(FE).find(c=>FE[c].src==nm);return`<tr><td class="w">${esc(nm)}</td><td class="n">${W(f)}</td><td class="note">${code?esc(short(S.names[code]).t):'못 찾음'}</td><td><button class="b s r" data-sdel="${i}" aria-label="삭제">삭제</button></td></tr>`}).join('')}</table></div></div>
    <div class="box"><h3>배송비 표 붙여넣기 <small>엑셀에서 상품명·배송비 열을 복사(제목 행 포함 가능)</small></h3><div class="pad"><textarea id="spaste" placeholder="상품명	배송비&#10;[PE11821W] 휴대용 커피머신 2세대 화이트	4600"></textarea>
@@ -644,7 +650,7 @@ function judge(v,hist,mode){if(!v||(v.c<=0&&v.s<=0))return null;
   const adProfit=room>0&&v.s?v.as/k*room/v.s:0,stopGain=v.c-adProfit;let st;
   if(v.c>0&&v.s<=0){st=v.as>0?'cut':'stop';acts.push({pri:1,t:v.as>0?'광고 효율 점검 (매출 집계 확인)':'광고 중단 검토 — 판매 0',why:`광고비 ${W(v.c)}원을 썼는데 매출액 ${WN(v.s)}원${v.as?` (쿠팡 전환매출 ${W(v.as)}원)`:''}`,eff:v.as>0?0:v.c,how:v.as>0?'이카운트 매출 반영 시점 확인 후 다음 기간 재판단':'광고 OFF, 상세페이지·가격·재고 점검 후 재개'})}
   else if(room<=0&&v.s>0){st=v.c>0?'stop':'none';acts.push({pri:1,t:v.c>0?'광고 중단 + 판매 구조 점검':'판매 구조 점검',why:`매출이익 ${WN(v.p)}원 − 배송비 ${W(v.sh)}원 = ${WN(room)}원 — 팔수록 손해라 광고로 해결 안 됨`,eff:v.c,how:`${v.c>0?`광고 끄면 광고비 ${W(v.c)}원 절감. `:''}판매가 인상·묶음(1+1) 구성·원가/배송비 재협상이 먼저`})}
-  else if(v.c>0&&bep&&roas<bep){st=roas<bep*.7&&v.after<0?'stop':'cut';acts.push({pri:v.after<0?1:2,t:roas<bep*.7&&v.after<0?`광고 중단 검토 (유지하려면 목표 ROAS ${P(rec)})`:`목표 ROAS ${P(rec)}로 상향${v.tgt?` (현재 ${P(v.tgt)})`:''}`,why:`실제 ROAS ${P(roas)} < 손익분기 ROAS ${P(bep)} — ${v.after<0?'광고가 이익을 깎는 중':'품목은 흑자지만 광고분은 손해, 광고를 줄이면 이익이 더 커질 가능성'}`,eff:Math.max(0,stopGain),how:stopGain>0?`광고를 끄기만 해도 순이익 약 +${W(stopGain)}원/${per}(추정). 목표 ROAS를 올려 비효율 노출부터 정리`:'목표 ROAS 상향으로 비효율 노출 정리'})}
+  else if(v.c>0&&bep&&roas<bep){st=roas<bep*.7&&v.after<0?'stop':'cut';acts.push({pri:v.after<0?1:2,t:roas<bep*.7&&v.after<0?`광고 중단 검토 (유지하려면 목표 ROAS ${P(rec)})`:v.tgt&&v.tgt>=rec?`목표 ROAS ${P(v.tgt)} 미달 (실제 ${P(roas)}) — 키워드·입찰 정리`:`목표 ROAS ${P(rec)}로 상향${v.tgt?` (현재 ${P(v.tgt)})`:''}`,why:`실제 ROAS ${P(roas)} < 손익분기 ROAS ${P(bep)} — ${v.after<0?'광고가 이익을 깎는 중':'품목은 흑자지만 광고분은 손해, 광고를 줄이면 이익이 더 커질 가능성'}`,eff:Math.max(0,stopGain),how:stopGain>0?`광고를 끄기만 해도 순이익 약 +${W(stopGain)}원/${per}(추정). 목표 ROAS를 올려 비효율 노출부터 정리`:'목표 ROAS 상향으로 비효율 노출 정리'})}
   else if(v.c>0&&bep&&roas>=bep*1.6&&v.after>0){st='grow';const add=v.c*.25,gain=Math.max(0,add*(roas/100*room/v.s-1)*.6);acts.push({pri:3,t:`예산 +25% 증액 · 목표 ROAS ${P(Math.max(rec,R50(roas*.8)))}로 완화`,why:`ROAS ${P(roas)}가 손익분기 ${P(bep)}의 ${(roas/bep).toFixed(1)}배 — 여유 있음`,eff:gain,how:`광고비 +${W(add)}원 넣으면 순이익 약 +${W(gain)}원(지금 효율의 60% 가정)`})}
   else if(v.c>0){st='keep';if(bep&&roas<bep*1.25)acts.push({pri:2,t:`목표 ROAS ${P(rec)} 이상 유지`,why:`ROAS ${P(roas)}가 손익분기 ${P(bep)}에 가까움 — 조금만 떨어져도 적자`,eff:0,how:'전환 없는 키워드부터 정리해 여유 확보'})}
   else st='none';
@@ -701,7 +707,8 @@ function rPa(){const sec=tab=='pm'?'pm':'pw',el=$('#t-'+sec),D=paData(),mode=sec
    <span class="note">${mode=='wk'?'주간 탭 자료 기준':'대시보드(이카운트·광고 리포트·직접 입력) 기준'} · 순이익 = 매출이익 − 배송비 − 광고비</span></div>`;
   if(!list.length){el.innerHTML=h+'<div class="box pad">이 기준으로 볼 품목 자료가 없습니다.</div>';return}
   const T=sumV(list.map(x=>x.t)),last=per[per.length-1];
-  const J={};list.forEach(x=>{if(!src(x.p)[last])return;const ps=per.filter(k=>src(x.p)[k]),V=ps.map(k=>src(x.p)[k]);J[x.p.pid]=judge({...V[V.length-1],name:x.p.name},V.slice(0,-1),mode)});
+  const topC=v=>{const L=cmList(v&&v.cm);return L.length?L[0][0]:null},tgtOf=v=>{if(v.tgt)return v.tgt;const c=topC(v);return c?ctgtOf(c):null};
+  const J={};list.forEach(x=>{if(!src(x.p)[last])return;const ps=per.filter(k=>src(x.p)[k]),V=ps.map(k=>src(x.p)[k]),lv=V[V.length-1];J[x.p.pid]=judge({...lv,tgt:tgtOf(lv),name:x.p.name},V.slice(0,-1),mode)});
   const AL=[];list.forEach(x=>{const j=J[x.p.pid];if(j)j.acts.forEach(a=>AL.push({...a,nm:x.p.name}))});AL.sort((a,b)=>a.pri-b.pri||b.eff-a.eff);
   const cnt=k=>Object.values(J).filter(j=>j&&j.st==k).length,saveE=AL.filter(a=>a.pri<3).reduce((a,x)=>a+x.eff,0),growE=AL.filter(a=>a.pri==3).reduce((a,x)=>a+x.eff,0);
   const LT=sumV(list.map(x=>src(x.p)[last]).filter(Boolean)),PTt=per.length>1?sumV(list.map(x=>src(x.p)[per[per.length-2]]).filter(Boolean)):null;
@@ -715,8 +722,15 @@ function rPa(){const sec=tab=='pm'?'pm':'pw',el=$('#t-'+sec),D=paData(),mode=sec
    </ol>
    <div class="scroll"><table><thead><tr><th>우선</th><th>품목</th><th>할 일 · 근거</th><th>방법 · 대상</th><th class="n">예상 효과</th></tr></thead><tbody>${AL.slice(0,15).map(a=>actRow(a,a.nm)).join('')||'<tr><td colspan="5" class="note">특별히 손댈 항목이 없습니다.</td></tr>'}</tbody></table></div>
    ${AL.length>15?`<p class="note pad" style="margin:0">나머지 ${AL.length-15}개 항목은 품목을 눌러 상세에서 확인하세요.</p>`:''}</div>
+   ${(()=>{const C={};list.forEach(x=>{const v=src(x.p)[last],j=J[x.p.pid];if(!v||!j)return;cmList(v.cm).forEach(([c,t])=>{const o=C[c]||(C[c]={c,cost:0,as:0,items:[]});o.cost+=t.c;o.as+=t.as;o.items.push({nm:x.p.name,c:t.c,bep:j.bep,rec:j.rec,st:j.st})})});
+     const L=Object.values(C).sort((a,b)=>b.cost-a.cost);if(!L.length)return'';
+     return`<div class="box"><h3>광고 그룹 목표 ROAS 조정표 <small>쿠팡 광고센터 캠페인 목표값과 그대로 비교 · 현재 목표는 품목·배송비 탭에서 수정</small></h3><div class="scroll"><table><thead><tr><th>광고 그룹(캠페인)</th><th class="n">현재 목표</th><th class="n">${lab(last)} ROAS</th><th class="n">광고비</th><th>주요 품목</th><th class="n">손익분기</th><th class="n">권장 목표</th><th>조정</th></tr></thead><tbody>
+     ${L.map(o=>{const tg=ctgtOf(o.c),ws=o.items.filter(i=>i.bep),wsum=ws.reduce((a,i)=>a+i.c,0),bep=wsum?ws.reduce((a,i)=>a+i.bep*i.c,0)/wsum:null,stop=o.items.every(i=>i.st=='stop')&&o.items.length,rec=bep?R50(bep*1.3):null,r=o.cost?o.as/o.cost*100:null;
+       const adj=stop?'<span class="chip bad">중단 검토</span>':!rec?'<span class="chip bad">손익분기 불가 — 중단 검토</span>':!tg?`<b>${P(rec)}</b>로 설정`:Math.abs(tg-rec)/rec<.15?'<span class="chip mute">유지</span>':tg<rec?`<span class="chip bad">↑ 올리기</span> ${P(tg)} → <b>${P(rec)}</b>`:`<span class="chip good">↓ 내리기</span> ${P(tg)} → <b>${P(rec)}</b>`;
+       return`<tr><td class="w">${esc(o.c)}</td><td class="n">${tg?P(tg):'–'}</td><td class="n ${bep&&r<bep?'dn':''}">${P(r)}</td><td class="n">${W(o.cost)}</td><td class="w">${o.items.sort((a,b)=>b.c-a.c).slice(0,3).map(i=>esc(short(i.nm).t)).join(', ')}${o.items.length>3?` 외 ${o.items.length-3}`:''}</td><td class="n">${bep?P(bep):'불가'}</td><td class="n"><b>${rec?P(rec):'–'}</b></td><td>${adj}</td></tr>`}).join('')}
+     </tbody></table></div><p class="note pad" style="margin:0">↑ 올리기: 지금 목표로는 손익분기보다 싸게 팔려 적자 위험 · ↓ 내리기: 목표가 너무 높아 노출이 막혀 판매 기회를 놓치는 중. 여러 품목이 섞인 그룹은 광고비 비중으로 가중 평균.</p></div>`})()}
    <div class="box"><h3>품목별 판단 <small>${lab(last)} · 줄을 누르면 품목 상세</small></h3><div class="scroll"><table class="pv"><thead><tr><th>품목</th><th>판단</th><th class="n">ROAS</th><th class="n">손익분기 ROAS</th><th class="n">권장 목표 ROAS</th><th class="n">현재 목표</th><th class="n">광고비</th><th class="n">순이익</th><th>가장 먼저 할 일</th></tr></thead><tbody>
-   ${list.filter(x=>J[x.p.pid]&&(J[x.p.pid].st!='none'||src(x.p)[last].after<0)).map(x=>{const j=J[x.p.pid],v=src(x.p)[last];return`<tr data-pid="${esc(x.p.pid)}" tabindex="0" style="cursor:pointer"><td class="w">${esc(x.p.name)}</td><td><span class="chip ${ST[j.st][1]}">${ST[j.st][0]}</span></td><td class="n ${j.bep&&j.roas!=null&&j.roas<j.bep?'dn':''}">${P(j.roas)}</td><td class="n">${j.bep?P(j.bep):'<span class="dn">불가</span>'}</td><td class="n"><b>${j.rec?P(j.rec):'–'}</b></td><td class="n">${v.tgt?P(v.tgt):''}</td><td class="n">${W(v.c)}</td><td class="n">${WN(v.after)}</td><td class="w">${j.acts[0]?esc(j.acts[0].t):'–'}</td></tr>`}).join('')}</tbody></table></div></div>`;
+   ${list.filter(x=>J[x.p.pid]&&(J[x.p.pid].st!='none'||src(x.p)[last].after<0)).map(x=>{const j=J[x.p.pid],v=src(x.p)[last];return`<tr data-pid="${esc(x.p.pid)}" tabindex="0" style="cursor:pointer"><td class="w">${esc(x.p.name)}</td><td><span class="chip ${ST[j.st][1]}">${ST[j.st][0]}</span></td><td class="n ${j.bep&&j.roas!=null&&j.roas<j.bep?'dn':''}">${P(j.roas)}</td><td class="n">${j.bep?P(j.bep):'<span class="dn">불가</span>'}</td><td class="n"><b>${j.rec?P(j.rec):'–'}</b></td><td class="n">${tgtOf(v)?P(tgtOf(v)):''}</td><td class="n">${W(v.c)}</td><td class="n">${WN(v.after)}</td><td class="w">${j.acts[0]?esc(j.acts[0].t):'–'}</td></tr>`}).join('')}</tbody></table></div></div>`;
   h+=`<div class="box"><h3>전체 품목 비교 <small>${lab(per[0])} ~ ${lab(last)} 합계 · 줄을 누르면 아래에 품목 상세</small></h3><div class="scroll"><table class="pv"><thead><tr><th>품목</th><th class="n">기간</th><th class="n">광고비</th><th class="n">전환매출</th><th class="n">ROAS</th><th class="n">매출액</th><th class="n">매출액 ROAS</th><th class="n">매출이익</th><th class="n">배송비</th><th class="n">순이익</th><th class="n">순이익률</th><th class="n">최근(${lab(last)}) 순이익</th><th>추세</th></tr></thead><tbody>
    ${list.map(({p,vs,t})=>{const lv=src(p)[last],sp=per.map(x=>src(p)[x]?src(p)[x].after:null);return`<tr data-pid="${esc(p.pid)}" tabindex="0" class="${p.pid==pid?'on':''}" style="cursor:pointer"><td class="w">${esc(p.name)}</td><td class="n">${vs.length}</td><td class="n">${W(t.c)}</td><td class="n">${W(t.as)}</td><td class="n">${P(t.c?t.as/t.c*100:null)}</td><td class="n">${W(t.s)}</td><td class="n">${P(t.c&&t.s?t.s/t.c*100:null)}</td><td class="n">${WN(t.p)}</td><td class="n">${W(t.sh)}</td><td class="n ${t.after<0?'dn':''}"><b>${WN(t.after)}</b></td><td class="n">${P1(t.s?t.after/t.s*100:null)}</td><td class="n ${lv&&lv.after<0?'dn':''}">${lv?WN(lv.after):'–'}</td><td>${spark(sp)}</td></tr>`}).join('')}
    <tr class="gt"><td>합계</td><td></td><td class="n">${W(T.c)}</td><td class="n">${W(T.as)}</td><td class="n">${P(T.c?T.as/T.c*100:null)}</td><td class="n">${W(T.s)}</td><td class="n">${P(T.c&&T.s?T.s/T.c*100:null)}</td><td class="n">${WN(T.p)}</td><td class="n">${W(T.sh)}</td><td class="n">${WN(T.after)}</td><td class="n">${P1(T.s?T.after/T.s*100:null)}</td><td class="n">${WN(list.reduce((a,x)=>a+(src(x.p)[last]?src(x.p)[last].after:0),0))}</td><td></td></tr></tbody></table></div></div>`;
@@ -726,7 +740,7 @@ function rPa(){const sec=tab=='pm'?'pm':'pw',el=$('#t-'+sec),D=paData(),mode=sec
    <div class="kpi" style="margin-bottom:12px"><div><span>최근 ${lab(ps[ps.length-1])} 순이익</span><b class="${lv.after<0?'dn':''}">${WN(lv.after)}원</b>${pv?dP(lv.after,pv.after).replace('전주',mode=='wk'?'전주':'전월'):''}</div>
     <div><span>최근 ROAS</span><b>${P(ro(lv))}</b>${pv?dP(ro(lv),ro(pv),1).replace('전주',mode=='wk'?'전주':'전월'):''}</div><div><span>최근 광고비</span><b>${W(lv.c)}원</b>${pv?dP(lv.c,pv.c).replace('전주',mode=='wk'?'전주':'전월'):''}</div>
     <div><span>기간 합계 순이익</span><b class="${t.after<0?'dn':''}">${WN(t.after)}원</b><i class="note">${ps.length}${mode=='wk'?'주':'개월'}</i></div><div><span>기간 평균 ROAS</span><b>${P(t.c?t.as/t.c*100:null)}</b><i class="note">${tg?'목표 '+P(tg):'목표 없음'}</i></div><div><span>광고비 ÷ 매출액</span><b>${P1(t.s?t.c/t.s*100:null)}</b><i class="note">매출액 ROAS ${P(t.c&&t.s?t.s/t.c*100:null)}</i></div></div>`;
-  {const jj=judge({...lv,name:p.name},V.slice(0,-1),mode);if(jj)h+=`<div style="margin-bottom:12px"><div class="row" style="margin-bottom:6px"><b>${lab(ps[ps.length-1])} 판단</b><span class="chip ${ST[jj.st][1]}">${ST[jj.st][0]}</span><span class="note">손익분기 ROAS ${jj.bep?P(jj.bep):'불가(이익−배송비 ≤ 0)'} · 권장 목표 ROAS <b>${jj.rec?P(jj.rec):'–'}</b> · 실제 ROAS ${P(jj.roas)}</span></div>${jj.acts.length?`<div class="scroll"><table><thead><tr><th>우선</th><th>할 일 · 근거</th><th>방법 · 대상</th><th class="n">예상 효과</th></tr></thead><tbody>${jj.acts.map(a=>actRow(a,null)).join('')}</tbody></table></div>`:'<p class="note">지금은 유지하면 됩니다.</p>'}</div>`}
+  {const jj=judge({...lv,tgt:tgtOf(lv),name:p.name},V.slice(0,-1),mode);if(jj)h+=`<div style="margin-bottom:12px"><div class="row" style="margin-bottom:6px"><b>${lab(ps[ps.length-1])} 판단</b><span class="chip ${ST[jj.st][1]}">${ST[jj.st][0]}</span><span class="note">손익분기 ROAS ${jj.bep?P(jj.bep):'불가(이익−배송비 ≤ 0)'} · 권장 목표 ROAS <b>${jj.rec?P(jj.rec):'–'}</b> · 실제 ROAS ${P(jj.roas)}</span></div>${jj.acts.length?`<div class="scroll"><table><thead><tr><th>우선</th><th>할 일 · 근거</th><th>방법 · 대상</th><th class="n">예상 효과</th></tr></thead><tbody>${jj.acts.map(a=>actRow(a,null)).join('')}</tbody></table></div>`:'<p class="note">지금은 유지하면 됩니다.</p>'}</div>`}
   const L=[];const nm=`<b>${esc(short(p.name).t)}</b>`;
   if(V.length>1){L.push(`최근 ${lab(ps[ps.length-1])} 순이익 ${WN(lv.after)}원, ${mode=='wk'?'전주':'전월'} ${WN(pv.after)}원보다 <b class="${lv.after>=pv.after?'up':'dn'}">${WN(lv.after-pv.after)}원</b>. 광고비 ${W(pv.c)} → ${W(lv.c)}원, ROAS ${P(ro(pv))} → ${P(ro(lv))}.`)}
   let streak=0;for(let i=V.length-1;i>=0&&V[i].after<0;i--)streak++;if(streak)L.push(`<span class="dn">최근 ${streak}${mode=='wk'?'주':'개월'} 연속 적자</span>입니다. 광고비를 줄이거나 판매가·원가를 점검할 시점이에요.`);
@@ -809,6 +823,7 @@ document.addEventListener('change',e=>{const t=e.target;
     const v=S.months[m]||(S.months[m]={});if(raw==='')delete v[f];else v[f]=n(raw);if(!Object.keys(v).length)delete S.months[m];save(['cfg']);rMon()}
   else if(t.matches('#it input')){const c=t.closest('tr').dataset.c,raw=t.value.trim();
     if(t.hasAttribute('data-g')){if(raw==='')delete S.grp[c];else S.grp[c]=raw}else{if(raw==='')delete S.ship[c];else S.ship[c]=n(raw)}save(['cfg']);rItem()}
+  else if(t.matches('input[data-ctg]')){const c=t.dataset.ctg,v=t.value.trim();for(const x in S.ctgt)if(norm(x)==norm(c))delete S.ctgt[x];if(v!=='')S.ctgt[c]=n(v);save(['cfg']);rItem()}
   else if(t.matches('select[data-map]')){const nm=t.dataset.map;if(t.value==='')delete S.map[nm];else S.map[nm]=t.value;save(['cfg']);renderAll()}
   else if(t.id=='met'){UI.met=t.value;rDay()}});
 document.addEventListener('keydown',e=>{const t=e.target;
