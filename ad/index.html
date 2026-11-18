@@ -484,13 +484,13 @@ function parseWK(rows){const weeks=[];let W=null,H=null;
   return weeks.filter(w=>w.rows.length)}
 const WM=[['s','매출액'],['p','매출이익'],['sh','배송비'],['c','광고비'],['as','전환매출'],['after','순이익'],['q','판매수량'],['conv','광고 전환 판매']];
 function wkBuild(){const ids=Object.keys(S.wk).sort(),names=new Set();ids.forEach(id=>S.wk[id].rows.forEach(r=>names.add(r.name)));
-  const K=wkKeys([...names]),unitBy={},disp={};
-  ids.forEach(id=>S.wk[id].rows.forEach(r=>{const k=K[r.name];if(r.unit)unitBy[k]=r.unit;if(k.startsWith('g:'))disp[k]=k.slice(2);else if(!disp[k]||/\[/.test(r.name)||!/\[/.test(disp[k]))disp[k]=r.name}));
+  const SL=shipList(),K=wkKeys([...names,...SL.map(x=>x[0])]),unitBy={},disp={},feeBy={};SL.forEach(([nm,f])=>{const k=K[nm];if(feeBy[k]==null)feeBy[k]=n(f)});
+  ids.forEach(id=>S.wk[id].rows.forEach(r=>{const k=K[r.name];if(r.unit&&unitBy[k]==null)unitBy[k]=r.unit;if(k.startsWith('g:'))disp[k]=k.slice(2);else if(!disp[k]||/\[/.test(r.name)||!/\[/.test(disp[k]))disp[k]=r.name}));
   const FE=fees(),cat=catalog(),shipAuto=cat.length?matchAll([...names],cat):{};
   const W={};for(const id of ids){const w=S.wk[id],by={};
     for(const r of w.rows){const k=K[r.name],o=by[k]||(by[k]={key:k,name:disp[k],names:new Set(),st:'',tgt:null,price:0,promo:'',note:'',imp:0,conv:0,g:0,nw:0,as:0,clk:0,s:0,q:0,p:0,sh:0,shAuto:0});
       o.names.add(r.name);for(const f of['imp','conv','g','nw','as','clk','s','q','p'])o[f]+=n(r[f]);
-      let sh=r.sh;if((sh==null||n(sh)==0)&&n(r.q)>0){const u=r.unit||unitBy[k]||(shipAuto[r.name]&&FE[shipAuto[r.name]]?FE[shipAuto[r.name]].f:0);sh=u*n(r.q);o.shAuto=1}o.sh+=sh||0;
+      let sh=r.sh;const fk=feeBy[K[r.name]];if(fk!=null&&n(r.q)>0){const v=fk*n(r.q);if(sh==null||n(sh)!=v)o.shAuto=1;sh=v}else if((sh==null||n(sh)==0)&&n(r.q)>0){const u=r.unit||unitBy[k]||(shipAuto[r.name]&&FE[shipAuto[r.name]]?FE[shipAuto[r.name]].f:0);sh=u*n(r.q);o.shAuto=1}o.sh+=sh||0;
       if(r.st)o.st=r.st;if(r.tgt!=null)o.tgt=r.tgt;if(n(r.price)>0)o.price=r.price;if(r.promo)o.promo=r.promo;if(r.note)o.note=r.note}
     const rows=Object.values(by);rows.forEach(o=>{o.c=o.g+o.nw;o.after=o.p-o.sh-o.c;o.names=[...o.names]});
     const T={};for(const f of['imp','conv','g','nw','as','clk','s','q','p','sh','c','after'])T[f]=rows.reduce((a,o)=>a+o[f],0);
@@ -500,7 +500,7 @@ function wkCheck(id){const w=S.wk[id],L=[],SL=shipList(),K=wkKeys([...w.rows.map
   for(const r of w.rows){const nm=`<b>${esc(short(r.name).t)}</b>`,s=n(r.s),p=n(r.p),q=n(r.q),imp=n(r.imp),c=n(r.g)+n(r.nw);
     if(!s&&p)L.push(`${nm}: 매출액이 0원인데 매출이익이 ${WN(p)}원입니다${Math.abs(p)==imp?` — 노출수(${W(imp)})와 같은 숫자라 다른 칸 값이 들어간 것으로 보입니다`:''}. 이 값 때문에 순이익이 ${WN(p)}원 달라집니다.`);
     if(s<0)L.push(`${nm}: 매출액이 ${WN(s)}원(마이너스)입니다. 반품·취소면 맞지만 판매수량 ${W(q)}개가 함께 적혀 있어요.`);
-    const f=fee[K[r.name]];if(r.unit&&f!=null&&n(r.unit)!=f)L.push(`${nm}: 엑셀의 개당 배송비 ${W(r.unit)}원이 배송비 표(${W(f)}원)와 다릅니다${q?` — 배송비가 ${W(Math.abs(n(r.unit)-f)*q)}원 차이`:''}.`);
+    const f=fee[K[r.name]];if(r.unit&&f!=null&&n(r.unit)!=f)L.push(`${nm}: 엑셀의 개당 배송비 ${W(r.unit)}원이 배송비 표(${W(f)}원)와 달라 <b>배송비 표 ${W(f)}원 기준</b>으로 계산했습니다${q?` (배송비 ${W(Math.abs(n(r.unit)-f)*q)}원 차이)`:''}.`);
     if(q>0&&(r.sh==null||n(r.sh)==0))L.push(`${nm}: 판매수량 ${W(q)}개인데 배송비 칸이 ${r.sh==null?'비어 있어':'0원이라'} 장부에서 개당 배송비로 채워 계산했습니다.`)}
   return L}
 const wlab=w=>`${+w.from.slice(5,7)}/${+w.from.slice(8)}~${+w.to.slice(5,7)}/${+w.to.slice(8)}`;
@@ -529,9 +529,9 @@ function rWk(){const el=$('#t-wk'),B=wkBuild();
     if(ch.length){const dn=ch[0],up=ch[ch.length-1];if(dn.d<0)L.push(`전주보다 순이익이 가장 많이 줄어든 품목: ${nm(dn.o)} ${WN(dn.d)}원(광고비 ${W(prevBy[dn.o.key].c)} → ${W(dn.o.c)}원).`);if(up.d>0)L.push(`가장 많이 늘어난 품목: ${nm(up.o)} +${W(up.d)}원.`)}}
   const best=w.rows.filter(o=>o.c>T.c*.03&&o.after>0).sort((a,b)=>b.after/b.c-a.after/a.c)[0];if(best)L.push(`광고비 1원당 순이익이 가장 큰 품목: ${nm(best)} — 광고비 ${W(best.c)}원, 순이익 ${W(best.after)}원, ROAS ${P(roasOf(best))}.`);
   const memo=w.rows.filter(o=>o.st||o.note);if(memo.length)L.push(`메모: ${memo.map(o=>`${nm(o)} ${esc([o.st,o.note].filter(Boolean).join(' · '))}`).join(', ')}.`);
-  if(w.rows.some(o=>o.shAuto))L.push('배송비 칸이 비어 있거나 0원인데 판매수량이 있는 품목은 개당 배송비 × 판매수량으로 채워 계산했습니다(표에 * 표시).');
+  if(w.rows.some(o=>o.shAuto))L.push('배송비는 품목·배송비 탭의 기준표(개당) × 판매수량으로 계산합니다. 엑셀 배송비와 달라진 품목은 표에 * 표시.');
   h+=`<div class="box"><h3>자동 분석</h3><ol class="ins">${L.map(s=>`<li>${s}</li>`).join('')}</ol></div>`;
-  const QC=wkCheck(id);if(QC.length)h+=`<div class="box"><h3>데이터 점검 <small>원본 엑셀에서 확인이 필요한 칸 ${QC.length}곳 · 장부는 엑셀 값을 그대로 씁니다</small></h3><ol class="ins">${QC.map(s=>`<li>${s}</li>`).join('')}</ol></div>`;
+  const QC=wkCheck(id);if(QC.length)h+=`<div class="box"><h3>데이터 점검 <small>원본 엑셀에서 확인이 필요한 칸 ${QC.length}곳 · 배송비는 품목·배송비 탭의 기준표가 우선</small></h3><ol class="ins">${QC.map(s=>`<li>${s}</li>`).join('')}</ol></div>`;
   const cols=['품목','메모·목표','판매가','노출','클릭','CTR','CPC','광고비','전환 판매','CVR','전환매출','ROAS','매출액 ROAS','매출액','판매수량','매출이익','배송비','순이익','개당 순이익','개당 광고비(÷전환)','전주 대비 순이익','판정'];
   const tr=(o,cls='',lab)=>{const p=prevBy[o.key];return`<tr class="${cls}"><td class="${lab?'':'w'}">${lab||esc(o.name)}${!lab&&o.names.length>1?`<small>${o.names.length}개 상품명 합산</small>`:''}</td><td>${lab?'':esc([o.st,o.tgt?'목표 '+P(o.tgt):'',o.promo?'프로모션 '+o.promo:'',o.note].filter(Boolean).join(' · '))}</td><td class="n">${!lab&&o.price>0?W(o.price):''}</td><td class="n">${W(o.imp)}</td><td class="n">${W(o.clk)}</td><td class="n">${P1(o.imp?o.clk/o.imp*100:null)}</td><td class="n">${o.clk?W(o.c/o.clk):'–'}</td><td class="n">${W(o.c)}</td><td class="n">${W(o.conv)}</td><td class="n">${P1(o.clk?o.conv/o.clk*100:null)}</td><td class="n">${W(o.as)}</td><td class="n ${o.tgt&&o.c&&roasOf(o)<o.tgt?'dn':''}">${P(roasOf(o))}</td><td class="n">${P(roasOf(o,'s'))}</td><td class="n">${W(o.s)}</td><td class="n">${W(o.q)}</td><td class="n ${o.p<0?'dn':''}">${WN(o.p)}</td><td class="n">${W(o.sh)}${o.shAuto&&!lab?'*':''}</td><td class="n ${o.after<0?'dn':''}"><b>${WN(o.after)}</b></td><td class="n">${o.q?WN(o.after/o.q):'–'}</td><td class="n">${o.conv?W(o.c/o.conv):'–'}</td><td class="n">${lab?(PT?`<span class="${T.after>=PT.after?'up':'dn'}">${WN(T.after-PT.after)}</span>`:''):p?`<span class="${o.after>=p.after?'up':'dn'}">${WN(o.after-p.after)}</span>`:'<span class="note">신규</span>'}</td><td>${lab?'':wkVerdict(o)}</td></tr>`};
   h+=`<div class="box"><h3>${wlab(w)} 품목별 <small>광고비 많은 순 · * 배송비 자동 계산</small></h3><div class="scroll"><table><thead><tr>${cols.map((c,j)=>`<th class="${j>1&&j<21?'n':''}">${c}</th>`).join('')}</tr></thead><tbody>${w.rows.map(o=>tr(o)).join('')}${tr({...T,key:'',tgt:null,names:[]},'gt','합계')}</tbody></table></div></div>`;
