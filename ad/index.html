@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>쿠팡 광고 ROAS 장부</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
+<style>
+/* VOICE: ERP 장부처럼 건조하고 빽빽하게 — 숫자가 주인공
+   IDEA: 이카운트식 전표/원장 화면: 상단 메뉴바, 회색 격자, 소계·합계행
+   PICTURE: 상품별 '매출이익 대비 광고비+배송비' 막대 — 비용이 이익을 얼마나 먹는지
+   COLOUR and TYPE: 흰 바탕, 진청 메뉴바 #1d3f8f, 강조 빨강(적자) / IBM Plex Sans KR
+   LAYOUT: 메뉴 탭 → 툴바(월 선택) → 결론 한 줄 → KPI 띠 → 자동 분석 → 상품별 표(소계·합계) → 캠페인·지면·키워드 */
+:root{color-scheme:light dark;
+--bg:light-dark(#f3f5f8,#12161c);--panel:light-dark(#fff,#1a2029);--ink:light-dark(#1b2330,#e6eaf0);--mute:light-dark(#5d6878,#9aa6b6);
+--line:light-dark(#d6dce4,#2c3542);--head:light-dark(#eef1f5,#212935);--sub:light-dark(#f6f8fb,#1e252f);--bar:#1d3f8f;--blue:light-dark(#2354c7,#6f9bff);
+--sky:light-dark(#8fb3f5,#3d5f9e);--gray:light-dark(#aeb8c6,#5b6676);--red:light-dark(#d81f14,#ff5a4f);--sel:light-dark(#fff6d6,#3a3418)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "IBM Plex Sans KR",system-ui,sans-serif;overflow-x:clip}
+header{background:var(--bar);color:#fff;display:flex;align-items:center;gap:16px;padding:0 max(2vw,12px);flex-wrap:wrap}
+header h1{font-size:17px;margin:0;padding:12px 0;font-weight:700;white-space:nowrap}
+nav{display:flex;gap:2px;flex-wrap:wrap;flex:1}
+nav button{background:none;border:0;color:#cdd8f2;font:inherit;font-weight:500;padding:0 16px;min-height:46px;cursor:pointer;border-bottom:3px solid transparent}
+nav button[aria-selected=true]{color:#fff;border-bottom-color:#fff;background:rgba(255,255,255,.08)}
+#st{font-size:13px;color:#cdd8f2;white-space:nowrap}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px max(2vw,12px);background:var(--panel);border-bottom:1px solid var(--line)}
+.bar .sp{flex:1}
+main{padding:14px max(2vw,12px) 40px;max-width:1440px;margin:0 auto}
+button.b,select,input.t,textarea{font:inherit;font-size:15px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:3px;min-height:38px;padding:4px 12px}
+td select{min-height:30px;font-size:13px;padding:2px 6px;max-width:240px}
+button.b{cursor:pointer;font-weight:500}button.b.p{background:var(--blue);color:#fff;border-color:var(--blue)}
+button.b.r{color:var(--red);border-color:var(--red)}button.b.s{min-height:30px;font-size:13px;padding:2px 10px}
+button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible,summary:focus-visible,tr[data-k]:focus-visible{outline:2px solid var(--blue);outline-offset:-2px}
+.box{background:var(--panel);border:1px solid var(--line);margin-bottom:14px}
+.box>h3,.box>summary{margin:0;font-size:15px;font-weight:600;padding:9px 12px;background:var(--head);border-bottom:1px solid var(--line);display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.box>summary{cursor:pointer}
+.box h3 small,.box summary small{font-weight:400;color:var(--mute)}
+.pad{padding:12px}
+h2{font-size:clamp(20px,2.6vw,28px);line-height:1.2;margin:4px 0 4px;text-wrap:balance}
+.sub{color:var(--mute);font-size:14px;margin:0 0 12px}
+.kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));border:1px solid var(--line);background:var(--panel);margin-bottom:14px}
+.kpi div{padding:10px 14px;border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
+.kpi b{display:block;font-size:clamp(18px,1.8vw,23px);font-variant-numeric:tabular-nums;white-space:nowrap}
+.kpi span{font-size:13px;color:var(--mute)}.kpi i{font-style:normal;font-size:13px;white-space:nowrap}
+.kpi .hl{background:var(--sel)}
+.up{color:var(--blue)}.dn{color:var(--red)}
+.ins{margin:0;padding:12px 12px 12px 32px;display:grid;gap:8px}
+.ins li{padding-left:4px}.ins li b{font-variant-numeric:tabular-nums}
+.fig{position:relative;min-height:320px}.fig>svg{position:absolute;inset:0;width:100%;height:100%}
+.lg{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--mute);padding:8px 12px 0}
+.lg i{display:inline-block;width:12px;height:12px;margin-right:5px;vertical-align:-1px}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums;font-size:14px}
+th,td{border:1px solid var(--line);padding:0 8px;height:34px;white-space:nowrap}
+th{background:var(--head);font-weight:600;font-size:13px;position:sticky;top:0;z-index:1}
+td.n,th.n{text-align:right}td.c{color:var(--mute);background:light-dark(#fafbfc,#161b23)}
+td.w{white-space:normal;min-width:190px;max-width:330px;line-height:1.35;padding-block:5px}
+td.w small{display:block;color:var(--mute);font-size:12px}
+tr.sun td:first-child{color:var(--red)}tr.sat td:first-child{color:var(--blue)}tr.today td{background:var(--sel)}
+tr.st td{background:var(--sub);font-weight:600}tr.sec td{background:var(--head);font-weight:600;font-size:13px;color:var(--mute);height:28px}
+tfoot td,tr.gt td{font-weight:700;background:var(--head);border-top:2px solid var(--ink)}
+td.in{padding:0}td.in input{width:100%;min-width:92px;height:33px;border:0;background:transparent;color:var(--ink);font:inherit;text-align:right;padding:0 8px}
+td.in input.l{text-align:left;min-width:170px}
+td.in input:focus{background:var(--sel);outline:2px solid var(--blue);outline-offset:-2px}
+td.in input::placeholder{color:var(--mute)}
+.chip{font-size:12px;padding:1px 6px;border-radius:2px;white-space:nowrap;border:1px solid transparent}
+.chip.bad{background:var(--red);color:#fff}.chip.good{background:var(--blue);color:#fff}.chip.warn{border-color:var(--red);color:var(--red)}.chip.mute{border-color:var(--line);color:var(--mute)}
+.mb{position:relative;height:12px;background:light-dark(#eef1f5,#252d39);width:100px;display:inline-block;vertical-align:middle;margin-right:6px}
+.mb i{position:absolute;inset:0 auto 0 0;background:var(--gray)}.mb i.mid{background:#e0902b}.mb i.over{background:var(--red)}
+.mb b{position:absolute;top:-3px;bottom:-3px;left:66.6%;width:2px;background:var(--ink)}
+.pv td:first-child,.pv th:first-child{position:sticky;left:0;z-index:2;background:var(--panel)}
+.pv th:first-child{z-index:3;background:var(--head)}.pv tr.gt td:first-child{background:var(--head)}
+.pv tr[data-k]{cursor:pointer}.pv tr[data-k]:hover td{background:var(--sub)}.pv tr.on td{background:var(--sel)!important}
+.pv td.z{color:var(--line)}
+.drop{display:block;border:2px dashed var(--line);padding:28px;text-align:center;color:var(--mute);cursor:pointer}
+.drop.on{border-color:var(--blue);background:var(--sel)}
+.map{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.map label{font-size:13px;color:var(--mute);display:grid;gap:3px}
+.note{font-size:13px;color:var(--mute)}
+.msg{padding:10px 12px;border-left:4px solid var(--blue);background:var(--sel);margin:0 0 10px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.msg.err{border-color:var(--red)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr));gap:14px;margin-bottom:14px}
+.grid2>.box{margin-bottom:0}
+.empty{text-align:center;padding:40px 16px}
+textarea{width:100%;min-height:120px;font-size:14px}
+[hidden]{display:none!important}
+@media(max-width:600px){header{gap:0 12px}nav{order:3;flex:1 1 100%;flex-wrap:nowrap;overflow-x:auto;margin:0 calc(-1*max(2vw,12px))}nav button{flex:none;padding:0 12px}header h1{font-size:15px;flex:1}.mb{width:56px}}
+</style>
+</head>
+<body>
+<header>
+  <h1>쿠팡 광고 장부</h1>
+  <nav role="tablist" id="nav">
+    <button data-t="dash" aria-selected="true">대시보드</button>
+    <button data-t="wk">주간</button>
+    <button data-t="day">일자별</button>
+    <button data-t="mon">월별 집계</button>
+    <button data-t="item">품목·배송비</button>
+    <button data-t="up">업로드</button>
+    <button data-t="cfg">설정</button>
+  </nav>
+  <span id="st">불러오는 중…</span>
+</header>
+<div class="bar">
+  <button class="b" id="pv" aria-label="이전 달">◀</button>
+  <input class="t" type="month" id="mp" aria-label="기준 월">
+  <button class="b" id="nx" aria-label="다음 달">▶</button>
+  <button class="b" id="tm">이번 달</button>
+  <span class="sp"></span>
+  <span class="note" id="bep"></span>
+</div>
+<main>
+<section id="t-dash"></section>
+<section id="t-wk" hidden></section>
+<section id="t-day" hidden></section>
+<section id="t-mon" hidden></section>
+<section id="t-item" hidden></section>
+<section id="t-up" hidden>
+  <div class="box"><h3>파일 업로드 <small>여러 파일 한 번에 가능</small></h3>
+    <div class="pad">
+      <label class="drop" id="drop" tabindex="0"><b>이카운트 품목별 이익현황</b> · <b>쿠팡 광고 리포트</b> · <b>주간 광고 리포트</b> · <b>배송비 표</b> 엑셀을 끌어다 놓거나 눌러서 선택<input type="file" id="file" accept=".xlsx,.xls,.csv,.tsv,.txt" multiple hidden></label>
+      <div class="row" style="margin-top:10px"><span class="note">광고 리포트 기간</span>
+        <select id="adscope" aria-label="광고 리포트 기간"><option value="auto">자동 (파일 이름의 날짜·월)</option><option value="month">위에서 고른 월 전체</option><option value="day">특정 일자 →</option></select>
+        <input class="t" type="date" id="addate" aria-label="광고 리포트 일자"></div>
+      <p class="note">이카운트는 조회 기간을 읽어서, 하루치(예: 11/18~11/18)면 <b>일자별</b>에, 여러 날이면 <b>그 달</b>에 넣습니다. 광고 리포트는 파일 이름에 '20261118'·'11월18일' 같은 날짜가 있으면 일자로, '11월'만 있으면 월로 넣습니다. 열 이름에 '배송비'가 있는 표는 배송비 기준표로 읽습니다.</p>
+    </div></div>
+  <div id="upmsg"></div>
+  <div class="box" id="mapbox" hidden><h3>열 맞추기 <small id="mapinfo"></small></h3>
+    <div class="pad">
+      <div class="map" id="map"></div>
+      <p class="row">
+        <label><input type="radio" name="mode" value="rep" checked> 같은 날짜는 덮어쓰기</label>
+        <label><input type="radio" name="mode" value="add"> 기존 값에 더하기</label>
+        <button class="b p" id="apply">장부에 반영</button><button class="b" id="cancel">취소</button></p>
+      <div class="scroll" id="prev"></div>
+    </div></div>
+  <div class="box"><h3>올린 자료</h3><div class="scroll" id="hist"></div></div>
+  <div id="links"></div>
+</section>
+<section id="t-cfg" hidden>
+  <div class="grid2">
+  <div class="box"><h3>분석 기준</h3><div class="pad" style="display:grid;gap:14px">
+    <label>광고 전환 기준<br><select id="cw"><option value="14">14일 전환 (쿠팡 기본)</option><option value="1">1일 전환</option></select></label>
+    <label><input type="checkbox" id="cv"> 광고비에 부가세 10%를 더해 이익 계산</label>
+    <p class="note" style="margin:0">실이익 = 이카운트 매출이익 − 광고비 − 배송비(개당 배송비 × 판매수량). 부가세를 켜면 광고비를 쿠팡에 실제 결제하는 금액 기준으로 뺍니다.</p>
+    <label>평균 마진율 (%) — 이카운트 자료가 없는 달의 손익분기 ROAS 계산용<br><input class="t" id="cm" inputmode="decimal"></label>
+    <label>목표 광고 ROAS (%)<br><input class="t" id="ct" inputmode="decimal"></label>
+  </div></div>
+  <div class="box"><h3>백업 · 내보내기</h3><div class="pad" style="display:grid;gap:10px">
+    <div class="row"><button class="b" id="xcsv">이번 달 상품별 분석 CSV 복사</button><button class="b" id="xjs">전체 백업 복사(JSON)</button></div>
+    <textarea id="ijs" placeholder="백업 JSON을 붙여넣고 불러오기"></textarea>
+    <div class="row"><button class="b" id="ijb">백업 불러오기</button><button class="b r" id="rst">전체 삭제</button></div>
+    <div id="cfgmsg"></div>
+  </div></div>
+  </div>
+</section>
+</main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" async></script>
+<script>
+{
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const FIELDS=[['s','총매출'],['c','광고비'],['a','광고매출'],['i','노출수'],['k','클릭수'],['o','주문수']];
+const DEF={margin:30,target:400,win:14,vat:false};
+/* 기본 배송비 기준표 (개당) */
+const DEF_SHIP=[["[PE11821W] 휴대용 커피머신 2세대 화이트",4600],["[TH11410B] 헤어 드라이어 블랙",4150],["KEMIN K6",4600],["온트레일러 무선 에어건 아이온500",4150],["사운드피츠 T3 Pro 블랙",4150],["[VS2100] 진공 스팀다리미",4600],["한일의료기 그래핀 전기매트 싱글 딥그레이",6820],["[HF500W] 라이브박스 휴대용 무드등 가습기",3850],["캔스톤 T230X 블루투스 사운드바",9570],["[PE11820B] 휴대용 커피머신",4150],["슈퍼스마트 멀티 에어펌프 그레이",3355],["[VP8310B] 가정용 진공포장기",4150]];
+/* 기본 합산 그룹: 이름에 kw가 들어간 품목은 한 줄로 */
+const DEF_GRP=[{kws:['탄소매트','전기매트'],name:'라이브박스 탄소매트 [한일]',code:'E4-036-03063'}];
+/* 기본 광고 상품 → 이카운트 품목 연결 (광고 상품명 앞부분) */
+const DEF_ADMAP=[['가정용 진공포장기 진공기 압축기 음식보관 유럽인증 진공롤 식품보관','E4-036-02021']];
+let S={wk:{},days:{},months:{},camps:{},mon:{},day:{},map:{},ship:{},grp:{},names:{},shipNames:null,cfg:{...DEF}};
+const pad=v=>String(v).padStart(2,'0');
+const iso=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const TODAY=iso(new Date());
+let cur=TODAY.slice(0,7),tab='dash',UI={met:'s',sel:'all'};
+const n=v=>typeof v=='number'?(isFinite(v)?v:0):(parseFloat(String(v??'').replace(/[^0-9.\-]/g,''))||0);
+const W=v=>Math.round(v).toLocaleString('ko-KR');
+const WN=v=>(Math.round(v)<0?'−':'')+Math.abs(Math.round(v)).toLocaleString('ko-KR');
+const P=v=>v==null||!isFinite(v)?'–':Math.round(v).toLocaleString('ko-KR')+'%';
+const P1=v=>v==null||!isFinite(v)?'–':v.toFixed(1)+'%';
+const MAN=v=>Math.abs(v)>=1e8?(v/1e8).toFixed(2)+'억':Math.abs(v)>=1e4?Math.round(v/1e4).toLocaleString('ko-KR')+'만':W(v);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const shift=(m,k)=>{let[y,mo]=m.split('-').map(Number);mo+=k;while(mo<1){mo+=12;y--}while(mo>12){mo-=12;y++}return y+'-'+pad(mo)};
+const dim=m=>{const[y,mo]=m.split('-').map(Number);return new Date(y,mo,0).getDate()};
+const bepRoas=()=>S.cfg.margin>0?10000/S.cfg.margin:null;
+const norm=s=>String(s||'').toLowerCase().replace(/[^0-9a-z가-힣]/g,'');
+const short=nm=>{const p=String(nm).split(',');let t=p[0].replace(/\s+/g,' ').trim();const opt=p.slice(1,3).filter((x,i,a)=>x&&a.indexOf(x)==i&&!/[{}"]/.test(x)).join(' ');return{t:t.length>46?t.slice(0,44)+'…':t,o:opt}};
+const AW=x=>S.cfg.win==1?n(x.a1):n(x.a14),OW=x=>S.cfg.win==1?n(x.o1):n(x.o14),VAT=()=>S.cfg.vat?1.1:1;
+const shipList=()=>S.shipNames||DEF_SHIP;
+
+/* ---------- 이름 매칭 ---------- */
+const adText=nm=>String(nm).replace(/\{[^}]*\}/g,' ').replace(/\+[^,+]*?(증정|사은품|추가)/g,' ');
+function matchAll(names,items){const AN=names.map(nm=>norm(adText(nm))),dfc={},res={};
+  const df=t=>dfc[t]??(dfc[t]=AN.filter(a=>a.includes(t)).length);
+  const tk=items.map(it=>{const ts=new Set();String(it[1]).split(/[\s\[\]\(\)\/,_+]+/).forEach(w=>{w=norm(w);if(w.length>=2)ts.add(w)});return[...ts]});
+  names.forEach((nm,ai)=>{const a=AN[ai];let best=-1e9,bi=-1;
+    items.forEach((it,ii)=>{let sc=0,hit=0;for(const t of tk[ii]){const d=df(t);if(!d){sc-=.3;continue}const w=Math.min(t.length,8)/d;if(a.includes(t)){sc+=w;hit+=t.length+(/\d/.test(t)&&/[a-z]/.test(t)?2:0)}else sc-=w*.5}
+      if(hit>=3&&(sc>best+1e-9||(Math.abs(sc-best)<1e-9&&n(it[3])>n(items[bi][3])))){best=sc;bi=ii}});
+    if(bi>=0&&best>=1.5)res[nm]=items[bi][0]});
+  return res}
+const catalog=()=>Object.entries(S.names).map(([c,nm])=>[c,nm,0,0,0]);
+
+/* ---------- 합산 그룹 · 배송비 ---------- */
+function grpOf(code,name){const g=S.grp[code];if(g!=null&&g!=='')return g=='-'?null:{name:g,code:(DEF_GRP.find(d=>d.name==g)||{}).code};
+  const d=DEF_GRP.find(d=>d.kws.some(k=>String(name||S.names[code]||'').includes(k)));return d?{name:d.name,code:d.code}:null}
+const keyFor=(code,name)=>{const g=grpOf(code,name);return g?'g:'+g.name:code};
+let FEE=null;
+function fees(){if(FEE)return FEE;const cat=catalog(),L=shipList(),auto=matchAll(L.map(x=>x[0]),cat),own={};
+  L.forEach(([nm,f])=>{const c=auto[nm];if(c&&own[c]==null)own[c]={f:n(f),src:nm}});
+  const out={};for(const[c]of cat){if(S.ship[c]!=null&&S.ship[c]!=='')out[c]={f:n(S.ship[c]),src:'직접입력'};else if(own[c])out[c]=own[c]}
+  const gf={};for(const[c,nm]of cat){const k=keyFor(c,nm);if(k[0]=='g'&&out[c]&&gf[k]==null)gf[k]=out[c]}
+  for(const[c,nm]of cat){const k=keyFor(c,nm);if(!out[c]&&gf[k])out[c]={f:gf[k].f,src:'그룹 배송비',grp:1}}
+  return FEE=out}
+
+/* ---------- 월·일 자료 꺼내기 ---------- */
+const z7=()=>({c:0,i:0,k:0,o1:0,o14:0,a1:0,a14:0}),F7=['c','i','k','o1','o14','a1','a14'];
+const add7=(o,x)=>{for(const f of F7)o[f]+=n(x[f])};
+function mergeEC(L){const by={};for(const e of L)for(const[c,nm,q,s,p]of e.items){const o=by[c]||(by[c]=[c,nm,0,0,0]);o[2]+=q;o[3]+=s;o[4]+=p}
+  const items=Object.values(by);return{items,tot:{s:items.reduce((a,i)=>a+i[3],0),p:items.reduce((a,i)=>a+i[4],0)},who:L[0].who,daily:L.length}}
+function mergeAD(L){const R={rows:0,tot:z7(),camps:{},prods:{},place:{},kws:[],daily:L.length},kw={};
+  for(const a of L){R.rows+=a.rows;add7(R.tot,a.tot);for(const k in a.camps)add7(R.camps[k]||(R.camps[k]=z7()),a.camps[k]);for(const k in a.place)add7(R.place[k]||(R.place[k]=z7()),a.place[k]);
+    for(const k in a.prods){const p=R.prods[k]||(R.prods[k]={...z7(),cs:{}});add7(p,a.prods[k]);const cs=a.prods[k].cs||{};for(const c in cs)p.cs[c]=(p.cs[c]||0)+cs[c]}
+    for(const x of a.kws){const o=kw[x.k]||(kw[x.k]={k:x.k,c:0,i:0,k2:0,o1:0,o14:0,a1:0,a14:0});for(const f of['c','i','k2','o1','o14','a1','a14'])o[f]+=n(x[f])}}
+  R.kws=Object.values(kw);return R}
+const daysIn=m=>Object.keys(S.day).filter(d=>d.startsWith(m)).sort();
+function monthEC(m){const M=S.mon[m];if(M&&M.ec)return M.ec;const ds=daysIn(m).filter(d=>S.day[d].ec);if(!ds.length)return null;const r=mergeEC(ds.map(d=>S.day[d].ec));r.from=ds[0];r.to=ds[ds.length-1];return r}
+function monthAD(m){const M=S.mon[m];if(M&&M.ad)return M.ad;const ds=daysIn(m).filter(d=>S.day[d].ad);if(!ds.length)return null;return mergeAD(ds.map(d=>S.day[d].ad))}
+const kzOf=ad=>{if(ad.kz&&ad.kz[S.cfg.win==1?1:14])return ad.kz[S.cfg.win==1?1:14];const z=ad.kws.filter(x=>x.k!='-'&&x.c>0&&!AW(x));return{n:z.length,c:z.reduce((a,x)=>a+x.c,0),approx:1}};
+const campOf=x=>{if(!x.cs)return[x.camp||''];const k=Object.keys(x.cs).sort((a,b)=>x.cs[b]-x.cs[a]),p=k.filter(c=>x.cs[c]>0);return p.length?p:k};
+function adCode(nm,auto){const m=S.map[nm];if(m)return m=='-'?null:m;const nn=norm(nm),d=DEF_ADMAP.find(([pre])=>nn.startsWith(norm(pre)));return d?d[1]:auto[nm]||null}
+
+/* ---------- 분석 핵심: 품목(그룹)별 매출·이익·배송비·광고비 ---------- */
+function build(items,ad){const v=VAT(),FE=fees(),rows={},un=[];
+  const row=(code,name)=>{const g=grpOf(code,name),key=g?'g:'+g.name:code;
+    return rows[key]||(rows[key]={key,code:g?(g.code||code):code,name:g?g.name:(name||S.names[code]||code),grp:!!g,mem:new Set(),q:0,s:0,p:0,sh:0,nofee:0,c:0,a:0,o:0,k:0,i:0,camps:new Set(),ads:0})};
+  for(const[code,name,q,s,p]of items){const r=row(code,name);r.mem.add(code);r.q+=q;r.s+=s;r.p+=p;const f=FE[code];if(f)r.sh+=f.f*Math.max(q,0);else if(q>0)r.nofee+=q}
+  if(ad){const names=Object.keys(ad.prods).filter(nm=>ad.prods[nm].c>0||AW(ad.prods[nm])>0),cat=catalog();
+    const sales={};for(const it of items)sales[it[0]]=it[3];cat.forEach(c=>c[3]=sales[c[0]]||0);
+    const auto=cat.length?matchAll(names,cat):{};
+    for(const nm of names){const x=ad.prods[nm],code=adCode(nm,auto),o={c:x.c*v,a:AW(x),o:OW(x),k:n(x.k),i:n(x.i)};
+      if(code){const r=row(code);for(const f in o)r[f]+=o[f];r.ads++;campOf(x).forEach(c=>r.camps.add(c))}else un.push({nm,camp:campOf(x).join(', '),...o})}}
+  const all=Object.values(rows);all.forEach(r=>{r.after=r.p-r.c-r.sh;r.mem=[...r.mem];r.camps=[...r.camps]});
+  const withAd=all.filter(r=>r.ads).sort((a,b)=>b.c-a.c),noAd=all.filter(r=>!r.ads).sort((a,b)=>b.s-a.s);un.sort((a,b)=>b.c-a.c);
+  const sm=(L,k)=>L.reduce((a,r)=>a+(r[k]||0),0);
+  const T={q:sm(all,'q'),s:sm(all,'s'),p:sm(all,'p'),sh:sm(all,'sh'),nofee:sm(all,'nofee'),c:ad?n(ad.tot.c)*v:0,a:ad?AW(ad.tot):0,o:ad?OW(ad.tot):0,k:ad?n(ad.tot.k):0,i:ad?n(ad.tot.i):0};
+  T.after=T.p-T.c-T.sh;T.nofeeItems=all.filter(r=>r.nofee>0);
+  return{rows:all,withAd,noAd,un,T,sm}}
+function analyze(m){const ec=monthEC(m),ad=monthAD(m);if(!ec&&!ad)return null;return{ec,ad,...build(ec?ec.items:[],ad)}}
+function dayBuild(d){const D=S.day[d];if(!D)return null;return{ec:D.ec,ad:D.ad,...build(D.ec?D.ec.items:[],D.ad)}}
+
+/* 월 합계 (월별·추이용) */
+function agg(m){const r={s:0,c:0,a:0,i:0,k:0,o:0,days:0,p:null,sh:0,src:{}};
+  for(const[d,v]of Object.entries(S.days))if(d.startsWith(m)){r.days++;for(const[f]of FIELDS)r[f]+=n(v[f])}
+  const mo=S.months[m]||{};r.goal=n(mo.g);const X=analyze(m);
+  if(X&&X.ec){r.s=X.T.s;r.p=X.T.p;r.sh=X.T.sh;r.src.s=X.ec.daily?`이카운트 ${X.ec.daily}일`:'이카운트'}else if(mo.s!=null&&mo.s!==''){r.s=n(mo.s);r.src.s='직접입력'}else if(r.days)r.src.s='일자 입력';
+  if(X&&X.ad){r.c=X.T.c;r.a=X.T.a;r.i=X.T.i;r.k=X.T.k;r.o=X.T.o;r.src.c=X.ad.daily?`광고 ${X.ad.daily}일`:'광고 리포트'}else if(r.days)r.src.c='일자 입력';
+  return r}
+const verdict=r=>{if(r.p==null)return'';const cost=r.c+r.sh;if(!cost)return'';
+  return r.after<0?'<span class="chip bad">적자</span>':r.p>0&&cost/r.p>.5?'<span class="chip warn">비용 50%↑</span>':'<span class="chip good">양호</span>'};
+const ratioBar=(c,p)=>{if(!c)return'';if(!(p>0))return'<span class="chip bad">이익 없음</span>';const r=c/p;return`<span class="mb" title="매출이익 대비 광고비+배송비 ${P(r*100)} (검은 선 = 100%)"><i class="${r>1?'over':r>.5?'mid':''}" style="width:${Math.min(r,1.5)/1.5*100}%"></i><b></b></span>${P(r*100)}`};
+
+/* ---------- 저장 ---------- */
+let col=null,dirty=new Set(),saving=false,mode='local';
+const setSt=t=>$('#st').textContent=t;
+const yk=d=>'y'+d.slice(0,4);
+const allKeys=()=>['cfg',...new Set(Object.keys(S.days).map(yk)),...Object.keys(S.mon).map(m=>'m'+m),...Object.keys(S.day).map(d=>'d'+d),...(Object.keys(S.wk).length?['wk']:[])];
+function save(keys){FEE=null;keys.forEach(k=>dirty.add(k));try{localStorage.setItem('cpad',JSON.stringify(S))}catch(e){}
+  clearTimeout(save.t);save.t=setTimeout(flush,700)}
+async function flush(){if(!col){setSt(mode=='local'?'이 브라우저에 저장됨':'저장됨');return}
+  if(saving){clearTimeout(save.t);save.t=setTimeout(flush,500);return}
+  saving=true;setSt('저장 중…');
+  try{for(const k of[...dirty]){dirty.delete(k);const b=docBody(k);if(b)await col.doc(k).set(b);else await col.doc(k).delete()}setSt('클라우드에 저장됨')}
+  catch(e){setSt(e&&e.code=='quota_exceeded'?'저장 공간 초과':'저장 실패 · 브라우저에만 보관')}
+  saving=false}
+function docBody(k){if(k=='cfg')return{cfg:S.cfg,months:S.months,map:S.map,ship:S.ship,grp:S.grp,names:S.names,shipNames:S.shipNames};
+  if(k[0]=='m'){const v=S.mon[k.slice(1)];return v?{mon:v}:null}
+  if(k=='wk')return Object.keys(S.wk).length?{wk:S.wk}:null;
+  if(k[0]=='d'){const v=S.day[k.slice(1)];return v?{day:v}:null}
+  const y=k.slice(1),o={days:{},camps:{}};
+  for(const d in S.days)if(d.startsWith(y))o.days[d]=S.days[d];for(const m in S.camps)if(m.startsWith(y))o.camps[m]=S.camps[m];return o}
+function fix(){for(const k of['wk','days','months','camps','mon','day','map','ship','grp','names'])if(!S[k]||typeof S[k]!='object'||Array.isArray(S[k]))S[k]={};
+  if(!Array.isArray(S.shipNames))S.shipNames=null;S.cfg=Object.assign({},DEF,S.cfg);
+  const learn=ec=>ec&&ec.items&&ec.items.forEach(([c,nm])=>{if(!S.names[c])S.names[c]=nm});
+  for(const m in S.mon)learn(S.mon[m].ec);for(const d in S.day)learn(S.day[d].ec);FEE=null}
+async function initStore(){
+  try{const raw=localStorage.getItem('cpad');if(raw)S=Object.assign(S,JSON.parse(raw))}catch(e){}
+  fix();renderAll();setSt('이 브라우저에 저장됨');
+  try{const db=await claude.use('db'),user=await claude.use('user');if(!db||!user)return;
+    const id=await user.id();if(!id)return;
+    col=db.collection('data/users/'+id);mode='cloud';
+    const tm=new Promise((_,r)=>setTimeout(()=>r({code:'timeout'}),10000));
+    const q=await Promise.race([col.get(),tm]);
+    if(q.empty){if(allKeys().length>1)save(allKeys());else setSt('클라우드 연결됨');return}
+    const N={wk:{},days:{},months:{},camps:{},mon:{},day:{},map:{},ship:{},grp:{},names:{},shipNames:null,cfg:S.cfg};
+    for(const d of q.docs){const v=d.data()||{};if(d.id=='cfg'){N.cfg=v.cfg||N.cfg;for(const k of['months','map','ship','grp','names'])N[k]={...v[k]};N.shipNames=v.shipNames||null}
+      else if(d.id=='wk'){N.wk=v.wk||{}}else if(d.id[0]=='m'){if(v.mon)N.mon[d.id.slice(1)]=v.mon}else if(d.id[0]=='d'){if(v.day)N.day[d.id.slice(1)]=v.day}else{Object.assign(N.days,v.days);Object.assign(N.camps,v.camps)}}
+    S=JSON.parse(JSON.stringify(N));fix();try{localStorage.setItem('cpad',JSON.stringify(S))}catch(e){}
+    renderAll();setSt('클라우드에 저장됨');
+  }catch(e){col=null;setSt(e&&e.code=='timeout'?'클라우드 응답 없음 · 브라우저에 저장':'이 브라우저에 저장됨')}
+}
+
+/* ---------- 차트 ---------- */
+function chart(svg,labels,bars,line,opt={}){
+  const draw=()=>{const Wd=svg.clientWidth,H=svg.clientHeight;if(!Wd)return;const sm=Wd<520;
+    const L=sm?44:64,R=sm?40:54,T=14,B=28,iw=Wd-L-R,ih=H-T-B,nb=labels.length;
+    const mx=Math.max(1,...bars.flatMap(b=>b.v))*1.1,lv=line.v.filter(v=>v!=null),lmx=Math.max(100,...lv)*1.15;
+    const gw=iw/nb,bw=Math.max(2,Math.min(28,gw*0.8/bars.length));
+    const y=v=>T+ih-Math.max(0,v)/mx*ih,ly=v=>T+ih-v/lmx*ih;let h='';
+    for(let t=0;t<=4;t++){const v=mx/1.1*t/4,yy=y(v);h+=`<line x1="${L}" x2="${L+iw}" y1="${yy}" y2="${yy}" stroke="var(--line)"/><text x="${L-6}" y="${yy+4}" text-anchor="end" font-size="11" fill="var(--mute)">${MAN(v)}</text>`;
+      const l=lmx/1.15*t/4;h+=`<text x="${L+iw+6}" y="${ly(l)+4}" font-size="11" fill="var(--red)">${Math.round(l)}%</text>`}
+    if(opt.ref){const yy=ly(opt.ref);if(yy>T)h+=`<line x1="${L}" x2="${L+iw}" y1="${yy}" y2="${yy}" stroke="var(--red)" stroke-dasharray="4 4" opacity=".6"/>`}
+    const step=Math.ceil(nb/(sm?8:16));
+    labels.forEach((lb,i)=>{const cx=L+gw*i+gw/2;bars.forEach((b,j)=>{const v=b.v[i]||0,x=cx-bw*bars.length/2+j*bw;
+      h+=`<rect x="${x}" y="${y(v)}" width="${bw-1}" height="${Math.max(0,T+ih-y(v))}" fill="${b.col}"><title>${esc(lb)} ${b.name} ${W(v)}원</title></rect>`});
+      if(i%step==0)h+=`<text x="${cx}" y="${H-8}" text-anchor="middle" font-size="11" fill="var(--mute)">${esc(lb)}</text>`});
+    let pth='',dots='';line.v.forEach((v,i)=>{if(v==null)return;const cx=L+gw*i+gw/2,yy=ly(Math.min(v,lmx));pth+=(pth?'L':'M')+cx+' '+yy;dots+=`<circle cx="${cx}" cy="${yy}" r="3" fill="var(--red)"><title>${esc(labels[i])} ROAS ${P(v)}</title></circle>`});
+    h+=`<path d="${pth}" fill="none" stroke="var(--red)" stroke-width="2"/>${dots}`;svg.innerHTML=h};
+  draw();new ResizeObserver(draw).observe(svg)}
+const legend=`<div class="lg"><span><i style="background:var(--blue)"></i>매출</span><span><i style="background:var(--sky)"></i>광고매출</span><span><i style="background:var(--gray)"></i>광고비</span><span><i style="background:var(--red);height:3px"></i>광고 ROAS(오른쪽 축)</span></div>`;
+
+/* ---------- 자동 분석 문장 ---------- */
+function insights(X){const L=[],T=X.T,win=S.cfg.win==1?'1일':'14일',nm=r=>esc(short(r.name).t);
+  if(X.ec){L.push(`매출이익 <b>${W(T.p)}원</b>에서 광고비 <b>${W(T.c)}원</b>과 배송비 <b>${W(T.sh)}원</b>(판매 ${W(T.q)}개)을 빼면 실이익은 <b class="${T.after<0?'dn':''}">${WN(T.after)}원</b>, 매출 대비 <b>${P1(T.after/T.s*100)}</b>입니다(광고·배송 전 ${P1(T.p/T.s*100)}). 광고비는 이익의 ${P(T.c/T.p*100)}, 배송비는 ${P(T.sh/T.p*100)}를 차지합니다.`)}
+  if(T.nofeeItems.length){const q=T.nofeeItems.reduce((a,r)=>a+r.nofee,0);L.push(`<span class="dn">배송비가 비어 있는 품목 ${T.nofeeItems.length}개(판매 ${W(q)}개)</span>는 배송비 0원으로 계산됐습니다: ${T.nofeeItems.slice(0,5).map(nm).join(', ')}${T.nofeeItems.length>5?' 등':''}. <button class="b s" data-go="item">품목·배송비 탭에서 입력</button>`)}
+  const bad=X.withAd.filter(r=>r.after<0),warn=X.withAd.filter(r=>r.after>=0&&r.p>0&&(r.c+r.sh)/r.p>.5);
+  if(bad.length)L.push(`광고비·배송비를 빼면 적자인 광고 품목 ${bad.length}개: ${bad.slice(0,5).map(r=>`<b>${nm(r)}</b>(${WN(r.after)}원)`).join(', ')}. 입찰가를 낮추거나 광고를 줄일 후보입니다.`);
+  if(warn.length)L.push(`비용이 이익의 절반을 넘는 품목: ${warn.slice(0,4).map(r=>`<b>${nm(r)}</b> ${P((r.c+r.sh)/r.p*100)}`).join(', ')}.`);
+  const good=X.withAd.filter(r=>r.c>T.c*.03&&r.after>0).sort((a,b)=>b.after/b.c-a.after/a.c)[0];
+  if(good)L.push(`광고 효율이 가장 좋은 품목은 <b>${nm(good)}</b>: 광고비 ${W(good.c)}원에 실이익 ${W(good.after)}원, ROAS ${P(good.c?good.a/good.c*100:null)}. 예산을 늘려볼 만합니다.`);
+  if(X.ad){const pl=Object.entries(X.ad.place).map(([k,v])=>({k,c:v.c,r:v.c?AW(v)/v.c*100:null})).filter(x=>x.c>0).sort((a,b)=>b.r-a.r);
+    if(pl.length>1){const b=pl[0],w=pl[pl.length-1];L.push(`노출 지면별 ROAS(${win}): <b>${esc(b.k)}</b> ${P(b.r)}가 가장 높고 <b>${esc(w.k)}</b> ${P(w.r)}가 가장 낮습니다(광고비 ${W(w.c*VAT())}원).`)}
+    const z=kzOf(X.ad);if(z.c>0){const top=X.ad.kws.filter(k=>k.k!='-'&&k.c>0&&!AW(k)).sort((a,b)=>b.c-a.c).slice(0,5);
+      L.push(`전환이 한 건도 없는 키워드 ${z.approx?'약 ':''}<b>${W(z.n)}개</b>에 <b>${W(z.c*VAT())}원</b>(광고비의 ${P(z.c/X.ad.tot.c*100)})이 쓰였습니다. 상위: ${top.map(k=>esc(k.k)).join(', ')} — 제외 키워드 등록을 검토하세요.`)}}
+  if(X.ec&&X.noAd.length){const s=X.sm(X.noAd,'s'),a=X.sm(X.noAd,'after');L.push(`광고 없이 팔린 품목 ${X.noAd.length}개가 매출 ${W(s)}원(${P(s/T.s*100)}), 배송비 뺀 실이익 ${WN(a)}원을 냈습니다.`)}
+  if(X.ec){const neg=X.rows.filter(r=>r.p<0);if(neg.length)L.push(`이카운트 기준 매출이익이 마이너스인 품목 ${neg.length}개: ${neg.slice(0,4).map(nm).join(', ')} — 판매가·원가를 확인하세요.`)}
+  if(X.un.length){const c=X.sm(X.un,'c');L.push(`이카운트 품목과 연결되지 않은 광고 상품 ${X.un.length}개(광고비 ${W(c)}원)는 전체 합계에는 포함됐지만 품목별 실이익에는 빠져 있습니다. 표 아래에서 품목을 골라 주세요.`)}
+  if(!X.ec)L.push('이카운트 품목별 이익현황을 올리면 광고비·배송비를 뺀 실이익까지 계산합니다.');
+  if(!X.ad)L.push('이 달 쿠팡 광고 리포트를 올리면 품목별 광고비·ROAS가 붙습니다.');
+  return L}
+
+/* ---------- 품목 표 (소계·합계) ---------- */
+function prodTable(X,opt={}){const sm=X.sm,cat=catalog();
+  const line=(r,cls='')=>`<tr class="${cls}"><td class="w">${esc(r.name)}<small>${esc(r.code)}${r.grp&&r.mem.length>1?` 외 ${r.mem.length-1}개 합산`:''}${r.camps&&r.camps.length?' · '+r.camps.map(esc).join(', '):''}</small></td><td class="n">${W(r.q)}</td><td class="n">${W(r.s)}</td><td class="n ${r.p<0?'dn':''}">${WN(r.p)}</td><td class="n">${r.nofee?`<span class="chip warn" title="배송비 미입력">미입력</span>`:W(r.sh)}</td><td class="n">${r.c?W(r.c):''}</td><td class="n">${r.a?W(r.a):''}</td><td class="n">${r.c?P(r.a/r.c*100):''}</td><td class="n">${r.c&&r.s?P(r.s/r.c*100):''}</td><td class="n ${r.after<0?'dn':''}"><b>${WN(r.after)}</b></td><td class="n">${P1(r.s?r.after/r.s*100:null)}</td><td>${ratioBar(r.c+r.sh,r.p)}</td><td>${verdict(r)}</td></tr>`;
+  const tot=(L,label,cls,extra={})=>{const o={name:label,code:'',q:sm(L,'q'),s:sm(L,'s'),p:sm(L,'p'),sh:sm(L,'sh'),c:sm(L,'c')+(extra.c||0),a:sm(L,'a')+(extra.a||0),nofee:0,camps:[]};o.after=o.p-o.sh-o.c;
+    return`<tr class="${cls}"><td>${label}</td><td class="n">${W(o.q)}</td><td class="n">${W(o.s)}</td><td class="n">${WN(o.p)}</td><td class="n">${W(o.sh)}</td><td class="n">${W(o.c)}</td><td class="n">${W(o.a)}</td><td class="n">${P(o.c?o.a/o.c*100:null)}</td><td class="n">${P(o.c&&o.s?o.s/o.c*100:null)}</td><td class="n ${o.after<0?'dn':''}">${WN(o.after)}</td><td class="n">${P1(o.s?o.after/o.s*100:null)}</td><td>${ratioBar(o.c+o.sh,o.p)}</td><td></td></tr>`};
+  const sec=t=>`<tr class="sec"><td colspan="13">${t}</td></tr>`;
+  let b='';
+  if(X.withAd.length){b+=sec(`광고 품목 ${X.withAd.length}개 · 광고비 많은 순`)+X.withAd.map(r=>line(r)).join('')+tot(X.withAd,'광고 품목 소계','st')}
+  if(X.noAd.length){b+=sec(`광고 없는 품목 ${X.noAd.length}개 · 매출 많은 순`)+X.noAd.map(r=>line(r)).join('')+tot(X.noAd,'광고 없는 품목 소계','st')}
+  if(X.un.length){b+=sec(`품목 미연결 광고 ${X.un.length}개 — 품목을 고르면 해당 품목 줄로 합쳐집니다`)+X.un.map(u=>{const s=short(u.nm);return`<tr><td class="w">${esc(s.t)}<small>${esc(s.o)} · ${esc(u.camp)}</small>${cat.length?`<select data-map="${esc(u.nm)}" aria-label="이카운트 품목 연결"><option value="">품목 연결…</option>${cat.map(i=>`<option value="${esc(i[0])}">${esc(short(i[1]).t)}</option>`).join('')}</select>`:''}</td><td></td><td></td><td></td><td></td><td class="n">${W(u.c)}</td><td class="n">${W(u.a)}</td><td class="n">${P(u.c?u.a/u.c*100:null)}</td><td></td><td class="n dn">${WN(-u.c)}</td><td></td><td></td><td><span class="chip mute">미연결</span></td></tr>`}).join('')+`<tr class="st"><td>미연결 광고 소계</td><td></td><td></td><td></td><td></td><td class="n">${W(sm(X.un,'c'))}</td><td class="n">${W(sm(X.un,'a'))}</td><td class="n">${P(sm(X.un,'c')?sm(X.un,'a')/sm(X.un,'c')*100:null)}</td><td></td><td class="n dn">${WN(-sm(X.un,'c'))}</td><td></td><td></td><td></td></tr>`}
+  const T=X.T;
+  b+=`<tr class="gt"><td>전체 합계</td><td class="n">${W(T.q)}</td><td class="n">${W(T.s)}</td><td class="n">${WN(T.p)}</td><td class="n">${W(T.sh)}</td><td class="n">${W(T.c)}</td><td class="n">${W(T.a)}</td><td class="n">${P(T.c?T.a/T.c*100:null)}</td><td class="n">${P(T.c&&T.s?T.s/T.c*100:null)}</td><td class="n ${T.after<0?'dn':''}">${WN(T.after)}</td><td class="n">${P1(T.s?T.after/T.s*100:null)}</td><td>${ratioBar(T.c+T.sh,T.p)}</td><td></td></tr>`;
+  return`<div class="scroll"><table><thead><tr><th>품목</th><th class="n">수량</th><th class="n">매출</th><th class="n">매출이익</th><th class="n">배송비</th><th class="n">광고비</th><th class="n">광고매출</th><th class="n">ROAS</th><th class="n">매출액 ROAS</th><th class="n">실이익</th><th class="n">실이익률</th><th>이익 대비 광고+배송</th><th>판정</th></tr></thead><tbody>${b}</tbody></table></div>`}
+const kpis=(X,label)=>{const T=X.T;return`<div class="kpi">
+  ${X.ec?`<div><span>매출</span><b>${W(T.s)}원</b><i class="note">판매 ${W(T.q)}개</i></div><div><span>매출이익</span><b>${WN(T.p)}원</b><i class="note">이익률 ${P1(T.p/T.s*100)}</i></div><div><span>배송비</span><b>${W(T.sh)}원</b><i class="note ${T.nofee?'dn':''}">${T.nofee?`미입력 ${W(T.nofee)}개`:'매출의 '+P1(T.sh/T.s*100)}</i></div>`:''}
+  ${X.ad?`<div><span>광고비${S.cfg.vat?' (VAT 포함)':''}</span><b>${W(T.c)}원</b><i class="note">${X.ec?'매출의 '+P1(T.c/T.s*100):'클릭 '+W(T.k)}</i></div>`:''}
+  ${X.ec?`<div class="hl"><span>실이익 (이익−광고−배송)</span><b class="${T.after<0?'dn':''}">${WN(T.after)}원</b><i class="note">실이익률 ${P1(T.after/T.s*100)}</i></div>`:''}
+  ${X.ad?`<div><span>광고 ROAS</span><b>${P(T.c?T.a/T.c*100:null)}</b><i class="note">광고매출 ${MAN(T.a)}원</i></div>${X.ec?`<div><span>매출액 기준 ROAS</span><b>${P(T.c?T.s/T.c*100:null)}</b><i class="note">매출액 ÷ 광고비</i></div>`:''}<div><span>CTR · CPC · CVR</span><b style="font-size:17px">${P1(T.i?T.k/T.i*100:null)} · ${T.k?W(T.c/T.k):'–'} · ${P1(T.k?T.o/T.k*100:null)}</b><i class="note">노출 ${MAN(T.i)} · 주문 ${W(T.o)}</i></div>`:''}</div>`};
+
+/* ---------- 대시보드 ---------- */
+function dayTot(d){const B=dayBuild(d);if(B)return{s:B.T.s,a:B.T.a,c:B.T.c,src:1};const v=S.days[d];return v?{s:n(v.s),a:n(v.a),c:n(v.c)}:null}
+function rDash(){const el=$('#t-dash'),[yy,mm]=cur.split('-'),X=analyze(cur),be=bepRoas();
+  const dl=Array.from({length:dim(cur)},(_,i)=>cur+'-'+pad(i+1)),dt=dl.map(dayTot),hasDays=dt.some(Boolean);
+  if(!X&&!hasDays&&!S.months[cur]){el.innerHTML=`<div class="box empty"><h2>${yy}년 ${+mm}월 자료가 아직 없습니다</h2><p class="note">이카운트 품목별 이익현황과 쿠팡 광고 리포트를 올리면 이 화면이 자동으로 채워집니다.</p><p class="row" style="justify-content:center"><button class="b p" data-go="up">파일 올리기</button><button class="b" data-go="day">일자별 보기</button></p></div>`+trend();drawTrend();return}
+  let html='';
+  if(X){const T=X.T,ec=X.ec,per=ec&&ec.from?`${ec.from.slice(5).replace('-','/')}~${ec.to.slice(5).replace('-','/')}`:'';
+    const head=X.ec?`${+mm}월${per?`(${per})`:''} 실이익 ${WN(T.after)}원 · 매출이익 ${MAN(T.p)}원에서 광고비 ${MAN(T.c)}원·배송비 ${MAN(T.sh)}원 차감`:`${+mm}월 광고 ROAS ${P(T.c?T.a/T.c*100:null)} · 광고비 ${W(T.c)}원`;
+    html+=`<h2 class="${X.ec&&T.after<0?'dn':''}">${esc(head)}</h2><p class="sub">${X.ec?`이카운트 ${esc(ec.who||'')} ${per}${ec.daily?` (일자 자료 ${ec.daily}일 합산)`:''} · 품목 ${X.rows.length}줄`:''}${X.ec&&X.ad?' · ':''}${X.ad?`쿠팡 광고 ${W(X.ad.rows)}행${X.ad.daily?` (${X.ad.daily}일 합산)`:''} · 전환 ${S.cfg.win==1?'1일':'14일'} 기준${S.cfg.vat?' · 광고비 VAT 포함':''}`:''}</p>
+    ${kpis(X)}<div class="box"><h3>자동 분석</h3><ol class="ins">${insights(X).map(s=>`<li>${s}</li>`).join('')}</ol></div>
+    <div class="box"><h3>품목별 실이익 <small>실이익 = 매출이익 − 배송비 − 광고비 · 막대 = 매출이익 대비 광고비+배송비(검은 선 100%) · 탄소매트 등 묶음 품목은 한 줄로 합산</small></h3>${prodTable(X)}</div>`;
+    if(X.ad){const A=X.ad,v=VAT(),tb=(rows,label)=>{const t=z7();rows.forEach(([,x])=>add7(t,x));
+        return`<table><tr><th>${label}</th><th class="n">광고비</th><th class="n">광고매출</th><th class="n">ROAS</th><th class="n">클릭</th><th class="n">CPC</th><th class="n">주문</th></tr>${[...rows,['합계',t,1]].map(([k,x,g])=>`<tr class="${g?'gt':''}"><td class="${g?'':'w'}">${esc(k)}</td><td class="n">${W(x.c*v)}</td><td class="n">${W(AW(x))}</td><td class="n">${P(x.c?AW(x)/x.c/v*100:null)}</td><td class="n">${W(x.k)}</td><td class="n">${x.k?W(x.c*v/x.k):'–'}</td><td class="n">${W(OW(x))}</td></tr>`).join('')}</table>`};
+      const camps=Object.entries(A.camps).sort((a,b)=>b[1].c-a[1].c),pl=Object.entries(A.place).sort((a,b)=>b[1].c-a[1].c);
+      const kzl=A.kws.filter(k=>k.k!='-'&&k.c>0&&!AW(k)).sort((a,b)=>b.c-a.c),kz=kzl.slice(0,15),kg=A.kws.filter(k=>k.k!='-'&&AW(k)>0).sort((a,b)=>AW(b)-AW(a)).slice(0,15),z=kzOf(A);
+      const sk=(L,f)=>L.reduce((a,x)=>a+(f(x)||0),0);
+      html+=`<div class="grid2"><div class="box"><h3>캠페인별 <small>${camps.length}개</small></h3><div class="scroll">${tb(camps,'캠페인')}</div></div>
+       <div class="box"><h3>노출 지면별</h3><div class="scroll">${tb(pl,'지면')}</div><p class="note pad" style="margin:0">키워드 '-'는 비검색·외부 채널처럼 키워드가 없는 노출입니다.</p></div></div>
+       <div class="grid2"><div class="box"><h3>전환 0건 키워드 <small>광고비 많은 순 15개 · 제외 키워드 후보</small></h3><div class="scroll"><table><tr><th>키워드</th><th class="n">광고비</th><th class="n">클릭</th><th class="n">노출</th></tr>${kz.map(k=>`<tr><td class="w">${esc(k.k)}</td><td class="n dn">${W(k.c*v)}</td><td class="n">${W(k.k2)}</td><td class="n">${W(k.i)}</td></tr>`).join('')||'<tr><td colspan="4" class="note">없음</td></tr>'}
+         <tr class="st"><td>위 ${kz.length}개 소계</td><td class="n">${W(sk(kz,x=>x.c)*v)}</td><td class="n">${W(sk(kz,x=>x.k2))}</td><td class="n">${W(sk(kz,x=>x.i))}</td></tr><tr class="gt"><td>전환 0건 전체 ${z.approx?'약 ':''}${W(z.n)}개</td><td class="n">${W(z.c*v)}</td><td></td><td></td></tr></table></div></div>
+       <div class="box"><h3>매출 낸 키워드 <small>광고매출 많은 순 15개</small></h3><div class="scroll"><table><tr><th>키워드</th><th class="n">광고비</th><th class="n">광고매출</th><th class="n">ROAS</th><th class="n">주문</th></tr>${kg.map(k=>`<tr><td class="w">${esc(k.k)}</td><td class="n">${W(k.c*v)}</td><td class="n">${W(AW(k))}</td><td class="n">${P(k.c?AW(k)/k.c/v*100:null)}</td><td class="n">${W(OW(k))}</td></tr>`).join('')||'<tr><td colspan="5" class="note">없음</td></tr>'}
+         <tr class="gt"><td>위 ${kg.length}개 합계</td><td class="n">${W(sk(kg,x=>x.c)*v)}</td><td class="n">${W(sk(kg,AW))}</td><td class="n">${P(sk(kg,x=>x.c)?sk(kg,AW)/sk(kg,x=>x.c)/v*100:null)}</td><td class="n">${W(sk(kg,OW))}</td></tr></table></div></div></div>`}}
+  if(hasDays){if(!X){const r=agg(cur),roas=r.c?r.a/r.c*100:null;html+=`<h2>${+mm}월 광고 ROAS ${P(roas)} · 매출 ${W(r.s)}원 · 광고비 ${W(r.c)}원</h2><p class="sub">일자별 입력 기준</p>`}
+    html+=`<div class="box"><h3>${yy}년 ${+mm}월 일자별 <small>일자 자료(이카운트·광고 일자 업로드) 또는 직접 입력</small></h3>${legend}<div class="fig"><svg id="cd"></svg></div></div>`}
+  el.innerHTML=html+trend();
+  if(hasDays)chart($('#cd'),dl.map(d=>+d.slice(8)+'일'),[{v:dt.map(x=>x?x.s:0),col:'var(--blue)',name:'매출'},{v:dt.map(x=>x?x.a:0),col:'var(--sky)',name:'광고매출'},{v:dt.map(x=>x?x.c:0),col:'var(--gray)',name:'광고비'}],{v:dt.map(x=>x&&x.c?x.a/x.c*100:null)},{ref:X&&X.ec?null:be});
+  drawTrend()}
+function trend(){return`<div class="box"><h3>최근 12개월 추이</h3>${legend}<div class="fig" style="min-height:280px"><svg id="cm2"></svg></div></div>`}
+function drawTrend(){const ml=[],ms=[],ma=[],mc=[],mr=[];for(let i=11;i>=0;i--){const m=shift(cur,-i),g=agg(m);ml.push(+m.slice(5)+'월');ms.push(g.s);ma.push(g.a);mc.push(g.c);mr.push(g.c?g.a/g.c*100:null)}
+  chart($('#cm2'),ml,[{v:ms,col:'var(--blue)',name:'매출'},{v:ma,col:'var(--sky)',name:'광고매출'},{v:mc,col:'var(--gray)',name:'광고비'}],{v:mr})}
+
+/* ---------- 일자별: 품목 × 일자 ---------- */
+const WK='일월화수목금토';
+const MET=[['s','매출'],['p','매출이익'],['q','수량'],['sh','배송비'],['c','광고비'],['a','광고매출'],['after','실이익']];
+function rDay(){const[y,m]=cur.split('-').map(Number),ds=daysIn(cur),B={};ds.forEach(d=>B[d]=dayBuild(d));
+  const names={},order={};
+  ds.forEach(d=>{B[d].rows.forEach(r=>{names[r.key]=r.name;order[r.key]=(order[r.key]||0)+r.s+r.c*3});if(B[d].un.length){names['__un']='품목 미연결 광고';order['__un']=-1}});
+  const met=UI.met;
+  const val=(d,k)=>{const b=B[d];if(k=='__un')return['c','a'].includes(met)?b.sm(b.un,met):met=='after'?-b.sm(b.un,'c'):0;const r=b.rows.find(r=>r.key==k);return r?r[met]:0};
+  const ttl=d=>B[d].T[met];
+  const keys=Object.keys(names).map(k=>[k,ds.reduce((t,d)=>t+val(d,k),0)]).sort((a,b)=>b[1]-a[1]||order[b[0]]-order[a[0]]).map(x=>x[0]);
+  let h=`<div class="box"><h3>${y}년 ${m}월 품목별 일자 현황 <small>품목 줄을 누르면 아래에 그 품목의 일자별 상세가 나옵니다</small><span style="flex:1"></span>
+   <select id="met" aria-label="보기 항목">${MET.map(([k,l])=>`<option value="${k}" ${k==met?'selected':''}>${l}</option>`).join('')}</select></h3>`;
+  if(!ds.length)h+=`<div class="pad"><p>이 달에는 일자별 품목 자료가 없습니다.</p><p class="note">이카운트에서 품목별 이익현황을 <b>하루 단위</b>(예: 2026/11/18 ~ 2026/11/18)로 조회해 올리면 그날 품목별 매출·이익이 들어갑니다. 쿠팡 광고 리포트도 하루치를 받아 파일 이름에 날짜(예: 광고_20261118.xlsx)를 넣거나 업로드 탭에서 '특정 일자'를 고르면 그날 광고비가 품목별로 붙습니다. 월 전체 파일만 올린 달은 대시보드·월별 집계에서 보세요.</p></div>`;
+  else h+=`<div class="scroll" style="max-height:60vh"><table class="pv"><thead><tr><th>품목</th>${ds.map(d=>{const wd=new Date(d).getDay();return`<th class="n" style="color:${wd==0?'var(--red)':wd==6?'var(--blue)':''}">${+d.slice(5,7)}/${+d.slice(8)}(${WK[wd]})</th>`}).join('')}<th class="n">합계</th></tr></thead><tbody>
+   ${keys.map(k=>{const vs=ds.map(d=>val(d,k)),t=vs.reduce((a,b)=>a+b,0);return`<tr data-k="${esc(k)}" tabindex="0" class="${UI.sel==k?'on':''}"><td class="w" style="min-width:200px">${esc(names[k])}</td>${vs.map(v=>`<td class="n ${!v?'z':v<0?'dn':''}">${v?WN(v):'0'}</td>`).join('')}<td class="n"><b>${WN(t)}</b></td></tr>`}).join('')}
+   <tr class="gt ${UI.sel=='all'?'on':''}" data-k="all" tabindex="0"><td>전체 합계</td>${ds.map(d=>`<td class="n">${WN(ttl(d))}</td>`).join('')}<td class="n">${WN(ds.reduce((a,d)=>a+ttl(d),0))}</td></tr></tbody></table></div>`;
+  h+='</div>';
+  if(ds.length){const sel=UI.sel in names||UI.sel=='all'?UI.sel:'all',rowOf=(d)=>{const b=B[d];if(sel=='all')return b.T;if(sel=='__un'){const c=b.sm(b.un,'c'),a=b.sm(b.un,'a');return{q:0,s:0,p:0,sh:0,c,a,after:-c}}return b.rows.find(r=>r.key==sel)||{q:0,s:0,p:0,sh:0,c:0,a:0,after:0}};
+    const R=ds.map(d=>[d,rowOf(d)]),t={q:0,s:0,p:0,sh:0,c:0,a:0,after:0};R.forEach(([,r])=>{for(const f in t)t[f]+=n(r[f])});
+    const tr=(lab,r,cls='')=>`<tr class="${cls}"><td>${lab}</td><td class="n">${W(r.q)}</td><td class="n">${W(r.s)}</td><td class="n">${WN(r.p)}</td><td class="n">${W(r.sh)}</td><td class="n">${W(r.c)}</td><td class="n">${W(r.a)}</td><td class="n">${P(r.c?r.a/r.c*100:null)}</td><td class="n ${r.after<0?'dn':''}"><b>${WN(r.after)}</b></td><td class="n">${P1(r.s?r.after/r.s*100:null)}</td></tr>`;
+    h+=`<div class="box"><h3>${esc(sel=='all'?'전체 합계':names[sel])} · 일자별 상세</h3><div class="scroll"><table><tr><th>일자</th><th class="n">수량</th><th class="n">매출</th><th class="n">매출이익</th><th class="n">배송비</th><th class="n">광고비</th><th class="n">광고매출</th><th class="n">ROAS</th><th class="n">실이익</th><th class="n">실이익률</th></tr>
+     ${R.map(([d,r])=>{const wd=new Date(d).getDay();return tr(`<span style="color:${wd==0?'var(--red)':wd==6?'var(--blue)':''}">${+d.slice(5,7)}/${+d.slice(8)} (${WK[wd]})</span>`,r)}).join('')}${tr('합계',t,'gt')}</table></div></div>`}
+  h+=manualDay();
+  $('#t-day').innerHTML=h;daySum();
+  const clr=$('#clrm');if(clr)clr.onclick=()=>{if(clr.dataset.a){for(const k in S.days)if(k.startsWith(cur))delete S.days[k];save([yk(cur)]);rDay()}else{clr.dataset.a=1;clr.textContent='한 번 더 누르면 삭제';clr.classList.add('r')}}}
+function rowCalc(v){const c=n(v.c),a=n(v.a),i=n(v.i),k=n(v.k),o=n(v.o);return[c?P(a/c*100):'–',i?P1(k/i*100):'–',k?W(c/k):'–',k?P1(o/k*100):'–']}
+function manualDay(){const days=dim(cur),[y,m]=cur.split('-').map(Number),has=Object.keys(S.days).some(d=>d.startsWith(cur));let rows='';
+  for(let d=1;d<=days;d++){const k=cur+'-'+pad(d),v=S.days[k]||{},wd=new Date(y,m-1,d).getDay();
+    rows+=`<tr data-d="${k}" class="${wd==0?'sun':wd==6?'sat':''} ${k==TODAY?'today':''}"><td>${m}/${d} (${WK[wd]})</td>${FIELDS.map(([f])=>`<td class="in"><input data-f="${f}" inputmode="numeric" value="${v[f]!=null&&v[f]!==''?W(n(v[f])):''}" aria-label="${k} ${f}"></td>`).join('')}${rowCalc(v).map(x=>`<td class="n c">${x}</td>`).join('')}</tr>`}
+  return`<details class="box" ${has?'open':''}><summary>일자별 직접 입력 (전체 합계) <small>파일 없이 손으로 적을 때 · Enter = 아래 칸</small></summary><div class="pad row"><button class="b s" id="clrm">이 달 직접 입력 비우기</button></div>
+   <div class="scroll" style="max-height:60vh"><table id="dt"><thead><tr><th>일자</th>${FIELDS.map(([,l])=>`<th class="n">${l}</th>`).join('')}<th class="n">광고 ROAS</th><th class="n">CTR</th><th class="n">CPC</th><th class="n">CVR</th></tr></thead>
+   <tbody>${rows}</tbody><tfoot><tr id="dsum"></tr></tfoot></table></div></details>`}
+function daySum(){const el=$('#dsum');if(!el)return;const r={};for(const[f]of FIELDS)r[f]=0;for(const[d,v]of Object.entries(S.days))if(d.startsWith(cur))for(const[f]of FIELDS)r[f]+=n(v[f]);
+  el.innerHTML=`<td>합계</td>${FIELDS.map(([f])=>`<td class="n">${W(r[f])}</td>`).join('')}${rowCalc(r).map(x=>`<td class="n">${x}</td>`).join('')}`}
+
+/* ---------- 월별 ---------- */
+function rMon(){const y=cur.slice(0,4);let rows='',T={s:0,p:0,sh:0,c:0,a:0,g:0,af:0,hasP:0};
+  for(let m=1;m<=12;m++){const k=y+'-'+pad(m),r=agg(k),mo=S.months[k]||{},roas=r.c?r.a/r.c*100:null,after=r.p!=null?r.p-r.c-r.sh:null;
+    T.s+=r.s;T.c+=r.c;T.a+=r.a;T.g+=r.goal;if(r.p!=null){T.p+=r.p;T.sh+=r.sh;T.af+=after;T.hasP=1}
+    rows+=`<tr data-m="${k}" class="${k==cur?'today':''}"><td>${m}월</td><td class="n"><b>${W(r.s)}</b></td><td class="c">${r.src.s||''}</td><td class="n">${r.p!=null?WN(r.p):'–'}</td><td class="n">${r.p!=null?W(r.sh):'–'}</td><td class="n">${W(r.c)}</td><td class="c">${r.src.c||''}</td><td class="n">${W(r.a)}</td><td class="n c">${P(roas)}</td><td class="n ${after<0?'dn':''}">${after!=null?'<b>'+WN(after)+'</b>':'–'}</td><td class="n c">${after!=null&&r.s?P1(after/r.s*100):'–'}</td><td class="in"><input data-f="g" inputmode="numeric" value="${mo.g?W(n(mo.g)):''}" aria-label="${m}월 목표"></td><td class="n c">${r.goal?P(r.s/r.goal*100):'–'}</td><td class="in"><input data-f="s" inputmode="numeric" value="${mo.s!=null&&mo.s!==''?W(n(mo.s)):''}" placeholder="${r.src.s&&r.src.s.startsWith('이카운트')?'이카운트 사용':'일합계 사용'}" aria-label="${m}월 매출 직접입력"></td></tr>`}
+  $('#t-mon').innerHTML=`<div class="box"><h3>${y}년 월별 집계 <small>실이익 = 매출이익 − 배송비 − 광고비${S.cfg.vat?'(VAT 포함)':''} · 매출은 이카운트 → 직접입력 → 일자 입력 순</small></h3>
+   <div class="scroll"><table id="mt"><thead><tr><th>월</th><th class="n">매출</th><th>출처</th><th class="n">매출이익</th><th class="n">배송비</th><th class="n">광고비</th><th>출처</th><th class="n">광고매출</th><th class="n">광고 ROAS</th><th class="n">실이익</th><th class="n">실이익률</th><th class="n">목표 매출</th><th class="n">달성률</th><th class="n">매출 직접입력</th></tr></thead>
+   <tbody>${rows}</tbody><tfoot><tr><td>연간 합계</td><td class="n">${W(T.s)}</td><td></td><td class="n">${T.hasP?WN(T.p):'–'}</td><td class="n">${T.hasP?W(T.sh):'–'}</td><td class="n">${W(T.c)}</td><td></td><td class="n">${W(T.a)}</td><td class="n">${P(T.c?T.a/T.c*100:null)}</td><td class="n">${T.hasP?WN(T.af):'–'}</td><td class="n">${T.hasP&&T.s?P1(T.af/T.s*100):'–'}</td><td class="n">${W(T.g)}</td><td class="n">${T.g?P(T.s/T.g*100):'–'}</td><td></td></tr></tfoot></table></div></div>
+   <p class="note">행을 누르면 그 달로 이동합니다.</p>`}
+
+/* ---------- 품목·배송비 ---------- */
+function rItem(){const FE=fees(),cat=catalog(),X=analyze(cur),qty={};if(X)X.rows.forEach(r=>r.mem.forEach(c=>qty[c]=1));
+  const items=cat.map(([c,nm])=>({c,nm,g:grpOf(c,nm),f:FE[c]})).sort((a,b)=>(a.g?a.g.name:a.nm).localeCompare(b.g?b.g.name:b.nm,'ko'));
+  const miss=items.filter(i=>!i.f).length,L=shipList();
+  $('#t-item').innerHTML=`<div class="box"><h3>품목별 배송비 · 합산 그룹 <small>품목 ${items.length}개${miss?` · <span class="dn">배송비 미입력 ${miss}개</span>`:''} · 광고비 차감 이익에 항상 적용</small></h3>
+   ${items.length?`<div class="scroll" style="max-height:70vh"><table id="it"><thead><tr><th>품목코드</th><th>품목명</th><th>합산 그룹</th><th class="n">배송비(개당) 직접입력</th><th class="n">적용 배송비</th><th>배송비 출처</th></tr></thead><tbody>
+    ${items.map(i=>`<tr data-c="${esc(i.c)}" class="${qty[i.c]?'':''}"><td>${esc(i.c)}</td><td class="w">${esc(i.nm)}</td><td class="in"><input class="l" data-g value="${esc(S.grp[i.c]??'')}" placeholder="${esc(i.g&&S.grp[i.c]==null?i.g.name+' (기본)':'없음')}" aria-label="${esc(i.nm)} 합산 그룹"></td><td class="in"><input data-f inputmode="numeric" value="${S.ship[i.c]!=null&&S.ship[i.c]!==''?W(n(S.ship[i.c])):''}" placeholder="${i.f&&i.f.src!='직접입력'?W(i.f.f)+' 자동':''}" aria-label="${esc(i.nm)} 배송비"></td><td class="n">${i.f?W(i.f.f):'<span class="chip warn">미입력</span>'}</td><td class="note">${i.f?esc(i.f.src):''}</td></tr>`).join('')}</tbody></table></div>
+    <p class="note pad" style="margin:0">합산 그룹: 같은 이름을 적은 품목은 대시보드·일자별에서 한 줄로 합쳐집니다(기본: 이름에 '탄소매트'가 들어간 품목 → '라이브박스 탄소매트 [한일]', 대표 코드 E4-036-03063). 묶지 않으려면 '-'를 적으세요. 배송비 직접입력을 비우면 아래 기준표에서 자동으로 찾고, 그룹 안에 배송비가 있는 품목이 하나라도 있으면 같은 그룹의 다른 품목에도 그 값을 씁니다.</p>`:'<p class="pad">이카운트 품목별 이익현황을 먼저 올리면 품목 목록이 생깁니다.</p>'}</div>
+   <div class="grid2"><div class="box"><h3>배송비 기준표 <small>${L.length}줄 · 상품명으로 이카운트 품목을 자동으로 찾음</small></h3><div class="scroll" style="max-height:50vh"><table><tr><th>상품명</th><th class="n">배송비</th><th>연결된 품목</th><th></th></tr>
+    ${L.map(([nm,f],i)=>{const code=Object.keys(FE).find(c=>FE[c].src==nm);return`<tr><td class="w">${esc(nm)}</td><td class="n">${W(f)}</td><td class="note">${code?esc(short(S.names[code]).t):'못 찾음'}</td><td><button class="b s r" data-sdel="${i}" aria-label="삭제">삭제</button></td></tr>`}).join('')}</table></div></div>
+   <div class="box"><h3>배송비 표 붙여넣기 <small>엑셀에서 상품명·배송비 열을 복사(제목 행 포함 가능)</small></h3><div class="pad"><textarea id="spaste" placeholder="상품명	배송비&#10;[PE11821W] 휴대용 커피머신 2세대 화이트	4600"></textarea>
+    <p class="row"><button class="b p" id="sgo">기준표에 추가·갱신</button><button class="b" id="sdef">처음 기준표로 되돌리기</button></p><div id="smsg"></div></div></div></div>`;
+  $('#sgo').onclick=()=>{const t=$('#spaste').value.trim();if(!t)return;const r=parseShip(parseCSV(t));$('#smsg').innerHTML=`<div class="msg ${r?'':'err'}">${r?`${r}줄 반영했습니다.`:'상품명과 배송비를 찾지 못했습니다.'}</div>`;if(r)rItem()};
+  $('#sdef').onclick=()=>{S.shipNames=null;save(['cfg']);rItem()}}
+function parseShip(rows){rows=rows.filter(r=>r&&r.some(c=>cellS(c)));let hi=rows.findIndex((r,i)=>i<10&&r.some(c=>/배송비/.test(cellS(c)))),ni,fi;
+  if(hi>=0){const h=rows[hi].map(cellS);fi=h.findIndex(x=>/배송비/.test(x));ni=h.findIndex(x=>/상품|품목명|캠페인|이름|품명/.test(x));if(ni<0)ni=fi==0?1:0}else{hi=-1;ni=0;fi=rows[0]?rows[0].length-1:1}
+  const L=(S.shipNames||DEF_SHIP).map(x=>[...x]);let cnt=0;
+  for(const r of rows.slice(hi+1)){const nm=cellS(r[ni]),f=cellS(r[fi]);if(!nm||f===''||!/\d/.test(f))continue;const v=n(f),i=L.findIndex(x=>norm(x[0])==norm(nm));if(i>=0)L[i][1]=v;else L.push([nm,v]);cnt++}
+  if(cnt){S.shipNames=L;save(['cfg'])}return cnt}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-sdel]');if(!b)return;if(!b.dataset.a){b.dataset.a=1;b.textContent='한 번 더';return}
+  const L=(S.shipNames||DEF_SHIP).map(x=>[...x]);L.splice(+b.dataset.sdel,1);S.shipNames=L;save(['cfg']);rItem()});
+
+/* ---------- 주간 ---------- */
+const WRX=/(\d{1,2})\s*월\s*(\d{1,2})\s*일?\s*[-~]\s*(?:(\d{1,2})\s*월\s*)?(\d{1,2})\s*일/;
+const modelOf=nm=>{const m=String(nm).toUpperCase().match(/(?:^|[^A-Z0-9])([A-Z]{1,4}-?\d+[A-Z0-9]*(?:-[A-Z0-9]+)?)(?=[^A-Z0-9]|$)/);return m?m[1]:null};
+const ktoks=nm=>String(nm).split(/[\s\[\]\(\)\/,_+]+/).map(norm).filter(w=>w.length>=2&&!/^\d/.test(w));
+function wkKeys(names){const res={},coded={};
+  for(const nm of names){const g=DEF_GRP.find(d=>d.kws.some(k=>nm.includes(k)));if(g){res[nm]='g:'+g.name;continue}const m=modelOf(nm);if(m){res[nm]='M:'+m;coded[nm]=m}}
+  for(const nm of names){if(res[nm])continue;const a=ktoks(nm);let best=0,bk=null;
+    for(const c in coded){const b=ktoks(c);let sc=0;for(const t of a)if(b.some(u=>u.includes(t)||t.includes(u)))sc++;if(sc>best){best=sc;bk='M:'+coded[c]}}
+    res[nm]=best>=2?bk:'N:'+norm(nm)}
+  return res}
+function parseWK(rows){const weeks=[];let W=null,H=null;
+  for(const r of rows){const c=r.map(cellS);
+    if(c.some(x=>/캠페인명/.test(x))){const h=c.map(x=>x.replace(/\s+/g,''));const f=re=>h.findIndex(x=>re.test(x)),ship=h.map((x,i)=>x=='배송비'?i:-1).filter(i=>i>=0),imp=f(/노출/);
+      H={st:0,name:f(/캠페인명/),price:f(/판매가/),budget:f(/하루예산/),promo:f(/프로모션/),imp,conv:f(/전환판매/),g:f(/매출성장형/),nw:f(/신규고객/),as:f(/총전환매출/),clk:f(/클릭수/),s:f(/^매출액/),q:f(/판매수량/),p:f(/^매출이익/),note:f(/비고/),
+        unit:ship.find(i=>i<imp)??-1,sh:ship.find(i=>i>imp)??-1,tgtH:/목표/.test(h[0])};continue}
+    const m=(c[1]||c.join(' ')).match(WRX);
+    if(m&&!/합계/.test(c[1])){const m1=+m[1],d1=+m[2],m2=m[3]?+m[3]:m1,d2=+m[4],y1=yFor(m1),y2=m2<m1?y1+1:y1;
+      W={from:`${y1}-${pad(m1)}-${pad(d1)}`,to:`${y2}-${pad(m2)}-${pad(d2)}`,rows:[]};weeks.push(W);H=null;continue}
+    if(!W||!H)continue;const nm=c[H.name];if(!nm)continue;if(/^합계/.test(nm.trim()))continue;
+    const v=k=>H[k]>=0?n(r[H[k]]):0,st=c[0],stN=st!==''&&!isNaN(+st)?+st:null;
+    W.rows.push({name:nm.replace(/\s+/g,' ').trim(),st:stN==null?st:'',tgt:stN!=null?(stN<50?stN*100:stN):null,price:v('price'),unit:H.unit>=0?n(r[H.unit]):0,budget:v('budget'),promo:H.promo>=0?c[H.promo]:'',
+      imp:v('imp'),conv:v('conv'),g:v('g'),nw:v('nw'),as:v('as'),clk:v('clk'),s:v('s'),q:v('q'),p:v('p'),sh:H.sh>=0&&c[H.sh]!==''?n(r[H.sh]):null,note:H.note>=0?c[H.note]:''})}
+  return weeks.filter(w=>w.rows.length)}
+const WM=[['s','매출액'],['p','매출이익'],['sh','배송비'],['c','광고비'],['as','전환매출'],['after','순이익'],['q','판매수량'],['conv','광고 전환 판매']];
+function wkBuild(){const ids=Object.keys(S.wk).sort(),names=new Set();ids.forEach(id=>S.wk[id].rows.forEach(r=>names.add(r.name)));
+  const K=wkKeys([...names]),unitBy={},disp={};
+  ids.forEach(id=>S.wk[id].rows.forEach(r=>{const k=K[r.name];if(r.unit)unitBy[k]=r.unit;if(k.startsWith('g:'))disp[k]=k.slice(2);else if(!disp[k]||/\[/.test(r.name)||!/\[/.test(disp[k]))disp[k]=r.name}));
+  const FE=fees(),cat=catalog(),shipAuto=cat.length?matchAll([...names],cat):{};
+  const W={};for(const id of ids){const w=S.wk[id],by={};
+    for(const r of w.rows){const k=K[r.name],o=by[k]||(by[k]={key:k,name:disp[k],names:new Set(),st:'',tgt:null,price:0,promo:'',note:'',imp:0,conv:0,g:0,nw:0,as:0,clk:0,s:0,q:0,p:0,sh:0,shAuto:0});
+      o.names.add(r.name);for(const f of['imp','conv','g','nw','as','clk','s','q','p'])o[f]+=r[f];
+      let sh=r.sh;if(sh==null&&r.q>0){const u=r.unit||unitBy[k]||(shipAuto[r.name]&&FE[shipAuto[r.name]]?FE[shipAuto[r.name]].f:0);sh=u*r.q;o.shAuto=1}o.sh+=sh||0;
+      if(r.st)o.st=r.st;if(r.tgt!=null)o.tgt=r.tgt;if(r.price>0)o.price=r.price;if(r.promo)o.promo=r.promo;if(r.note)o.note=r.note}
+    const rows=Object.values(by);rows.forEach(o=>{o.c=o.g+o.nw;o.after=o.p-o.sh-o.c;o.names=[...o.names]});
+    const T={};for(const f of['imp','conv','g','nw','as','clk','s','q','p','sh','c','after'])T[f]=rows.reduce((a,o)=>a+o[f],0);
+    W[id]={id,from:w.from,to:w.to,rows:rows.sort((a,b)=>b.c-a.c),T}}
+  return{ids,W,disp}}
+const wlab=w=>`${+w.from.slice(5,7)}/${+w.from.slice(8)}~${+w.to.slice(5,7)}/${+w.to.slice(8)}`;
+const dP=(a,b,isP)=>{if(a==null||b==null||(!isP&&!b))return'';const d=isP?a-b:(a-b)/Math.abs(b)*100;if(!isFinite(d))return'';return`<i class="${d>=0?'up':'dn'}">${d>=0?'▲':'▼'} ${isP?Math.abs(Math.round(d))+'%p':Math.abs(d).toFixed(1)+'%'} 전주比</i>`};
+const roasOf=(o,f='as')=>o.c?o[f]/o.c*100:null;
+function wkVerdict(o){if(!o.c&&!o.s)return'';if(o.after<0)return'<span class="chip bad">적자</span>';if(o.tgt&&o.c&&roasOf(o)<o.tgt)return'<span class="chip warn">목표 미달</span>';return'<span class="chip good">양호</span>'}
+function rWk(){const el=$('#t-wk'),B=wkBuild();
+  if(!B.ids.length){el.innerHTML=`<div class="box empty"><h2>주간 자료가 아직 없습니다</h2><p class="note">주차별로 '9월01일 - 9월 07일까지'처럼 기간을 적고 그 아래 캠페인명·광고비·매출액·매출이익·배송비를 정리한 주간 엑셀을 업로드 탭에 올리면 자동으로 주차를 나눠 읽습니다.</p><p class="row" style="justify-content:center"><button class="b p" data-go="up">주간 파일 올리기</button></p></div>`;return}
+  const id=B.W[UI.wk]?UI.wk:B.ids[B.ids.length-1],i=B.ids.indexOf(id),w=B.W[id],pw=i>0?B.W[B.ids[i-1]]:null,T=w.T,PT=pw?pw.T:null;
+  const prevBy={};if(pw)pw.rows.forEach(o=>prevBy[o.key]=o);
+  const ro=roasOf(T),sro=roasOf(T,'s'),pro=PT?roasOf(PT):null,psro=PT?roasOf(PT,'s'):null;
+  let h=`<div class="row" style="margin-bottom:10px"><span class="note">주차</span><select id="wksel" aria-label="주차 선택">${B.ids.slice().reverse().map(x=>`<option value="${x}" ${x==id?'selected':''}>${wlab(B.W[x])} (${x.slice(0,4)})</option>`).join('')}</select>
+   <button class="b s" data-wk="${B.ids[i-1]||''}" ${i>0?'':'disabled'}>◀ 전주</button><button class="b s" data-wk="${B.ids[i+1]||''}" ${i<B.ids.length-1?'':'disabled'}>다음 주 ▶</button></div>
+   <h2 class="${T.after<0?'dn':''}">${wlab(w)} 순이익 ${WN(T.after)}원 · 광고 ROAS ${P(ro)}${pw?` (전주 ${P(pro)})`:''}</h2>
+   <p class="sub">순이익 = 매출이익 − 배송비 − 광고비(매출성장형+신규고객) · ROAS = 전환매출 ÷ 광고비 · 매출액 기준 ROAS = 매출액 ÷ 광고비</p>
+   <div class="kpi"><div><span>매출액</span><b>${W(T.s)}원</b>${dP(T.s,PT&&PT.s)}</div><div><span>매출이익</span><b>${WN(T.p)}원</b>${dP(T.p,PT&&PT.p)}</div><div><span>배송비</span><b>${W(T.sh)}원</b>${dP(T.sh,PT&&PT.sh)}</div>
+    <div><span>광고비</span><b>${W(T.c)}원</b>${dP(T.c,PT&&PT.c)}</div><div class="hl"><span>순이익 (광고비 제외)</span><b class="${T.after<0?'dn':''}">${WN(T.after)}원</b>${dP(T.after,PT&&PT.after)}</div>
+    <div><span>광고 ROAS (전환매출)</span><b>${P(ro)}</b>${dP(ro,pro,1)}</div><div><span>매출액 기준 ROAS</span><b>${P(sro)}</b>${dP(sro,psro,1)}</div>
+    <div><span>CTR · CPC · CVR</span><b style="font-size:17px">${P1(T.imp?T.clk/T.imp*100:null)} · ${T.clk?W(T.c/T.clk):'–'} · ${P1(T.clk?T.conv/T.clk*100:null)}</b><i class="note">노출 ${MAN(T.imp)} · 전환 ${W(T.conv)}건</i></div></div>`;
+  const L=[],nm=o=>`<b>${esc(short(o.name).t)}</b>`;
+  L.push(`매출이익 ${W(T.p)}원에서 배송비 ${W(T.sh)}원, 광고비 ${W(T.c)}원을 빼면 순이익 <b class="${T.after<0?'dn':''}">${WN(T.after)}원</b>${PT?` — 전주(${wlab(pw)}) ${WN(PT.after)}원보다 <b class="${T.after>=PT.after?'up':'dn'}">${WN(T.after-PT.after)}원</b>`:''}.`);
+  const bad=w.rows.filter(o=>o.after<0&&(o.c||o.s)).sort((a,b)=>a.after-b.after);if(bad.length)L.push(`적자 품목 ${bad.length}개: ${bad.slice(0,5).map(o=>`${nm(o)}(${WN(o.after)}원)`).join(', ')}.`);
+  const tg=w.rows.filter(o=>o.tgt&&o.c&&roasOf(o)<o.tgt);if(tg.length)L.push(`목표 ROAS 미달: ${tg.map(o=>`${nm(o)} 목표 ${P(o.tgt)} → 실제 ${P(roasOf(o))}`).join(', ')}.`);
+  const zero=w.rows.filter(o=>o.c>0&&!o.as);if(zero.length)L.push(`광고비를 썼는데 전환매출이 0원인 품목: ${zero.map(o=>`${nm(o)}(${W(o.c)}원)`).join(', ')}.`);
+  if(pw){const ch=w.rows.filter(o=>prevBy[o.key]).map(o=>({o,d:o.after-prevBy[o.key].after})).sort((a,b)=>a.d-b.d);
+    if(ch.length){const dn=ch[0],up=ch[ch.length-1];if(dn.d<0)L.push(`전주보다 순이익이 가장 많이 줄어든 품목: ${nm(dn.o)} ${WN(dn.d)}원(광고비 ${W(prevBy[dn.o.key].c)} → ${W(dn.o.c)}원).`);if(up.d>0)L.push(`가장 많이 늘어난 품목: ${nm(up.o)} +${W(up.d)}원.`)}}
+  const best=w.rows.filter(o=>o.c>T.c*.03&&o.after>0).sort((a,b)=>b.after/b.c-a.after/a.c)[0];if(best)L.push(`광고비 1원당 순이익이 가장 큰 품목: ${nm(best)} — 광고비 ${W(best.c)}원, 순이익 ${W(best.after)}원, ROAS ${P(roasOf(best))}.`);
+  const memo=w.rows.filter(o=>o.st||o.note);if(memo.length)L.push(`메모: ${memo.map(o=>`${nm(o)} ${esc([o.st,o.note].filter(Boolean).join(' · '))}`).join(', ')}.`);
+  if(w.rows.some(o=>o.shAuto))L.push('배송비 칸이 비어 있던 품목은 개당 배송비 × 판매수량으로 채워 계산했습니다.');
+  h+=`<div class="box"><h3>자동 분석</h3><ol class="ins">${L.map(s=>`<li>${s}</li>`).join('')}</ol></div>`;
+  const cols=['품목','메모·목표','판매가','노출','클릭','CTR','CPC','광고비','전환 판매','CVR','전환매출','ROAS','매출액 ROAS','매출액','판매수량','매출이익','배송비','순이익','개당 순이익','개당 광고비','전주 대비 순이익','판정'];
+  const tr=(o,cls='',lab)=>{const p=prevBy[o.key];return`<tr class="${cls}"><td class="${lab?'':'w'}">${lab||esc(o.name)}${!lab&&o.names.length>1?`<small>${o.names.length}개 상품명 합산</small>`:''}</td><td>${lab?'':esc([o.st,o.tgt?'목표 '+P(o.tgt):'',o.promo?'프로모션 '+o.promo:'',o.note].filter(Boolean).join(' · '))}</td><td class="n">${!lab&&o.price>0?W(o.price):''}</td><td class="n">${W(o.imp)}</td><td class="n">${W(o.clk)}</td><td class="n">${P1(o.imp?o.clk/o.imp*100:null)}</td><td class="n">${o.clk?W(o.c/o.clk):'–'}</td><td class="n">${W(o.c)}</td><td class="n">${W(o.conv)}</td><td class="n">${P1(o.clk?o.conv/o.clk*100:null)}</td><td class="n">${W(o.as)}</td><td class="n ${o.tgt&&o.c&&roasOf(o)<o.tgt?'dn':''}">${P(roasOf(o))}</td><td class="n">${P(roasOf(o,'s'))}</td><td class="n">${W(o.s)}</td><td class="n">${W(o.q)}</td><td class="n ${o.p<0?'dn':''}">${WN(o.p)}</td><td class="n">${W(o.sh)}${o.shAuto&&!lab?'*':''}</td><td class="n ${o.after<0?'dn':''}"><b>${WN(o.after)}</b></td><td class="n">${o.q?WN(o.after/o.q):'–'}</td><td class="n">${o.conv?W(o.c/o.conv):'–'}</td><td class="n">${lab?(PT?`<span class="${T.after>=PT.after?'up':'dn'}">${WN(T.after-PT.after)}</span>`:''):p?`<span class="${o.after>=p.after?'up':'dn'}">${WN(o.after-p.after)}</span>`:'<span class="note">신규</span>'}</td><td>${lab?'':wkVerdict(o)}</td></tr>`};
+  h+=`<div class="box"><h3>${wlab(w)} 품목별 <small>광고비 많은 순 · * 배송비 자동 계산</small></h3><div class="scroll"><table><thead><tr>${cols.map((c,j)=>`<th class="${j>1&&j<21?'n':''}">${c}</th>`).join('')}</tr></thead><tbody>${w.rows.map(o=>tr(o)).join('')}${tr({...T,key:'',tgt:null,names:[]},'gt','합계')}</tbody></table></div></div>`;
+  h+=`<div class="box"><h3>주차별 추이 <small>${B.ids.length}주</small></h3><div class="lg"><span><i style="background:var(--blue)"></i>매출액</span><span><i style="background:var(--sky)"></i>전환매출</span><span><i style="background:var(--gray)"></i>광고비</span><span><i style="background:var(--red);height:3px"></i>광고 ROAS(오른쪽 축)</span></div><div class="fig"><svg id="cwk"></svg></div>
+   <div class="scroll"><table><thead><tr><th>주차</th><th class="n">매출액</th><th class="n">매출이익</th><th class="n">배송비</th><th class="n">광고비</th><th class="n">전환매출</th><th class="n">ROAS</th><th class="n">매출액 ROAS</th><th class="n">순이익</th><th class="n">순이익률</th></tr></thead><tbody>
+   ${B.ids.map(x=>{const t=B.W[x].T;return`<tr class="${x==id?'today':''}" data-wk="${x}" style="cursor:pointer"><td>${wlab(B.W[x])}</td><td class="n">${W(t.s)}</td><td class="n">${WN(t.p)}</td><td class="n">${W(t.sh)}</td><td class="n">${W(t.c)}</td><td class="n">${W(t.as)}</td><td class="n">${P(roasOf(t))}</td><td class="n">${P(roasOf(t,'s'))}</td><td class="n ${t.after<0?'dn':''}"><b>${WN(t.after)}</b></td><td class="n">${P1(t.s?t.after/t.s*100:null)}</td></tr>`}).join('')}
+   ${(()=>{const t={};for(const f of['s','p','sh','c','as','after'])t[f]=B.ids.reduce((a,x)=>a+B.W[x].T[f],0);return`<tr class="gt"><td>${B.ids.length}주 합계</td><td class="n">${W(t.s)}</td><td class="n">${WN(t.p)}</td><td class="n">${W(t.sh)}</td><td class="n">${W(t.c)}</td><td class="n">${W(t.as)}</td><td class="n">${P(roasOf(t))}</td><td class="n">${P(roasOf(t,'s'))}</td><td class="n">${WN(t.after)}</td><td class="n">${P1(t.s?t.after/t.s*100:null)}</td></tr>`})()}</tbody></table></div></div>`;
+  const met=UI.wmet||'after',keys={};B.ids.forEach(x=>B.W[x].rows.forEach(o=>keys[o.key]=(keys[o.key]||0)+o[met]));const ks=Object.keys(keys).sort((a,b)=>keys[b]-keys[a]);
+  const cell=(x,k)=>{const o=B.W[x].rows.find(o=>o.key==k);return o?o[met]:0};
+  h+=`<div class="box"><h3>품목 × 주차 <small>같은 모델명·탄소매트/전기매트는 한 줄로 합산</small><span style="flex:1"></span><select id="wmet" aria-label="보기 항목">${WM.map(([k,l])=>`<option value="${k}" ${k==met?'selected':''}>${l}</option>`).join('')}</select></h3>
+   <div class="scroll"><table class="pv"><thead><tr><th>품목</th>${B.ids.map(x=>`<th class="n">${wlab(B.W[x])}</th>`).join('')}<th class="n">합계</th></tr></thead><tbody>
+   ${ks.map(k=>{const vs=B.ids.map(x=>cell(x,k));return`<tr><td class="w" style="min-width:200px">${esc(B.disp[k])}</td>${vs.map(v=>`<td class="n ${!v?'z':v<0?'dn':''}">${v?WN(v):'0'}</td>`).join('')}<td class="n"><b>${WN(keys[k])}</b></td></tr>`}).join('')}
+   <tr class="gt"><td>합계</td>${B.ids.map(x=>`<td class="n">${WN(B.W[x].T[met])}</td>`).join('')}<td class="n">${WN(B.ids.reduce((a,x)=>a+B.W[x].T[met],0))}</td></tr></tbody></table></div></div>`;
+  el.innerHTML=h;
+  chart($('#cwk'),B.ids.map(x=>wlab(B.W[x])),[{v:B.ids.map(x=>B.W[x].T.s),col:'var(--blue)',name:'매출액'},{v:B.ids.map(x=>B.W[x].T.as),col:'var(--sky)',name:'전환매출'},{v:B.ids.map(x=>B.W[x].T.c),col:'var(--gray)',name:'광고비'}],{v:B.ids.map(x=>roasOf(B.W[x].T))})}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-wk]');if(b&&b.dataset.wk){UI.wk=b.dataset.wk;rWk();scrollTo(0,0)}});
+document.addEventListener('change',e=>{if(e.target.id=='wksel'){UI.wk=e.target.value;rWk()}else if(e.target.id=='wmet'){UI.wmet=e.target.value;rWk()}});
+
+/* ---------- 입력 이벤트 ---------- */
+document.addEventListener('change',e=>{const t=e.target;
+  if(t.matches('#dt input')){const tr=t.closest('tr'),d=tr.dataset.d,f=t.dataset.f,raw=t.value.trim();
+    const v=S.days[d]||(S.days[d]={});if(raw==='')delete v[f];else v[f]=n(raw);if(!Object.keys(v).length)delete S.days[d];
+    t.value=raw===''?'':W(n(raw));const cells=[...tr.querySelectorAll('td.c')];rowCalc(v).forEach((x,i)=>cells[i].textContent=x);daySum();save([yk(d)])}
+  else if(t.matches('#mt input')){const m=t.closest('tr').dataset.m,f=t.dataset.f,raw=t.value.trim();
+    const v=S.months[m]||(S.months[m]={});if(raw==='')delete v[f];else v[f]=n(raw);if(!Object.keys(v).length)delete S.months[m];save(['cfg']);rMon()}
+  else if(t.matches('#it input')){const c=t.closest('tr').dataset.c,raw=t.value.trim();
+    if(t.hasAttribute('data-g')){if(raw==='')delete S.grp[c];else S.grp[c]=raw}else{if(raw==='')delete S.ship[c];else S.ship[c]=n(raw)}save(['cfg']);rItem()}
+  else if(t.matches('select[data-map]')){const nm=t.dataset.map;if(t.value==='')delete S.map[nm];else S.map[nm]=t.value;save(['cfg']);renderAll()}
+  else if(t.id=='met'){UI.met=t.value;rDay()}});
+document.addEventListener('keydown',e=>{const t=e.target;
+  if(e.key=='Enter'&&t.matches('tr[data-k]')){t.click();return}
+  if(e.key!='Enter'||!t.matches('#dt input,#it input'))return;e.preventDefault();const tr=t.closest('tr').nextElementSibling,sel=t.hasAttribute('data-g')?'input[data-g]':t.dataset.f!=null&&t.closest('#it')?'input[data-f]':`input[data-f="${t.dataset.f}"]`;
+  const nx=tr&&tr.querySelector(sel);t.blur();if(nx){nx.focus();nx.select()}});
+document.addEventListener('focusin',e=>{if(e.target.matches('#dt input,#mt input,#it input'))e.target.select()});
+document.addEventListener('click',e=>{const tr=e.target.closest('#mt tbody tr');if(tr&&!e.target.matches('input')){cur=tr.dataset.m;$('#mp').value=cur;renderAll()}
+  const pk=e.target.closest('.pv tr[data-k]');if(pk){UI.sel=pk.dataset.k;rDay();const d=$('#t-day .box:nth-child(2)');if(d)d.scrollIntoView({behavior:'smooth',block:'nearest'})}
+  const g=e.target.closest('[data-go]');if(g)go(g.dataset.go)});
+
+/* ---------- 파일 읽기 ---------- */
+const MAP=[['d','날짜',/날짜|일자|date/i],['camp','캠페인',/캠페인명|캠페인|campaign/i],['c','광고비',/광고비(?!.*(율|률|비중))|spend|cost/i],
+ ['a','광고매출',/총\s*전환매출|전환.*매출|광고.*매출|revenue/i],['s','총매출',/^(?!.*(전환|광고)).*(매출|판매금액|결제금액|판매액|sales)/i],
+ ['i','노출수',/노출수|impression/i],['k','클릭수',/클릭수|click/i],['o','주문수',/총\s*주문수|주문수|order/i]];
+let pend=null;
+function pd(v){if(v==null||v==='')return null;if(v instanceof Date&&!isNaN(v))return iso(new Date(v.getTime()+432e5));
+  if(typeof v=='number'){if(v>19000101&&v<30000000){const s=String(v);return s.slice(0,4)+'-'+s.slice(4,6)+'-'+s.slice(6,8)}if(v>20000&&v<80000)return new Date(Math.round((v-25569)*864e5)).toISOString().slice(0,10);return null}
+  const m=String(v).trim().match(/(20\d{2})\s*[.\-\/년]?\s*(\d{1,2})\s*[.\-\/월]?\s*(\d{1,2})/);if(!m)return null;const mo=+m[2],d=+m[3];if(mo<1||mo>12||d<1||d>31)return null;return m[1]+'-'+pad(mo)+'-'+pad(d)}
+function parseCSV(t){t=t.replace(/^﻿/,'');const h=t.split('\n')[0],dl=(h.match(/\t/g)||[]).length>(h.match(/,/g)||[]).length?'\t':',';
+  const rows=[];let row=[],f='',q=false;for(let i=0;i<t.length;i++){const ch=t[i];
+   if(q){if(ch=='"'){if(t[i+1]=='"'){f+='"';i++}else q=false}else f+=ch}else if(ch=='"')q=true;else if(ch==dl){row.push(f);f=''}else if(ch=='\n'){row.push(f);rows.push(row);row=[];f=''}else if(ch!='\r')f+=ch}
+  if(f||row.length){row.push(f);rows.push(row)}return rows}
+const cellS=c=>String(c??'').trim();
+function detect(rows){const top=rows.slice(0,6).map(r=>r.map(cellS).join('|')).join('\n');
+  if(/캠페인명/.test(top)&&/매출이익/.test(top)&&/전환\s*매출|총\s*전환매출/.test(top.replace(/\n/g,''))&&/매출성장형|신규고객/.test(top))return'wk';
+  if(/품목코드/.test(top)&&/이익/.test(top)&&/매출/.test(top))return'ec';
+  const hi=rows.findIndex((r,i)=>i<10&&r.some(c=>cellS(c)=='광고비'));
+  if(hi>=0){const h=rows[hi].map(cellS);if(h.includes('캠페인명')&&!h.some(x=>/^(날짜|일자)$/.test(x)))return'ad'}
+  if(rows.slice(0,10).some(r=>r.some(c=>/배송비/.test(cellS(c))))&&!/광고비|노출/.test(top))return'ship';
+  return null}
+function yFor(mo){const y0=+TODAY.slice(0,4),m0=+TODAY.slice(5,7);return mo>m0?y0-1:y0}
+function guessMonth(f){f=String(f);let m=f.match(/(20\d{2})[.\-_년\s]*(\d{1,2})(?!\d)/);if(m&&+m[2]>=1&&+m[2]<=12)return m[1]+'-'+pad(+m[2]);
+  m=f.match(/(?:^|[^\d])(\d{1,2})\s*월/)||f.match(/^(\d{1,2})(?!\d)/);if(m&&+m[1]>=1&&+m[1]<=12)return yFor(+m[1])+'-'+pad(+m[1]);return null}
+function guessDay(f){f=String(f);let m=f.match(/(20\d{2})[.\-_]?(\d{2})[.\-_]?(\d{2})(?!\d)/);if(m&&+m[2]<=12&&+m[3]<=31&&+m[3]>0)return`${m[1]}-${m[2]}-${m[3]}`;
+  m=f.match(/(\d{1,2})\s*월\s*(\d{1,2})\s*일/);if(m&&+m[1]<=12&&+m[2]<=31)return`${yFor(+m[1])}-${pad(+m[1])}-${pad(+m[2])}`;return null}
+function parseEC(rows,fname){const hi=rows.findIndex(r=>r.some(c=>cellS(c)=='품목코드')),h=rows[hi].map(cellS),col=re=>h.findIndex(x=>re.test(x));
+  const ci={code:col(/품목코드/),name:col(/품목명/),q:col(/^수량/),s:col(/매출액/),p:col(/이익액/)};
+  const head=rows.slice(0,hi).flat().map(cellS).join(' ');
+  const pm=head.match(/(20\d{2})[\/.\-](\d{1,2})[\/.\-](\d{1,2})\s*~\s*(20\d{2})[\/.\-](\d{1,2})[\/.\-](\d{1,2})/);
+  const who=(head.match(/회사명\s*:\s*(.+?)(?=\s*\/\s*20\d{2}|$)/)||[])[1]||'';
+  const items=[];for(const r of rows.slice(hi+1)){const code=cellS(r[ci.code]);if(!code||code=='합계'||/^20\d{2}[\/.\-]/.test(code))continue;
+    items.push([code,cellS(r[ci.name]),n(r[ci.q]),n(r[ci.s]),n(r[ci.p])])}
+  const tot={s:items.reduce((a,i)=>a+i[3],0),p:items.reduce((a,i)=>a+i[4],0)};
+  const from=pm?`${pm[1]}-${pad(pm[2])}-${pad(pm[3])}`:'',to=pm?`${pm[4]}-${pad(pm[5])}-${pad(pm[6])}`:'';
+  const day=from&&from==to?from:(!from&&guessDay(fname))||null;
+  return{scope:day?'d':'m',key:day||(from?from.slice(0,7):(guessMonth(fname)||cur)),data:{from:from||day||'',to:to||day||'',who:who.replace(/\s*\/\s*/g,' · ').trim(),items,tot,file:fname,at:TODAY}}}
+function parseAD(rows,fname){const hi=rows.findIndex(r=>r.some(c=>cellS(c)=='광고비')),h=rows[hi].map(cellS);
+  const ex=s=>h.indexOf(s),rx=re=>h.findIndex(x=>re.test(x));
+  const C={camp:ex('캠페인명'),prod:ex('광고집행 상품명'),place:rx(/노출\s*지면/),kw:ex('키워드'),i:ex('노출수'),k:ex('클릭수'),c:ex('광고비'),
+    o1:rx(/^총\s*주문수\s*\(1일\)/),o14:rx(/^총\s*주문수\s*\(14일\)/),a1:rx(/^총\s*전환매출액\s*\(1일\)/),a14:rx(/^총\s*전환매출액\s*\(14일\)/)};
+  const tot=z7(),camps={},prods={},place={},kw={};let cnt=0;
+  const add=(o,r)=>{for(const f of F7)if(C[f]>=0)o[f]+=n(r[C[f]])};
+  for(const r of rows.slice(hi+1)){if(!r||r[C.c]===''||r[C.c]==null)continue;const cn=cellS(r[C.camp]);if(/^(합계|총계|total)$/i.test(cn))continue;cnt++;
+    add(tot,r);add(camps[cn]||(camps[cn]=z7()),r);
+    const pn=C.prod>=0?cellS(r[C.prod]):cn,po=prods[pn]||(prods[pn]={...z7(),cs:{}});add(po,r);po.cs[cn]=(po.cs[cn]||0)+n(r[C.c]);
+    if(C.place>=0){const pl=cellS(r[C.place])||'-';add(place[pl]||(place[pl]=z7()),r)}
+    if(C.kw>=0){const k=cellS(r[C.kw])||'-';add(kw[k]||(kw[k]=z7()),r)}}
+  const list=Object.entries(kw).map(([k,v])=>({k,c:v.c,i:v.i,k2:v.k,o1:v.o1,o14:v.o14,a1:v.a1,a14:v.a14}));
+  const zz=f=>{const z=list.filter(x=>x.k!='-'&&x.c>0&&!x[f]);return{n:z.length,c:z.reduce((a,x)=>a+x.c,0)}};
+  const keep=new Set([...list.slice().sort((a,b)=>b.c-a.c).slice(0,200),...list.slice().sort((a,b)=>b.a14-a.a14).slice(0,60),...list.slice().sort((a,b)=>b.a1-a.a1).slice(0,30)]);
+  const sc=$('#adscope').value,dd=$('#addate').value;let scope,key;
+  if(sc=='day'&&dd){scope='d';key=dd}else if(sc=='month'){scope='m';key=cur}else{const d=guessDay(fname);if(d){scope='d';key=d}else{scope='m';key=guessMonth(fname)||cur}}
+  return{scope,key,data:{rows:cnt,tot,camps,prods,place,kws:[...keep],kz:{1:zz('a1'),14:zz('a14')},file:fname,at:TODAY}}}
+function put(scope,key,kind,data){const B=scope=='d'?S.day:S.mon,o=B[key]||(B[key]={});o[kind]=data;
+  if(kind=='ec')data.items.forEach(([c,nm])=>S.names[c]=nm);save([scope+key,'cfg'])}
+function upMsg(html,err){const d=document.createElement('div');d.className='msg'+(err?' err':'');d.innerHTML=html;$('#upmsg').prepend(d)}
+const where=(sc,k)=>sc=='d'?`<b>${k}</b> 일자 자료`:`<b>${k}</b> 월 자료`;
+const moveCtl=(kind,sc,k)=>`<span class="row"><input class="t" type="${sc=='d'?'date':'month'}" value="${k}" aria-label="적용 ${sc=='d'?'일자':'월'}"><button class="b s" data-mv="${kind}" data-sc="${sc}" data-from="${k}">여기로 옮기기</button><button class="b s p" data-go="${sc=='d'?'day':'dash'}">보기</button></span>`;
+function loadRows(rows,name){rows=rows.filter(r=>r&&r.some(c=>c!==''&&c!=null));if(!rows.length){upMsg(`${esc(name)}: 내용이 비어 있습니다.`,1);return}
+  const kind=detect(rows);
+  if(kind=='ec'){const{scope,key,data}=parseEC(rows,name);if(!data.items.length){upMsg(`${esc(name)}: 품목 행을 찾지 못했습니다.`,1);return}
+    put(scope,key,'ec',data);cur=key.slice(0,7);$('#mp').value=cur;
+    upMsg(`<span><b>이카운트 품목별 이익현황</b> · ${esc(name)}<br>${data.from?data.from+' ~ '+data.to+' · ':''}품목 ${data.items.length}개 · 매출 ${W(data.tot.s)}원 · 이익 ${W(data.tot.p)}원 → ${where(scope,key)}</span>${moveCtl('ec',scope,key)}`);renderAll();return}
+  if(kind=='ad'){const{scope,key,data}=parseAD(rows,name);put(scope,key,'ad',data);cur=key.slice(0,7);$('#mp').value=cur;
+    upMsg(`<span><b>쿠팡 광고 리포트</b> · ${esc(name)}<br>${W(data.rows)}행 · 캠페인 ${Object.keys(data.camps).length}개 · 광고비 ${W(data.tot.c)}원 · 전환매출(14일) ${W(data.tot.a14)}원 → ${where(scope,key)}</span>${moveCtl('ad',scope,key)}`);renderAll();return}
+  if(kind=='wk'){const ws=parseWK(rows);if(!ws.length){upMsg(`${esc(name)}: 주차 기간 줄('9월01일 - 9월 07일까지')을 찾지 못했습니다.`,1);return}
+    ws.forEach(w=>S.wk[w.from]=w);save(['wk']);UI.wk=ws[ws.length-1].from;
+    upMsg(`<span><b>주간 광고 리포트</b> · ${esc(name)}<br>${ws.length}주 (${wlab(ws[0])} ~ ${wlab(ws[ws.length-1])}) · 품목 줄 ${ws.reduce((a,w)=>a+w.rows.length,0)}개 반영</span><button class="b s p" data-go="wk">주간 보기</button>`);renderAll();return}
+  if(kind=='ship'){const c=parseShip(rows);upMsg(c?`<span><b>배송비 표</b> · ${esc(name)} · ${c}줄을 배송비 기준표에 반영</span><button class="b s p" data-go="item">품목·배송비 보기</button>`:`${esc(name)}: 상품명·배송비 열을 찾지 못했습니다.`,!c);renderAll();return}
+  loadGeneric(rows,name)}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-mv]');if(!b)return;const to=b.parentNode.querySelector('input').value,fr=b.dataset.from,k=b.dataset.mv,sc=b.dataset.sc,B=sc=='d'?S.day:S.mon;
+  if(!to||to==fr||!B[fr]||!B[fr][k])return;const d=B[fr][k];delete B[fr][k];if(!Object.keys(B[fr]).length)delete B[fr];
+  (B[to]||(B[to]={}))[k]=d;save([sc+fr,sc+to]);b.dataset.from=to;cur=to.slice(0,7);$('#mp').value=cur;b.textContent=`${to}로 옮김`;renderAll()});
+function loadGeneric(rows,name){let hi=rows.findIndex((r,i)=>i<20&&r.some(c=>MAP[0][2].test(cellS(c))));if(hi<0)hi=0;
+  const hd=rows[hi].map((c,i)=>cellS(c)||('열'+(i+1))),body=rows.slice(hi+1),sel={},used=new Set();
+  for(const[f,,re]of MAP){const c=hd.map((h,i)=>[h,i]).filter(([h,i])=>re.test(h)&&!used.has(i)&&!/[율률]/.test(h));const best=c.find(([h])=>/14/.test(h))||c[0];if(best){sel[f]=best[1];used.add(best[1])}}
+  if(sel.d==null){const di=hd.findIndex((_,i)=>body.slice(0,5).some(r=>pd(r[i])));if(di>=0)sel.d=di}
+  pend={hd,body,name};
+  $('#map').innerHTML=MAP.map(([f,l])=>`<label>${l}<select data-f="${f}"><option value="">— 사용 안 함 —</option>${hd.map((h,i)=>`<option value="${i}" ${sel[f]===i?'selected':''}>${esc(h)}</option>`).join('')}</select></label>`).join('');
+  $('#mapinfo').textContent=`${name} · ${body.length}행 · 일자별 직접 입력 장부로 읽기`;
+  $('#prev').innerHTML=`<table><tr>${hd.map(h=>`<th>${esc(h)}</th>`).join('')}</tr>${body.slice(0,6).map(r=>`<tr>${hd.map((_,i)=>`<td>${esc(r[i] instanceof Date?iso(r[i]):r[i])}</td>`).join('')}</tr>`).join('')}</table>`;
+  $('#mapbox').hidden=false;$('#mapbox').scrollIntoView({behavior:'smooth',block:'start'})}
+async function readFile(f){try{
+  if(/\.(xlsx|xls)$/i.test(f.name)){for(let i=0;i<50&&!window.XLSX;i++)await new Promise(r=>setTimeout(r,100));if(!window.XLSX)throw new Error('엑셀 읽기 도구를 불러오지 못했습니다. 인터넷 연결을 확인하거나 CSV로 저장해 올려 주세요.');
+    const wb=XLSX.read(await f.arrayBuffer(),{type:'array',cellDates:true});const ws=wb.Sheets[wb.SheetNames[0]];loadRows(XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:''}),f.name)}
+  else{const buf=await f.arrayBuffer();let t=new TextDecoder('utf-8').decode(buf);if(t.includes(String.fromCharCode(65533)))t=new TextDecoder('euc-kr').decode(buf);loadRows(parseCSV(t),f.name)}
+ }catch(e){upMsg(`${esc(f.name)}: 파일을 읽지 못했습니다 — ${esc(e.message)}`,1)}}
+async function readFiles(fs){fs.sort((a,b)=>/품목|이익|ecount|이카운트/i.test(b.name)-/품목|이익|ecount|이카운트/i.test(a.name));for(const f of fs)await readFile(f)}
+function apply(){const sel={};$$('#map select').forEach(s=>{if(s.value!=='')sel[s.dataset.f]=+s.value});
+  if(sel.d==null){upMsg('날짜 열을 골라 주세요.',1);return}
+  const add=$('input[name=mode]:checked').value=='add',fs=FIELDS.map(x=>x[0]).filter(f=>sel[f]!=null),byD={};let skip=0;
+  for(const r of pend.body){const d=pd(r[sel.d]);if(!d){skip++;continue}const o=byD[d]||(byD[d]={});fs.forEach(f=>o[f]=(o[f]||0)+n(r[sel[f]]))}
+  const ds=Object.keys(byD).sort();if(!ds.length){upMsg('날짜를 읽을 수 있는 행이 없습니다. 날짜 열을 확인해 주세요.',1);return}
+  for(const d of ds){const v=S.days[d]||(S.days[d]={});fs.forEach(f=>v[f]=add?n(v[f])+byD[d][f]:byD[d][f])}
+  save([...new Set(ds.map(yk))]);cur=ds[ds.length-1].slice(0,7);$('#mp').value=cur;$('#mapbox').hidden=true;
+  upMsg(`<span>${esc(pend.name)}: ${ds[0]} ~ ${ds[ds.length-1]} · ${ds.length}일 직접 입력 장부에 반영${skip?` · 날짜 없는 ${skip}행 건너뜀`:''}</span><button class="b s p" data-go="day">일자별 보기</button>`);pend=null;renderAll()}
+const drop=$('#drop'),fi=$('#file');
+fi.onchange=()=>{readFiles([...fi.files]);fi.value=''};
+drop.onkeydown=e=>{if(e.key=='Enter'||e.key==' '){e.preventDefault();fi.click()}};
+['dragover','dragenter'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('on')}));
+['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,()=>drop.classList.remove('on')));
+drop.addEventListener('drop',e=>{e.preventDefault();readFiles([...e.dataTransfer.files])});
+$('#adscope').onchange=e=>{if(e.target.value=='day'&&!$('#addate').value)$('#addate').value=TODAY};
+$('#apply').onclick=apply;$('#cancel').onclick=()=>{$('#mapbox').hidden=true;pend=null};
+const copy=async(t,btn)=>{try{await navigator.clipboard.writeText(t);const o=btn.textContent;btn.textContent='복사됨';setTimeout(()=>btn.textContent=o,1500)}catch(e){btn.textContent='복사 안 됨'}};
+
+/* 올린 자료 + 광고 상품 연결 */
+function rUp(){const ms=Object.keys(S.mon).sort().reverse(),dsA=Object.keys(S.day).sort().reverse();
+  const cell=(B,k,kind,sc)=>{const o=B[k][kind];if(!o)return'<span class="note">–</span>';return`${kind=='ec'?`품목 ${o.items.length} · 매출 ${MAN(o.tot.s)}`:`${W(o.rows)}행 · 광고비 ${MAN(o.tot.c)}`} <button class="b s r" data-del="${kind}" data-sc="${sc}" data-k="${k}">삭제</button>`};
+  let h=`<table><tr><th>구분</th><th>기간</th><th>이카운트 이익현황</th><th>쿠팡 광고 리포트</th><th></th></tr>
+   ${ms.map(m=>`<tr class="${m==cur?'today':''}"><td>월</td><td>${m}${S.mon[m].ec&&S.mon[m].ec.from?` <span class="note">(${S.mon[m].ec.from.slice(5)}~${S.mon[m].ec.to.slice(5)})</span>`:''}</td><td>${cell(S.mon,m,'ec','m')}</td><td>${cell(S.mon,m,'ad','m')}</td><td><button class="b s" data-om="${m}">보기</button></td></tr>`).join('')}
+   ${dsA.map(d=>`<tr class="${d.startsWith(cur)?'today':''}"><td>일자</td><td>${d}</td><td>${cell(S.day,d,'ec','d')}</td><td>${cell(S.day,d,'ad','d')}</td><td><button class="b s" data-od="${d}">보기</button></td></tr>`).join('')}
+   ${!ms.length&&!dsA.length?'<tr><td colspan="5" class="note">아직 올린 파일이 없습니다.</td></tr>':''}</table>`;
+  $('#hist').innerHTML=h;
+  const ad=monthAD(cur),cat=catalog();let L='';
+  if(ad&&cat.length){const names=Object.keys(ad.prods).filter(nm=>ad.prods[nm].c>0||AW(ad.prods[nm])>0).sort((a,b)=>ad.prods[b].c-ad.prods[a].c),auto=matchAll(names,cat);
+    L=`<details class="box" open><summary>${cur} 광고 상품 ↔ 이카운트 품목 연결 <small>바꾸면 다음 달에도 기억 · 묶음 그룹에 속한 품목은 그룹 줄로 합산</small></summary><div class="scroll"><table><tr><th>광고 상품</th><th class="n">광고비</th><th>연결된 이카운트 품목</th></tr>
+    ${names.map(nm=>{const s=short(nm),cv=S.map[nm]??'',dc=adCode(nm,{}),au=dc&&!S.map[nm]?dc:auto[nm];return`<tr><td class="w">${esc(s.t)}<small>${esc(s.o)}</small></td><td class="n">${W(ad.prods[nm].c*VAT())}</td><td><select data-map="${esc(nm)}"><option value="">자동: ${esc(au?short(S.names[au]||au).t:'못 찾음')}</option><option value="-" ${cv=='-'?'selected':''}>연결 안 함</option>${cat.map(i=>`<option value="${esc(i[0])}" ${cv==i[0]?'selected':''}>${esc(short(i[1]).t)}</option>`).join('')}</select></td></tr>`}).join('')}
+    <tr class="gt"><td>합계 ${names.length}개</td><td class="n">${W(names.reduce((a,nm)=>a+ad.prods[nm].c,0)*VAT())}</td><td></td></tr></table></div></details>`}
+  $('#links').innerHTML=L}
+document.addEventListener('click',e=>{const d=e.target.closest('[data-del]'),o=e.target.closest('[data-om]'),od=e.target.closest('[data-od]');
+  if(d){if(!d.dataset.a){d.dataset.a=1;d.textContent='한 번 더';return}const sc=d.dataset.sc,k=d.dataset.k,B=sc=='d'?S.day:S.mon;delete B[k][d.dataset.del];if(!Object.keys(B[k]).length)delete B[k];save([sc+k]);renderAll()}
+  if(o){cur=o.dataset.om;$('#mp').value=cur;go('dash')}
+  if(od){cur=od.dataset.od.slice(0,7);$('#mp').value=cur;go('day')}});
+
+/* ---------- 설정 ---------- */
+function rCfg(){$('#cm').value=S.cfg.margin;$('#ct').value=S.cfg.target;$('#cw').value=S.cfg.win==1?'1':'14';$('#cv').checked=!!S.cfg.vat}
+$('#cm').onchange=e=>{S.cfg.margin=n(e.target.value);save(['cfg']);bar()};$('#ct').onchange=e=>{S.cfg.target=n(e.target.value);save(['cfg'])};
+$('#cw').onchange=e=>{S.cfg.win=+e.target.value;save(['cfg'])};
+$('#cv').onchange=e=>{S.cfg.vat=e.target.checked;save(['cfg'])};
+$('#xcsv').onclick=e=>{const X=analyze(cur);if(!X){e.target.textContent='이 달 분석 자료 없음';return}
+  const q=s=>'"'+String(s).replace(/"/g,'""')+'"';let t='품목코드,품목,수량,매출,매출이익,배송비,광고비,광고매출,ROAS,실이익\n';
+  [...X.withAd,...X.noAd].forEach(r=>t+=[q(r.code),q(r.name),r.q,r.s,r.p,Math.round(r.sh),Math.round(r.c),Math.round(r.a),r.c?Math.round(r.a/r.c*100)+'%':'',Math.round(r.after)].join(',')+'\n');
+  X.un.forEach(u=>t+=[q(''),q(short(u.nm).t+' (미연결 광고)'),'','','','',Math.round(u.c),Math.round(u.a),u.c?Math.round(u.a/u.c*100)+'%':'',-Math.round(u.c)].join(',')+'\n');
+  const T=X.T;t+=[q(''),q('전체 합계'),T.q,T.s,T.p,Math.round(T.sh),Math.round(T.c),Math.round(T.a),T.c?Math.round(T.a/T.c*100)+'%':'',Math.round(T.after)].join(',')+'\n';copy(t,e.target)};
+$('#xjs').onclick=e=>copy(JSON.stringify(S),e.target);
+$('#ijb').onclick=()=>{try{const o=JSON.parse($('#ijs').value);if(!o.days&&!o.mon&&!o.day&&!o.wk)throw 0;S=Object.assign({wk:{},days:{},months:{},camps:{},mon:{},day:{},map:{},ship:{},grp:{},names:{},shipNames:null},o);fix();
+  save(allKeys());$('#cfgmsg').innerHTML='<div class="msg">백업을 불러왔습니다.</div>';renderAll()}catch(e){$('#cfgmsg').innerHTML='<div class="msg err">올바른 백업 JSON이 아닙니다.</div>'}};
+$('#rst').onclick=e=>{const b=e.target;if(!b.dataset.a){b.dataset.a=1;b.textContent='한 번 더 누르면 모두 삭제';return}
+  const keys=allKeys();S={wk:{},days:{},months:{},camps:{},mon:{},day:{},map:{},ship:{},grp:{},names:{},shipNames:null,cfg:S.cfg};
+  if(col)keys.filter(k=>k!='cfg').forEach(k=>col.doc(k).delete().catch(()=>{}));save(['cfg']);b.textContent='전체 삭제';delete b.dataset.a;renderAll()};
+
+/* ---------- 공통 ---------- */
+function bar(){const ec=monthEC(cur),be=bepRoas();$('#bep').textContent=ec&&ec.tot.s?`${+cur.slice(5)}월 이카운트 이익률 ${P1(ec.tot.p/ec.tot.s*100)}`:be?`마진율 ${S.cfg.margin}% → 손익분기 ROAS ${P(be)}`:''}
+function renderAll(){FEE=null;bar();rCfg();({dash:rDash,wk:rWk,day:rDay,mon:rMon,item:rItem,up:rUp}[tab]||(()=>{}))()}
+function go(t){tab=t;$$('#nav button').forEach(b=>b.setAttribute('aria-selected',b.dataset.t==t));$$('main>section').forEach(s=>s.hidden=s.id!='t-'+t);
+  try{localStorage.setItem('cpad_tab',t)}catch(e){}renderAll();if(location.hash.slice(1)!=t)history.replaceState(null,'','#'+t);scrollTo(0,0)}
+$('#nav').onclick=e=>{const b=e.target.closest('button');if(b)go(b.dataset.t)};
+const setM=m=>{cur=m;$('#mp').value=m;renderAll()};
+$('#mp').onchange=e=>{if(e.target.value)setM(e.target.value)};$('#pv').onclick=()=>setM(shift(cur,-1));$('#nx').onclick=()=>setM(shift(cur,1));$('#tm').onclick=()=>setM(TODAY.slice(0,7));
+$('#mp').value=cur;
+const TABS=['dash','wk','day','mon','item','up','cfg'],h=location.hash.slice(1);let st=null;try{st=localStorage.getItem('cpad_tab')}catch(e){}
+tab=TABS.includes(h)?h:(TABS.includes(st)?st:'dash');
+addEventListener('hashchange',()=>{const t=location.hash.slice(1);if(t!=tab&&TABS.includes(t))go(t)});
+go(tab);initStore();
+}
+</script>
+</body>
+</html>
