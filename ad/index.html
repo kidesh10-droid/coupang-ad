@@ -15,6 +15,7 @@
 --bg:light-dark(#f3f5f8,#12161c);--panel:light-dark(#fff,#1a2029);--ink:light-dark(#1b2330,#e6eaf0);--mute:light-dark(#5d6878,#9aa6b6);
 --line:light-dark(#d6dce4,#2c3542);--head:light-dark(#eef1f5,#212935);--sub:light-dark(#f6f8fb,#1e252f);--bar:#1d3f8f;--blue:light-dark(#2354c7,#6f9bff);
 --sky:light-dark(#8fb3f5,#3d5f9e);--gray:light-dark(#aeb8c6,#5b6676);--red:light-dark(#d81f14,#ff5a4f);--sel:light-dark(#fff6d6,#3a3418)}
+:root[data-ch=nv]{--bar:#0b7a43}
 :root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
 *{box-sizing:border-box;min-width:0}
 body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "IBM Plex Sans KR",system-ui,sans-serif;overflow-x:clip}
@@ -118,6 +119,7 @@ textarea{width:100%;min-height:120px;font-size:14px}
   <button class="b" id="tm">이번 달</button>
   <span class="sp"></span>
   <span class="note" id="bep"></span>
+  <a class="b s" id="chsw" hidden style="text-decoration:none;display:inline-flex;align-items:center"></a>
 </div>
 <div class="bar" id="keybar" hidden style="background:var(--sel)"><b>팀 공용 장부</b><span class="note">회사에서 정한 팀 비밀번호를 넣으면 모든 기기·사람이 같은 장부를 봅니다.</span><input class="t" type="password" id="tkey" placeholder="팀 비밀번호" aria-label="팀 비밀번호" autocomplete="current-password"><button class="b p" id="tkgo">연결</button><span class="note dn" id="keymsg"></span></div>
 <main>
@@ -173,6 +175,7 @@ textarea{width:100%;min-height:120px;font-size:14px}
 <script>
 {
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const CH=document.documentElement.dataset.ch||'cp',LK=k=>CH=='nv'?'nv_'+k:k,API='/api/store'+(CH=='nv'?'?ch=nv':'');
 const FIELDS=[['s','총매출'],['p','매출이익'],['sh','배송비'],['c','광고비'],['a','광고매출'],['i','노출수'],['k','클릭수'],['o','주문수']];
 const DEF={margin:30,target:400,win:14,vat:false};
 /* 기본 배송비 기준표 (개당) */
@@ -181,7 +184,7 @@ const DEF_SHIP=[["[PE11821W] 휴대용 커피머신 2세대 화이트",4600],["[
 const DEF_GRP=[{kws:['탄소매트','전기매트'],name:'라이브박스 탄소매트 [한일]',code:'E4-036-03063'}];
 /* 기본 광고 상품 → 이카운트 품목 연결 (광고 상품명 앞부분) */
 /* 쿠팡 광고 그룹(캠페인)별 현재 목표 ROAS — 2026-11-18 쿠팡 광고센터 기준 */
-const DEF_CTGT={'AI 스마트 광고_기타상품':850,'퓨어스팀 다리미_디앤디컴 관리':350,'진공포장기_디앤디컴 관리':200,'스팀다리미_디앤디컴 관리':850,'[매출최적화] 한일 의료기 매트_스피츠애드_시즌강화':400,'헤어드라이기_디앤디컴 관리':562,'사운드피츠(T3 Pro)_디앤디컴 관리':650,'라이브박스 가습기_디앤디컴 관리':750,'온트레일러_에어건_디앤디컴 관리':600,'휴대용 커피머신_디앤디컴 관리':950};
+const DEF_CTGT=CH=='nv'?{}:{'AI 스마트 광고_기타상품':850,'퓨어스팀 다리미_디앤디컴 관리':350,'진공포장기_디앤디컴 관리':200,'스팀다리미_디앤디컴 관리':850,'[매출최적화] 한일 의료기 매트_스피츠애드_시즌강화':400,'헤어드라이기_디앤디컴 관리':562,'사운드피츠(T3 Pro)_디앤디컴 관리':650,'라이브박스 가습기_디앤디컴 관리':750,'온트레일러_에어건_디앤디컴 관리':600,'휴대용 커피머신_디앤디컴 관리':950};
 const ctgtOf=c=>{const k=norm(c);for(const x in S.ctgt)if(norm(x)==k)return n(S.ctgt[x]);for(const x in DEF_CTGT)if(norm(x)==k)return DEF_CTGT[x];return null};
 const DEF_ADMAP=[['가정용 진공포장기 진공기 압축기 음식보관 유럽인증 진공롤 식품보관','E4-036-02021']];
 let S={ctgt:{},wk:{},days:{},months:{},camps:{},mon:{},day:{},map:{},ship:{},grp:{},names:{},shipNames:null,cfg:{...DEF}};
@@ -288,11 +291,11 @@ let col=null,dirty=new Set(),saving=false,mode='local';
 const setSt=t=>$('#st').textContent=t;
 const yk=d=>'y'+d.slice(0,4);
 const allKeys=()=>['cfg',...new Set(Object.keys(S.days).map(yk)),...Object.keys(S.mon).map(m=>'m'+m),...Object.keys(S.day).map(d=>'d'+d),...(Object.keys(S.wk).length?['wk']:[])];
-function save(keys){FEE=null;keys.forEach(k=>dirty.add(k));try{localStorage.setItem('cpad',JSON.stringify(S))}catch(e){}
+function save(keys){FEE=null;keys.forEach(k=>dirty.add(k));try{localStorage.setItem(LK('cpad'),JSON.stringify(S))}catch(e){}
   clearTimeout(save.t);save.t=setTimeout(flush,mode=='kv'?1500:700)}
 async function flush(){
   if(mode=='kv'){if(saving){clearTimeout(save.t);save.t=setTimeout(flush,800);return}if(!dirty.size)return;saving=true;setSt('저장 중…');const ks=[...dirty];dirty.clear();const docs={};ks.forEach(k=>docs[k]=docBody(k));
-    try{const r=await fetch('/api/store',{method:'PUT',headers:{'content-type':'application/json','x-team-key':KEY()},body:JSON.stringify({docs})});
+    try{const r=await fetch(API,{method:'PUT',headers:{'content-type':'application/json','x-team-key':KEY()},body:JSON.stringify({docs})});
       if(r.status==401){ks.forEach(k=>dirty.add(k));mode='kvauth';showKey('비밀번호가 바뀌었습니다. 다시 입력해 주세요.');setSt('팀 비밀번호 필요')}else if(!r.ok)throw 0;else{kvLast=Date.now();setSt('공용 저장소 · 팀 공유 중')}}
     catch(e){ks.forEach(k=>dirty.add(k));setSt('저장 실패 · 다시 시도');clearTimeout(save.t);save.t=setTimeout(flush,5000)}saving=false;if(dirty.size){clearTimeout(save.t);save.t=setTimeout(flush,800)}return}
   if(mode=='kvauth'){setSt('팀 비밀번호 필요 · 이 브라우저에만 임시 저장');return}
@@ -312,19 +315,19 @@ function fix(){for(const k of['ctgt','wk','days','months','camps','mon','day','m
   if(!Array.isArray(S.shipNames))S.shipNames=null;S.cfg=Object.assign({},DEF,S.cfg);
   const learn=ec=>ec&&ec.items&&ec.items.forEach(([c,nm])=>{if(!S.names[c])S.names[c]=nm});
   for(const m in S.mon)learn(S.mon[m].ec);for(const d in S.day)learn(S.day[d].ec);FEE=null}
-const KEY=()=>{try{return localStorage.getItem('cpad_key')||''}catch(e){return''}};
+const KEY=()=>{try{return localStorage.getItem(LK('cpad_key'))||''}catch(e){return''}};
 let kvLast=0;
-async function kvGet(){return fetch('/api/store',{headers:{'x-team-key':KEY()},cache:'no-store'})}
+async function kvGet(){return fetch(API,{headers:{'x-team-key':KEY()},cache:'no-store'})}
 function applyDocs(entries){const N={ctgt:{},wk:{},days:{},months:{},camps:{},mon:{},day:{},map:{},ship:{},grp:{},names:{},shipNames:null,cfg:S.cfg};
   for(const[id,v0]of entries){const v=v0||{};if(id=='cfg'){N.cfg=v.cfg||N.cfg;for(const k of['months','map','ship','grp','names','ctgt'])N[k]={...v[k]};N.shipNames=v.shipNames||null}
     else if(id=='wk'){N.wk=v.wk||{}}else if(id[0]=='m'){if(v.mon)N.mon[id.slice(1)]=v.mon}else if(id[0]=='d'){if(v.day)N.day[id.slice(1)]=v.day}else{Object.assign(N.days,v.days);Object.assign(N.camps,v.camps)}}
-  S=JSON.parse(JSON.stringify(N));fix();try{localStorage.setItem('cpad',JSON.stringify(S))}catch(e){}renderAll()}
+  S=JSON.parse(JSON.stringify(N));fix();try{localStorage.setItem(LK('cpad'),JSON.stringify(S))}catch(e){}renderAll()}
 function showKey(msg){$('#keybar').hidden=false;$('#keymsg').textContent=msg||'';}
 async function useKV(docs){mode='kv';$('#keybar').hidden=true;kvLast=Date.now();const ids=Object.keys(docs||{});
   if(!ids.length){if(allKeys().length>1){save(allKeys());setSt('공용 저장소로 올리는 중…')}else setSt('공용 저장소 연결됨 · 팀 공유');return}
   applyDocs(Object.entries(docs));setSt('공용 저장소 · 팀 공유 중')}
 async function initStore(){
-  try{const raw=localStorage.getItem('cpad');if(raw)S=Object.assign(S,JSON.parse(raw))}catch(e){}
+  try{const raw=localStorage.getItem(LK('cpad'));if(raw)S=Object.assign(S,JSON.parse(raw))}catch(e){}
   fix();renderAll();setSt('이 브라우저에 저장됨');
   try{const r=await kvGet(),ct=r.headers.get('content-type')||'';
     if(ct.includes('json')){if(r.status==401){mode='kvauth';showKey(KEY()?'비밀번호가 맞지 않습니다.':'');setSt('팀 비밀번호 필요');return}
@@ -343,9 +346,9 @@ async function initStore(){
 const kvPull=async()=>{if(mode!='kv'||dirty.size||saving||Date.now()-kvLast<20000)return;kvLast=Date.now();
   try{const r=await kvGet();if(r.ok){const j=await r.json();if(!dirty.size&&!saving&&Object.keys(j.docs||{}).length){const a=document.activeElement;if(!a||!a.matches('input,textarea,select'))applyDocs(Object.entries(j.docs))}}}catch(e){}};
 addEventListener('focus',kvPull);setInterval(()=>{if(document.visibilityState=='visible')kvPull()},60000);
-document.addEventListener('click',async e=>{if(e.target.id=='tkgo'){const v=$('#tkey').value.trim();if(!v)return;try{localStorage.setItem('cpad_key',v)}catch(x){}
+document.addEventListener('click',async e=>{if(e.target.id=='tkgo'){const v=$('#tkey').value.trim();if(!v)return;try{localStorage.setItem(LK('cpad_key'),v)}catch(x){}
     $('#keymsg').textContent='확인 중…';try{const r=await kvGet();if(r.status==401){$('#keymsg').textContent='비밀번호가 맞지 않습니다.';return}if(r.ok){const j=await r.json();await useKV(j.docs)}else $('#keymsg').textContent='서버 응답 오류'}catch(x){$('#keymsg').textContent='연결 실패'}}
-  if(e.target.id=='tkreset'){try{localStorage.removeItem('cpad_key')}catch(x){}mode='kvauth';showKey('');setSt('팀 비밀번호 필요')}});
+  if(e.target.id=='tkreset'){try{localStorage.removeItem(LK('cpad_key'))}catch(x){}mode='kvauth';showKey('');setSt('팀 비밀번호 필요')}});
 document.addEventListener('keydown',e=>{if(e.key=='Enter'&&e.target.id=='tkey')$('#tkgo').click()});
 
 /* ---------- 차트 ---------- */
@@ -423,7 +426,7 @@ function rDash(){DPL=null;const el=$('#t-dash'),[yy,mm]=cur.split('-'),X=analyze
   let html='';
   if(X){const T=X.T,ec=X.ec,per=ec&&ec.from?`${ec.from.slice(5).replace('-','/')}~${ec.to.slice(5).replace('-','/')}`:'';
     const head=X.ec?`${+mm}월${per?`(${per})`:''} 실이익 ${WN(T.after)}원 · 매출이익 ${MAN(T.p)}원에서 광고비 ${MAN(T.c)}원·배송비 ${MAN(T.sh)}원 차감`:`${+mm}월 광고 ROAS ${P(T.c?T.a/T.c*100:null)} · 광고비 ${W(T.c)}원`;
-    html+=`<h2 class="${X.ec&&T.after<0?'dn':''}">${esc(head)}</h2><p class="sub">${X.ec?`${ec.manual?'직접 입력':'이카운트 '+esc(ec.who||'')} ${per}${ec.daily?` (일자 자료 ${ec.daily}일 합산)`:''} · 품목 ${X.rows.length}줄`:''}${X.ec&&X.ad?' · ':''}${X.ad?`쿠팡 광고 ${W(X.ad.rows)}행${X.ad.daily?` (${X.ad.daily}일 합산)`:''} · 전환 ${S.cfg.win==1?'1일':'14일'} 기준${S.cfg.vat?' · 광고비 VAT 포함':''}`:''}</p>
+    html+=`<h2 class="${X.ec&&T.after<0?'dn':''}">${esc(head)}</h2><p class="sub">${X.ec?`${ec.manual?'직접 입력':'이카운트 '+esc(ec.who||'')} ${per}${ec.daily?` (일자 자료 ${ec.daily}일 합산)`:''} · 품목 ${X.rows.length}줄`:''}${X.ec&&X.ad?' · ':''}${X.ad?`쿠팡 광고 ${W(X.ad.rows)}행${X.ad.daily?` (${X.ad.daily}일 합산)`:''}${CH=='cp'?` · 전환 ${S.cfg.win==1?'1일':'14일'} 기준`:''}${S.cfg.vat?' · 광고비 VAT 포함':''}`:''}</p>
     ${kpis(X)}${(()=>{try{const D=paData(),PL=planFor(D,'mon',cur);if(!PL)return'';DPL={J:PL.J,rp:D.RP[cur]||{}};return PL.h}catch(e){return''}})()}<details class="box"><summary>숫자 요약 <small>배송비 미입력·마이너스 이익 품목 등</small></summary><ol class="ins">${insights(X).map(s=>`<li>${s}</li>`).join('')}</ol></details>
     <div class="box"><h3>품목별 실이익 <small>흰 칸 직접 입력(파란 칸 = 직접 고친 값, 지우면 파일 값) · 회색 칸 자동 계산 · 실이익 = 매출이익 − 배송비 − 광고비</small><span style="flex:1"></span><button class="b s p" id="madd">+ 품목 직접 추가</button></h3>${prodTable(X)}</div>`;
     if(X.ad){const A=X.ad,v=VAT(),tb=(rows,label)=>{const t=z7();rows.forEach(([,x])=>add7(t,x));
@@ -859,6 +862,7 @@ function detect(rows){const top=rows.slice(0,6).map(r=>r.map(cellS).join('|')).j
   if(/품목코드/.test(top)&&/이익/.test(top)&&/매출/.test(top))return'ec';
   const hi=rows.findIndex((r,i)=>i<10&&r.some(c=>cellS(c)=='광고비'));
   if(hi>=0){const h=rows[hi].map(cellS);if(h.includes('캠페인명')&&!h.some(x=>/^(날짜|일자)$/.test(x)))return'ad'}
+  const nh=rows.findIndex((r,i)=>i<10&&r.some(c=>/^캠페인(명)?(\(|$)/.test(cellS(c)))&&r.some(c=>/총비용|광고비/.test(cellS(c)))&&r.some(c=>/^노출수/.test(cellS(c))));if(nh>=0)return'ad';
   if(rows.slice(0,10).some(r=>r.some(c=>/배송비/.test(cellS(c))))&&!/광고비|노출/.test(top))return'ship';
   return null}
 function yFor(mo){const y0=+TODAY.slice(0,4),m0=+TODAY.slice(5,7);return mo>m0?y0-1:y0}
@@ -877,10 +881,10 @@ function parseEC(rows,fname){const hi=rows.findIndex(r=>r.some(c=>cellS(c)=='품
   const from=pm?`${pm[1]}-${pad(pm[2])}-${pad(pm[3])}`:'',to=pm?`${pm[4]}-${pad(pm[5])}-${pad(pm[6])}`:'';
   const day=from&&from==to?from:(!from&&guessDay(fname))||null;
   return{scope:day?'d':'m',key:day||(from?from.slice(0,7):(guessMonth(fname)||cur)),data:{from:from||day||'',to:to||day||'',who:who.replace(/\s*\/\s*/g,' · ').trim(),items,tot,file:fname,at:TODAY}}}
-function parseAD(rows,fname){const hi=rows.findIndex(r=>r.some(c=>cellS(c)=='광고비')),h=rows[hi].map(cellS);
-  const ex=s=>h.indexOf(s),rx=re=>h.findIndex(x=>re.test(x));
-  const C={camp:ex('캠페인명'),prod:ex('광고집행 상품명'),place:rx(/노출\s*지면/),kw:ex('키워드'),i:ex('노출수'),k:ex('클릭수'),c:ex('광고비'),
-    o1:rx(/^총\s*주문수\s*\(1일\)/),o14:rx(/^총\s*주문수\s*\(14일\)/),a1:rx(/^총\s*전환매출액\s*\(1일\)/),a14:rx(/^총\s*전환매출액\s*\(14일\)/)};
+function parseAD(rows,fname){let hi=rows.findIndex(r=>r.some(c=>cellS(c)=='광고비'));if(hi<0)hi=rows.findIndex((r,i)=>i<10&&r.some(c=>/^캠페인(명)?(\(|$)/.test(cellS(c)))&&r.some(c=>/총비용|광고비/.test(cellS(c))));const h=rows[hi].map(cellS);
+  const ex=s=>h.indexOf(s),rx=re=>h.findIndex(x=>re.test(x)),or=(...a)=>a.find(x=>x>=0)??-1;
+  const C={camp:or(ex('캠페인명'),rx(/^캠페인(명)?(\(|$)/)),prod:or(ex('광고집행 상품명'),rx(/^상품명|소재명/),rx(/^광고그룹(명)?(\(|$)/)),place:rx(/노출\s*지면|^매체|광고유형|캠페인\s*유형/),kw:or(ex('키워드'),rx(/^키워드|검색어/)),i:rx(/^노출수/),k:rx(/^클릭수/),c:or(ex('광고비'),rx(/^총비용|^광고비/)),
+    o1:or(rx(/^총\s*주문수\s*\(1일\)/),rx(/^(총\s*)?전환수/)),o14:or(rx(/^총\s*주문수\s*\(14일\)/),rx(/^(총\s*)?전환수/)),a1:or(rx(/^총\s*전환매출액\s*\(1일\)/),rx(/^(총\s*)?전환매출액/)),a14:or(rx(/^총\s*전환매출액\s*\(14일\)/),rx(/^(총\s*)?전환매출액/))};
   const tot=z7(),camps={},prods={},place={},kw={};let cnt=0;
   const add=(o,r)=>{for(const f of F7)if(C[f]>=0)o[f]+=n(r[C[f]])};
   for(const r of rows.slice(hi+1)){if(!r||r[C.c]===''||r[C.c]==null)continue;const cn=cellS(r[C.camp]);if(/^(합계|총계|total)$/i.test(cn))continue;cnt++;
@@ -996,12 +1000,12 @@ $('#rst').onclick=e=>{const b=e.target;if(!b.dataset.a){b.dataset.a=1;b.textCont
 function bar(){const ec=monthEC(cur),be=bepRoas();$('#bep').textContent=ec&&ec.tot.s?`${+cur.slice(5)}월 이카운트 이익률 ${P1(ec.tot.p/ec.tot.s*100)}`:be?`마진율 ${S.cfg.margin}% → 손익분기 ROAS ${P(be)}`:''}
 function renderAll(){FEE=null;bar();rCfg();({dash:rDash,wk:rWk,pw:rPa,pm:rPa,day:rDay,mon:rMon,item:rItem,up:rUp}[tab]||(()=>{}))()}
 function go(t){tab=t;$$('#nav button').forEach(b=>b.setAttribute('aria-selected',b.dataset.t==t));$$('main>section').forEach(s=>s.hidden=s.id!='t-'+t);
-  try{localStorage.setItem('cpad_tab',t)}catch(e){}renderAll();if(location.hash.slice(1)!=t)history.replaceState(null,'','#'+t);scrollTo(0,0)}
+  try{localStorage.setItem(LK('cpad_tab'),t)}catch(e){}renderAll();if(location.hash.slice(1)!=t)history.replaceState(null,'','#'+t);scrollTo(0,0)}
 $('#nav').onclick=e=>{const b=e.target.closest('button');if(b)go(b.dataset.t)};
 const setM=m=>{cur=m;$('#mp').value=m;renderAll()};
 $('#mp').onchange=e=>{if(e.target.value)setM(e.target.value)};$('#pv').onclick=()=>setM(shift(cur,-1));$('#nx').onclick=()=>setM(shift(cur,1));$('#tm').onclick=()=>setM(TODAY.slice(0,7));
 $('#mp').value=cur;
-const TABS=['dash','wk','pw','pm','day','mon','item','up','cfg'],h=location.hash.slice(1);let st=null;try{st=localStorage.getItem('cpad_tab')}catch(e){}
+const TABS=['dash','wk','pw','pm','day','mon','item','up','cfg'],h=location.hash.slice(1);let st=null;try{st=localStorage.getItem(LK('cpad_tab'))}catch(e){}
 tab=TABS.includes(h)?h:(TABS.includes(st)?st:'dash');
 addEventListener('hashchange',()=>{const t=location.hash.slice(1);if(t!=tab&&TABS.includes(t))go(t)});
 /* 마이너스(적자) 숫자는 어디서든 빨간색 */
@@ -1010,6 +1014,7 @@ function markNeg(root){(root||document).querySelectorAll('main td, main .kpi b')
   (root||document).querySelectorAll('main td.in input').forEach(i=>i.classList.toggle('neg',NEG.test(i.value)))}
 new MutationObserver(()=>{clearTimeout(markNeg.t);markNeg.t=setTimeout(()=>markNeg(),0)}).observe(document.querySelector('main'),{childList:true,subtree:true});
 document.addEventListener('input',e=>{if(e.target.matches('td.in input'))e.target.classList.toggle('neg',NEG.test(e.target.value))});
+{const sw=$('#chsw');if(/pages\.dev|localhost|127\.0\.0\.1/.test(location.hostname)||location.protocol=='https:'&&!/claude/.test(location.hostname)){sw.hidden=false;sw.href=CH=='nv'?'/ad/':'/naver/';sw.textContent=CH=='nv'?'쿠팡 광고 장부로 →':'네이버 광고 장부로 →';sw.style.borderColor=CH=='nv'?'#1d3f8f':'#0b7a43';sw.style.color=CH=='nv'?'#1d3f8f':'#0b7a43'}}
 go(tab);initStore();
 }
 </script>
