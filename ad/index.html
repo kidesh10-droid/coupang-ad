@@ -45,6 +45,7 @@ h2{font-size:clamp(20px,2.6vw,28px);line-height:1.2;margin:4px 0 4px;text-wrap:b
 .kpi span{font-size:13px;color:var(--mute)}.kpi i{font-style:normal;font-size:13px;white-space:nowrap}
 .kpi .hl{background:var(--sel)}
 .up{color:var(--blue)}.dn{color:var(--red)}
+.neg,.neg b,td.in input.neg{color:var(--red)!important;font-weight:600}
 .ins{margin:0;padding:12px 12px 12px 32px;display:grid;gap:8px}
 .ins li{padding-left:4px}.ins li b{font-variant-numeric:tabular-nums}
 .fig{position:relative;min-height:320px}.fig>svg{position:absolute;inset:0;width:100%;height:100%}
@@ -914,6 +915,12 @@ $('#mp').value=cur;
 const TABS=['dash','wk','pa','day','mon','item','up','cfg'],h=location.hash.slice(1);let st=null;try{st=localStorage.getItem('cpad_tab')}catch(e){}
 tab=TABS.includes(h)?h:(TABS.includes(st)?st:'dash');
 addEventListener('hashchange',()=>{const t=location.hash.slice(1);if(t!=tab&&TABS.includes(t))go(t)});
+/* 마이너스(적자) 숫자는 어디서든 빨간색 */
+const NEG=/^\s*[−-]\s?[\d,.]+\s*(원|%|%p)?\*?\s*$/;
+function markNeg(root){(root||document).querySelectorAll('main td, main .kpi b').forEach(el=>{const t=el.firstElementChild&&el.firstElementChild.tagName=='INPUT'?null:el.textContent;if(t!=null)el.classList.toggle('neg',NEG.test(t))});
+  (root||document).querySelectorAll('main td.in input').forEach(i=>i.classList.toggle('neg',NEG.test(i.value)))}
+new MutationObserver(()=>{clearTimeout(markNeg.t);markNeg.t=setTimeout(()=>markNeg(),0)}).observe(document.querySelector('main'),{childList:true,subtree:true});
+document.addEventListener('input',e=>{if(e.target.matches('td.in input'))e.target.classList.toggle('neg',NEG.test(e.target.value))});
 go(tab);initStore();
 }
 </script>
