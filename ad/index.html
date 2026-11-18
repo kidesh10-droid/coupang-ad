@@ -483,7 +483,7 @@ const ktoks=nm=>String(nm).split(/[\s\[\]\(\)\/,_+]+/).map(norm).filter(w=>w.len
 function wkKeys(names){const res={},coded={};
   for(const nm of names){const g=DEF_GRP.find(d=>d.kws.some(k=>nm.includes(k)));if(g){res[nm]='g:'+g.name;continue}const m=modelOf(nm);if(m){res[nm]='M:'+m;coded[nm]=m}}
   for(const nm of names){if(res[nm])continue;const a=ktoks(nm);let best=0,bk=null;
-    for(const c in coded){const b=ktoks(c);let sc=0;for(const t of a)if(b.some(u=>u.includes(t)||t.includes(u)))sc++;if(sc>best){best=sc;bk='M:'+coded[c]}}
+    let br=0;for(const c in coded){const b=[...new Set(ktoks(c))];let sc=0;for(const u of b)if(a.some(t=>t.includes(u)||u.includes(t)))sc++;const r=sc/Math.max(b.length,1);if(sc>=2&&(r>br||(r==br&&sc>best))){best=sc;br=r;bk='M:'+coded[c]}}
     res[nm]=best>=2?bk:'N:'+norm(nm)}
   return res}
 function parseWK(rows){const weeks=[];let W=null,H=null;
@@ -520,6 +520,19 @@ function wkCheck(id){const w=S.wk[id],L=[],SL=shipList(),K=wkKeys([...w.rows.map
     const f=fee[K[r.name]];if(r.unit&&f!=null&&n(r.unit)!=f)L.push(`${nm}: 엑셀의 개당 배송비 ${W(r.unit)}원이 배송비 표(${W(f)}원)와 달라 <b>배송비 표 ${W(f)}원 기준</b>으로 계산했습니다${q?` (배송비 ${W(Math.abs(n(r.unit)-f)*q)}원 차이)`:''}.`);
     if(q>0&&(r.sh==null||n(r.sh)==0))L.push(`${nm}: 판매수량 ${W(q)}개인데 배송비 칸이 ${r.sh==null?'비어 있어':'0원이라'} 장부에서 개당 배송비로 채워 계산했습니다.`)}
   return L}
+function mergeWkAd(from,to,ad){let id=Object.keys(S.wk).find(k=>S.wk[k].from==from)||Object.keys(S.wk).find(k=>S.wk[k].from<=to&&S.wk[k].to>=from);
+  if(!id){id=from;S.wk[id]={from,to,rows:[]}}const w=S.wk[id];
+  const names=Object.keys(ad.prods).filter(nm=>{const x=ad.prods[nm];return n(x.c)>0||AW(x)>0||n(x.i)>0});
+  const K=wkKeys([...w.rows.map(r=>r.name),...names]),first={};w.rows.forEach((r,i)=>{const k=K[r.name];if(first[k]==null)first[k]=i});
+  const base={};names.forEach(nm=>{const bt=short(nm).t;(base[bt]||(base[bt]=[])).push(nm)});
+  for(const bt in base){const L=base[bt],hit=L.map(nm=>K[nm]).find(k=>first[k]!=null);if(hit)L.forEach(nm=>K[nm]=hit)}
+  const fix=k=>{if(first[k]!=null||!k.startsWith('M:'))return k;const m=k.slice(2),hit=Object.keys(first).find(x=>x.startsWith('M:')&&(m.startsWith(x.slice(2))||x.slice(2).startsWith(m)));return hit||k};
+  const agg={};for(const nm of names){const x=ad.prods[nm],k=fix(K[nm]),o=agg[k]||(agg[k]={name:short(nm).t,imp:0,clk:0,c:0,conv:0,as:0});o.imp+=n(x.i);o.clk+=n(x.k);o.c+=n(x.c);o.conv+=OW(x);o.as+=AW(x)}
+  let upd=0,add=0;const miss=[];
+  for(const k in agg){const o=agg[k];let i=first[k];if(i==null){w.rows.push({name:o.name,sh:null});i=w.rows.length-1;first[k]=i;add++}else upd++;
+    Object.assign(w.rows[i],{imp:o.imp,clk:o.clk,g:Math.round(o.c),nw:0,conv:o.conv,as:Math.round(o.as)})}
+  w.rows.forEach((r,i)=>{const k=fix(K[r.name]||'');if(agg[k]&&first[k]!==i)Object.assign(r,{imp:0,clk:0,g:0,nw:0,conv:0,as:0});else if(!agg[k]&&n(r.g)+n(r.nw)>0)miss.push(r.name)});
+  w.adFile=ad.file;w.to=w.to||to;save(['wk']);UI.wk=id;return{id,upd,add,miss}}
 const wlab=w=>`${+w.from.slice(5,7)}/${+w.from.slice(8)}~${+w.to.slice(5,7)}/${+w.to.slice(8)}`;
 const dP=(a,b,isP)=>{if(a==null||b==null||(!isP&&!b))return'';const d=isP?a-b:(a-b)/Math.abs(b)*100;if(!isFinite(d))return'';return`<i class="${d>=0?'up':'dn'}">${d>=0?'▲':'▼'} ${isP?Math.abs(Math.round(d))+'%p':Math.abs(d).toFixed(1)+'%'} 전주比</i>`};
 const roasOf=(o,f='as')=>o.c?o[f]/o.c*100:null;
@@ -680,9 +693,10 @@ function parseAD(rows,fname){const hi=rows.findIndex(r=>r.some(c=>cellS(c)=='광
   const list=Object.entries(kw).map(([k,v])=>({k,c:v.c,i:v.i,k2:v.k,o1:v.o1,o14:v.o14,a1:v.a1,a14:v.a14}));
   const zz=f=>{const z=list.filter(x=>x.k!='-'&&x.c>0&&!x[f]);return{n:z.length,c:z.reduce((a,x)=>a+x.c,0)}};
   const keep=new Set([...list.slice().sort((a,b)=>b.c-a.c).slice(0,200),...list.slice().sort((a,b)=>b.a14-a.a14).slice(0,60),...list.slice().sort((a,b)=>b.a1-a.a1).slice(0,30)]);
-  const sc=$('#adscope').value,dd=$('#addate').value;let scope,key;
-  if(sc=='day'&&dd){scope='d';key=dd}else if(sc=='month'){scope='m';key=cur}else{const d=guessDay(fname);if(d){scope='d';key=d}else{scope='m';key=guessMonth(fname)||cur}}
-  return{scope,key,data:{rows:cnt,tot,camps,prods,place,kws:[...keep],kz:{1:zz('a1'),14:zz('a14')},file:fname,at:TODAY}}}
+  const sc=$('#adscope').value,dd=$('#addate').value,rg=String(fname).match(/(20\d{2})(\d{2})(\d{2})\D{1,3}(20\d{2})(\d{2})(\d{2})/);let scope,key,to=null;
+  if(sc=='auto'&&rg&&`${rg[1]}${rg[2]}${rg[3]}`!=`${rg[4]}${rg[5]}${rg[6]}`){scope='w';key=`${rg[1]}-${rg[2]}-${rg[3]}`;to=`${rg[4]}-${rg[5]}-${rg[6]}`}
+  else if(sc=='day'&&dd){scope='d';key=dd}else if(sc=='month'){scope='m';key=cur}else{const d=guessDay(fname);if(d){scope='d';key=d}else{scope='m';key=guessMonth(fname)||cur}}
+  return{scope,key,to,data:{rows:cnt,tot,camps,prods,place,kws:[...keep],kz:{1:zz('a1'),14:zz('a14')},file:fname,at:TODAY}}}
 function put(scope,key,kind,data){const B=scope=='d'?S.day:S.mon,o=B[key]||(B[key]={});o[kind]=data;
   if(kind=='ec')data.items.forEach(([c,nm])=>S.names[c]=nm);save([scope+key,'cfg'])}
 function upMsg(html,err){const d=document.createElement('div');d.className='msg'+(err?' err':'');d.innerHTML=html;$('#upmsg').prepend(d)}
@@ -693,7 +707,10 @@ function loadRows(rows,name){rows=rows.filter(r=>r&&r.some(c=>c!==''&&c!=null));
   if(kind=='ec'){const{scope,key,data}=parseEC(rows,name);if(!data.items.length){upMsg(`${esc(name)}: 품목 행을 찾지 못했습니다.`,1);return}
     put(scope,key,'ec',data);cur=key.slice(0,7);$('#mp').value=cur;
     upMsg(`<span><b>이카운트 품목별 이익현황</b> · ${esc(name)}<br>${data.from?data.from+' ~ '+data.to+' · ':''}품목 ${data.items.length}개 · 매출 ${W(data.tot.s)}원 · 이익 ${W(data.tot.p)}원 → ${where(scope,key)}</span>${moveCtl('ec',scope,key)}`);renderAll();return}
-  if(kind=='ad'){const{scope,key,data}=parseAD(rows,name);put(scope,key,'ad',data);cur=key.slice(0,7);$('#mp').value=cur;
+  if(kind=='ad'){const{scope,key,to,data}=parseAD(rows,name);
+    if(scope=='w'){const r=mergeWkAd(key,to,data);cur=key.slice(0,7);$('#mp').value=cur;
+      upMsg(`<span><b>쿠팡 광고 리포트(주간 ${wlab({from:key,to})})</b> · ${esc(name)}<br>${W(data.rows)}행 · 광고비 ${W(data.tot.c)}원 · 전환매출(${S.cfg.win==1?'1일':'14일'}) ${W(AW(data.tot))}원 → <b>주간 ${wlab(S.wk[r.id])}</b> 품목 ${r.upd}개 갱신${r.add?` · ${r.add}개 추가`:''}${r.miss.length?` · 리포트에 없는 품목: ${r.miss.map(x=>esc(short(x).t)).join(', ')}`:''}<br><span class="note">노출·클릭·광고비·전환 판매(주문수)·전환매출을 리포트 값으로 바꿨고, 매출액·매출이익은 그대로입니다.</span></span><button class="b s p" data-go="wk">주간 보기</button>`);renderAll();return}
+    put(scope,key,'ad',data);cur=key.slice(0,7);$('#mp').value=cur;
     upMsg(`<span><b>쿠팡 광고 리포트</b> · ${esc(name)}<br>${W(data.rows)}행 · 캠페인 ${Object.keys(data.camps).length}개 · 광고비 ${W(data.tot.c)}원 · 전환매출(14일) ${W(data.tot.a14)}원 → ${where(scope,key)}</span>${moveCtl('ad',scope,key)}`);renderAll();return}
   if(kind=='wk'){const ws=parseWK(rows);if(!ws.length){upMsg(`${esc(name)}: 주차 기간 줄('9월01일 - 9월 07일까지')을 찾지 못했습니다.`,1);return}
     ws.forEach(w=>S.wk[w.from]=w);save(['wk']);UI.wk=ws[ws.length-1].from;
