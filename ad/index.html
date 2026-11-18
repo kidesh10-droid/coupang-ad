@@ -96,6 +96,18 @@ td.in input.ov{background:light-dark(#e6efff,#1f2d48);font-weight:600}
 textarea{width:100%;min-height:120px;font-size:14px}
 [hidden]{display:none!important}
 @media(max-width:600px){header{gap:0 12px}nav{order:3;flex:1 1 100%;flex-wrap:nowrap;overflow-x:auto;margin:0 calc(-1*max(2vw,12px))}nav button{flex:none;padding:0 12px}header h1{font-size:15px;flex:1}.mb{width:56px}}
+.mm{display:grid;grid-template-columns:260px 1fr;min-height:560px}.mm aside{border-right:1px solid var(--line);padding:10px;background:var(--sub);display:flex;flex-direction:column;gap:10px;overflow:auto;max-height:80vh}
+.mmf .mmfn{font-weight:700;flex:1;min-width:0;background:transparent;border-color:transparent}.mmf .mmfn:focus{background:var(--panel);border-color:var(--line)}
+.mmd{display:grid;grid-template-columns:auto 1fr;gap:2px 6px;width:100%;text-align:left;padding:6px 8px;border:1px solid transparent;background:transparent;cursor:pointer;font:inherit;color:inherit}
+.mmd:hover{background:var(--panel)}.mmd.on{background:var(--sel);border-color:var(--blue)}.mmd .tt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.mmd .note{grid-column:2}
+.mmd .tag{font-size:11px;padding:1px 5px;border:1px solid var(--line);background:var(--panel);align-self:center}
+.mmed{min-width:0}.mmnote{width:100%;min-height:520px;font:inherit;font-size:15px;line-height:1.7;padding:12px;border:1px solid var(--line);background:var(--panel);color:inherit;resize:vertical;box-sizing:border-box}
+.mmbar{display:flex;gap:6px;align-items:center;margin-bottom:6px}.mmbar b{min-width:48px;text-align:center;padding:6px;border:1px solid var(--line);background:var(--sub)}.mmbar input{flex:1;font-family:ui-monospace,Consolas,monospace}
+.mmgw{max-height:62vh}.mmgrid{border-collapse:collapse}.mmgrid th{background:var(--sub);font-weight:600;font-size:12px;padding:3px 6px;border:1px solid var(--line);position:sticky;top:0;z-index:1}.mmgrid th.rn{position:sticky;left:0;z-index:2;min-width:34px;text-align:center}
+.mmgrid td{padding:0;border:1px solid var(--line)}.mmgrid input{width:110px;border:0;padding:5px 6px;font:inherit;font-size:13px;background:var(--panel);color:inherit;box-sizing:border-box}
+.mmgrid input:focus{outline:2px solid var(--blue);outline-offset:-2px;text-align:left!important;font-family:ui-monospace,Consolas,monospace}.mmgrid input.num{text-align:right}.mmgrid input.fx{background:light-dark(#f4f8ff,#16202e)}.mmgrid input.err{color:var(--red)}.mmgrid input.neg{color:var(--red);font-weight:600}
+.mmv{display:block;width:100%;text-align:left;padding:10px 12px;border:1px solid var(--line);background:var(--panel);cursor:pointer;font:inherit;color:inherit}.mmv b{display:block}.mmv.on{border-color:var(--blue);background:var(--sel)}button.mmv:hover{border-color:var(--blue)}
+@media(max-width:760px){.mm{grid-template-columns:1fr}.mm aside{max-height:none;border-right:0;border-bottom:1px solid var(--line)}}
 </style>
 </head>
 <body>
@@ -110,6 +122,7 @@ textarea{width:100%;min-height:120px;font-size:14px}
     <button data-t="mon">월별 집계</button>
     <button data-t="item">품목·배송비</button>
     <button data-t="up">업로드</button>
+    <button data-t="memo">회의록</button>
     <button data-t="cfg">설정</button>
   </nav>
   <span id="st">불러오는 중…</span>
@@ -154,8 +167,10 @@ textarea{width:100%;min-height:120px;font-size:14px}
   <div class="box"><h3>올린 자료</h3><div class="scroll" id="hist"></div></div>
   <div id="links"></div>
 </section>
+<section id="t-memo" hidden><div id="mm"></div></section>
 <section id="t-cfg" hidden>
-  <div class="grid2">
+  <div id="cfglock"></div>
+  <div class="grid2" id="cfgbody" hidden>
   <div class="box"><h3>분석 기준</h3><div class="pad" style="display:grid;gap:14px">
     <label>광고 전환 기준<br><select id="cw"><option value="14">14일 전환 (쿠팡 기본)</option><option value="1">1일 전환</option></select></label>
     <label><input type="checkbox" id="cv"> 광고비에 부가세 10%를 더해 이익 계산</label>
@@ -297,7 +312,7 @@ function save(keys){FEE=null;keys.forEach(k=>dirty.add(k));try{localStorage.setI
   clearTimeout(save.t);save.t=setTimeout(flush,mode=='kv'?1500:700)}
 async function flush(){
   if(mode=='kv'){if(saving){clearTimeout(save.t);save.t=setTimeout(flush,800);return}if(!dirty.size)return;saving=true;setSt('저장 중…');const ks=[...dirty];dirty.clear();const docs={};ks.forEach(k=>docs[k]=docBody(k));
-    try{const r=await fetch(API,{method:'PUT',headers:{'content-type':'application/json','x-team-key':KEY()},body:JSON.stringify({docs})});
+    try{const r=await fetch(API,{method:'PUT',headers:{'content-type':'application/json','x-team-key':KEY(),'x-admin-key':encodeURIComponent(ADM.pw||'')},body:JSON.stringify({docs})});
       if(r.status==401){ks.forEach(k=>dirty.add(k));mode='kvauth';showKey('비밀번호가 바뀌었습니다. 다시 입력해 주세요.');setSt('팀 비밀번호 필요')}else if(!r.ok)throw 0;else{kvLast=Date.now();setSt('공용 저장소 · 팀 공유 중')}}
     catch(e){ks.forEach(k=>dirty.add(k));setSt('저장 실패 · 다시 시도');clearTimeout(save.t);save.t=setTimeout(flush,5000)}saving=false;if(dirty.size){clearTimeout(save.t);save.t=setTimeout(flush,800)}return}
   if(mode=='kvauth'){setSt('팀 비밀번호 필요 · 이 브라우저에만 임시 저장');return}
@@ -1084,22 +1099,24 @@ $('#xcsv').onclick=e=>{const X=analyze(cur);if(!X){e.target.textContent='이 달
   X.un.forEach(u=>t+=[q(''),q(short(u.nm).t+' (미연결 광고)'),'','','','',Math.round(u.c),Math.round(u.a),u.c?Math.round(u.a/u.c*100)+'%':'',-Math.round(u.c)].join(',')+'\n');
   const T=X.T;t+=[q(''),q('전체 합계'),T.q,T.s,T.p,Math.round(T.sh),Math.round(T.c),Math.round(T.a),T.c?Math.round(T.a/T.c*100)+'%':'',Math.round(T.after)].join(',')+'\n';copy(t,e.target)};
 $('#xjs').onclick=e=>copy(JSON.stringify(S),e.target);
-$('#ijb').onclick=()=>{try{const o=JSON.parse($('#ijs').value);if(!o.days&&!o.mon&&!o.day&&!o.wk)throw 0;S=Object.assign({wk:{},days:{},months:{},camps:{},mon:{},day:{},map:{},ship:{},grp:{},names:{},shipNames:null},o);fix();
+$('#ijb').onclick=()=>{if(!ADM.pw){rAdm();return}try{const o=JSON.parse($('#ijs').value);if(!o.days&&!o.mon&&!o.day&&!o.wk)throw 0;S=Object.assign({wk:{},days:{},months:{},camps:{},mon:{},day:{},map:{},ship:{},grp:{},names:{},shipNames:null},o);fix();
   save(allKeys());$('#cfgmsg').innerHTML='<div class="msg">백업을 불러왔습니다.</div>';renderAll()}catch(e){$('#cfgmsg').innerHTML='<div class="msg err">올바른 백업 JSON이 아닙니다.</div>'}};
-$('#rst').onclick=e=>{const b=e.target;if(!b.dataset.a){b.dataset.a=1;b.textContent='한 번 더 누르면 모두 삭제';return}
-  const keys=allKeys();S={wk:{},days:{},months:{},camps:{},mon:{},day:{},map:{},ship:{},grp:{},names:{},shipNames:null,cfg:S.cfg};
+$('#rst').onclick=async e=>{const b=e.target;if(!ADM.pw){rAdm();return}if(!b.dataset.a){b.dataset.a=1;b.textContent='한 번 더 누르면 모두 삭제';return}
+  const keys=allKeys();
+  if(mode=='kv'){const docs={};keys.filter(k=>k!='cfg').forEach(k=>docs[k]=null);try{const r=await fetch(API,{method:'PUT',headers:{'content-type':'application/json','x-team-key':KEY(),'x-admin-key':encodeURIComponent(ADM.pw)},body:JSON.stringify({docs,wipe:true})});
+    if(!r.ok){$('#cfgmsg').innerHTML=`<div class="msg err">${r.status==403?'운영자 비밀번호가 맞지 않아 삭제하지 않았습니다.':'서버 오류로 삭제하지 못했습니다.'}</div>`;b.textContent='전체 삭제';delete b.dataset.a;return}}catch(x){$('#cfgmsg').innerHTML='<div class="msg err">연결 실패로 삭제하지 못했습니다.</div>';return}}S={wk:{},days:{},months:{},camps:{},mon:{},day:{},map:{},ship:{},grp:{},names:{},shipNames:null,cfg:S.cfg};
   if(col)keys.filter(k=>k!='cfg').forEach(k=>col.doc(k).delete().catch(()=>{}));save(['cfg']);b.textContent='전체 삭제';delete b.dataset.a;renderAll()};
 
 /* ---------- 공통 ---------- */
 function bar(){const ec=monthEC(cur),be=bepRoas();$('#bep').textContent=ec&&ec.tot.s?`${+cur.slice(5)}월 이카운트 이익률 ${P1(ec.tot.p/ec.tot.s*100)}`:be?`마진율 ${S.cfg.margin}% → 손익분기 ROAS ${P(be)}`:''}
-function renderAll(){FEE=null;bar();rCfg();({dash:rDash,wk:rWk,pw:rPa,pm:rPa,day:rDay,mon:rMon,item:rItem,up:rUp}[tab]||(()=>{}))()}
+function renderAll(){FEE=null;bar();rCfg();({dash:rDash,wk:rWk,pw:rPa,pm:rPa,day:rDay,mon:rMon,item:rItem,up:rUp,cfg:rAdm,memo:()=>{if(MM.drawn!==MM.ver||!$('#mm').innerHTML)rMemo()}}[tab]||(()=>{}))()}
 function go(t){tab=t;$$('#nav button').forEach(b=>b.setAttribute('aria-selected',b.dataset.t==t));$$('main>section').forEach(s=>s.hidden=s.id!='t-'+t);
   try{localStorage.setItem(LK('cpad_tab'),t)}catch(e){}renderAll();if(location.hash.slice(1)!=t)history.replaceState(null,'','#'+t);scrollTo(0,0)}
 $('#nav').onclick=e=>{const b=e.target.closest('button');if(b)go(b.dataset.t)};
 const setM=m=>{cur=m;$('#mp').value=m;renderAll()};
 $('#mp').onchange=e=>{if(e.target.value)setM(e.target.value)};$('#pv').onclick=()=>setM(shift(cur,-1));$('#nx').onclick=()=>setM(shift(cur,1));$('#tm').onclick=()=>setM(TODAY.slice(0,7));
 $('#mp').value=cur;
-const TABS=['dash','wk','pw','pm','day','mon','item','up','cfg'],h=location.hash.slice(1);let st=null;try{st=localStorage.getItem(LK('cpad_tab'))}catch(e){}
+const TABS=['dash','wk','pw','pm','day','mon','item','up','memo','cfg'],h=location.hash.slice(1);let st=null;try{st=localStorage.getItem(LK('cpad_tab'))}catch(e){}
 tab=TABS.includes(h)?h:(TABS.includes(st)?st:'dash');
 addEventListener('hashchange',()=>{const t=location.hash.slice(1);if(t!=tab&&TABS.includes(t))go(t)});
 /* 마이너스(적자) 숫자는 어디서든 빨간색 */
@@ -1109,6 +1126,213 @@ function markNeg(root){(root||document).querySelectorAll('main td, main .kpi b')
 new MutationObserver(()=>{clearTimeout(markNeg.t);markNeg.t=setTimeout(()=>markNeg(),0)}).observe(document.querySelector('main'),{childList:true,subtree:true});
 document.addEventListener('input',e=>{if(e.target.matches('td.in input'))e.target.classList.toggle('neg',NEG.test(e.target.value))});
 {const sw=$('#chsw');if(/pages\.dev|localhost|127\.0\.0\.1/.test(location.hostname)||location.protocol=='https:'&&!/claude/.test(location.hostname)){sw.hidden=false;sw.href=CH=='nv'?'/ad/':'/naver/';sw.textContent=CH=='nv'?'쿠팡 광고 장부로 →':'네이버 광고 장부로 →';sw.style.borderColor=CH=='nv'?'#1d3f8f':'#0b7a43';sw.style.color=CH=='nv'?'#1d3f8f':'#0b7a43'}}
+/* ---------- 운영자 잠금 (설정 탭) ---------- */
+const ADM={pw:null,set:null,msg:''};
+try{ADM.pw=sessionStorage.getItem('cpad_admpw')}catch(e){}
+const shaHex=async s=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s)))].map(b=>b.toString(16).padStart(2,'0')).join('');
+async function admCall(a,b){
+  try{const r=await fetch('/api/store?admin='+a,{method:b?'POST':'GET',headers:{'content-type':'application/json','x-team-key':KEY()},body:b?JSON.stringify(b):undefined,cache:'no-store'});
+    if((r.headers.get('content-type')||'').includes('json')){const j=await r.json();j.status=r.status;return j}}catch(e){}
+  /* 서버가 없는 곳(파일로 열기 등): 이 브라우저에만 저장 */
+  let L=null;try{L=JSON.parse(localStorage.getItem('cpad_adm')||'null')}catch(e){}
+  const chk=async p=>!!(L&&p&&await shaHex(L.salt+p)===L.h);
+  if(a=='status')return{set:!!L,local:1};if(a=='check')return{ok:await chk(b.pw)};
+  if(a=='set'){if(L&&!await chk(b.old))return{error:'admin',status:403};const salt=Math.random().toString(36).slice(2);localStorage.setItem('cpad_adm',JSON.stringify({salt,h:await shaHex(salt+b.pw)}));return{ok:true}}}
+async function rAdm(){const box=$('#cfglock'),body=$('#cfgbody');if(!box)return;
+  if(ADM.pw){body.hidden=false;box.innerHTML=`<div class="msg" style="justify-content:space-between"><span><b>운영자 모드</b> · 설정과 전체 삭제는 운영자 비밀번호로만 열립니다.</span><span class="row" style="gap:6px"><button class="b s" id="admchg">운영자 비밀번호 변경</button><button class="b s" id="admlock">잠그기</button></span></div><div id="admform"></div>`;return}
+  body.hidden=true;
+  if(ADM.set==null){box.innerHTML='<div class="box"><div class="pad note">확인 중…</div></div>';const s=await admCall('status');ADM.set=!!(s&&s.set);}
+  box.innerHTML=ADM.set?`<div class="box" style="max-width:460px"><h3>설정 · 운영자 전용</h3><div class="pad" style="display:grid;gap:10px">
+      <p class="note" style="margin:0">설정 변경·백업 불러오기·전체 삭제는 운영자만 할 수 있습니다.</p>
+      <input class="t" type="password" id="admpw" placeholder="운영자 비밀번호" autocomplete="current-password">
+      <div class="row"><button class="b p" id="admgo">열기</button></div><div class="dn">${esc(ADM.msg)}</div></div></div>`
+    :`<div class="box" style="max-width:460px"><h3>운영자 비밀번호 만들기</h3><div class="pad" style="display:grid;gap:10px">
+      <p class="note" style="margin:0">아직 운영자 비밀번호가 없습니다. 처음 만드는 사람이 운영자가 됩니다. 만든 뒤부터는 이 비밀번호로만 설정 탭이 열리고, 전체 삭제는 서버에서도 막힙니다.</p>
+      <input class="t" type="password" id="admn1" placeholder="새 비밀번호 (4자 이상)" autocomplete="new-password">
+      <input class="t" type="password" id="admn2" placeholder="비밀번호 확인" autocomplete="new-password">
+      <div class="row"><button class="b p" id="admmk">만들기</button></div><div class="dn">${esc(ADM.msg)}</div></div></div>`;
+  ADM.msg='';const f=$('#admpw')||$('#admn1');if(f&&tab=='cfg')f.focus()}
+const admOpen=pw=>{ADM.pw=pw;try{sessionStorage.setItem('cpad_admpw',pw)}catch(e){}rAdm()};
+document.addEventListener('click',async e=>{const id=e.target.id;
+  if(id=='admgo'){const pw=$('#admpw').value;if(!pw)return;e.target.disabled=true;const r=await admCall('check',{pw});if(r&&r.ok)admOpen(pw);else{ADM.msg='비밀번호가 맞지 않습니다.';rAdm()}}
+  if(id=='admmk'){const a=$('#admn1').value,b=$('#admn2').value;if(a.length<4){ADM.msg='4자 이상으로 정해 주세요.';return rAdm()}if(a!==b){ADM.msg='두 비밀번호가 다릅니다.';return rAdm()}
+    const r=await admCall('set',{pw:a});if(r&&r.ok){ADM.set=true;admOpen(a)}else{ADM.set=null;ADM.msg='이미 운영자 비밀번호가 있습니다. 그 비밀번호로 여세요.';rAdm()}}
+  if(id=='admlock'){ADM.pw=null;try{sessionStorage.removeItem('cpad_admpw')}catch(x){}rAdm()}
+  if(id=='admchg'){$('#admform').innerHTML=`<div class="box" style="max-width:460px"><div class="pad" style="display:grid;gap:10px"><input class="t" type="password" id="admc1" placeholder="새 비밀번호 (4자 이상)" autocomplete="new-password"><input class="t" type="password" id="admc2" placeholder="새 비밀번호 확인" autocomplete="new-password"><div class="row"><button class="b p" id="admcgo">바꾸기</button></div><div id="admcm"></div></div></div>`}
+  if(id=='admcgo'){const a=$('#admc1').value,b=$('#admc2').value,m=$('#admcm');if(a.length<4){m.innerHTML='<span class="dn">4자 이상으로 정해 주세요.</span>';return}if(a!==b){m.innerHTML='<span class="dn">두 비밀번호가 다릅니다.</span>';return}
+    const r=await admCall('set',{pw:a,old:ADM.pw});if(r&&r.ok){admOpen(a);$('#cfglock').insertAdjacentHTML('beforeend','<div class="msg">운영자 비밀번호를 바꿨습니다.</div>')}else m.innerHTML='<span class="dn">바꾸지 못했습니다. 잠근 뒤 다시 열어 주세요.</span>'}});
+document.addEventListener('keydown',e=>{if(e.key!='Enter')return;const id=e.target.id;if(id=='admpw')$('#admgo').click();if(id=='admn2')$('#admmk').click();if(id=='admc2')$('#admcgo').click()});
+
+/* ---------- 회의록 (폴더별 비밀번호 · 브라우저에서 암호화) ---------- */
+const MAPI='/api/store?ns=memo';
+const MM={list:null,srv:false,pick:null,msg:'',open:null,sel:null,cell:null,ver:0,drawn:-1,st:'',idle:Date.now()};
+const b64=u=>{u=new Uint8Array(u);let s='';for(let i=0;i<u.length;i+=0x8000)s+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000));return btoa(s)};
+const ub64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+async function mKey(pw,salt){const km=await crypto.subtle.importKey('raw',new TextEncoder().encode(pw),'PBKDF2',false,['deriveKey']);
+  return crypto.subtle.deriveKey({name:'PBKDF2',salt:new TextEncoder().encode(salt),iterations:200000,hash:'SHA-256'},km,{name:'AES-GCM',length:256},false,['encrypt','decrypt'])}
+async function mEnc(o){const iv=crypto.getRandomValues(new Uint8Array(12)),ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},o.key,new TextEncoder().encode(JSON.stringify(o.data)));
+  return{name:o.name,salt:o.salt,iv:b64(iv),ct:b64(ct),vh:await shaHex('vh:'+o.salt+o.pw)}}
+async function mDec(v,pw){const key=await mKey(pw,v.salt),pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:ub64(v.iv)},key,ub64(v.ct));return{key,data:JSON.parse(new TextDecoder().decode(pt))}}
+const mLocal=()=>{try{return JSON.parse(localStorage.getItem('cpad_memo')||'{}')}catch(e){return{}}};
+async function mLoad(){try{const r=await fetch(MAPI,{headers:{'x-team-key':KEY()},cache:'no-store'});if(r.ok&&(r.headers.get('content-type')||'').includes('json')){MM.srv=true;return(await r.json()).docs||{}}}catch(e){}MM.srv=false;return mLocal()}
+async function mPut(id,doc,pw){
+  if(MM.srv){const r=await fetch(MAPI,{method:'PUT',headers:{'content-type':'application/json','x-team-key':KEY(),'x-vault-key':encodeURIComponent(pw||'')},body:JSON.stringify({id,doc})});
+    if(r.status==403)throw{code:'vault'};if(!r.ok)throw{code:'net'};return}
+  const L=mLocal();if(doc===null)delete L[id];else L[id]={...doc,ts:Date.now()};localStorage.setItem('cpad_memo',JSON.stringify(L))}
+const mid=p=>p+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const mDoc=()=>MM.open&&MM.open.data.docs.find(d=>d.id==MM.sel);
+const mRe=()=>{MM.ver++;rMemo()};
+const mTime=t=>{if(!t)return'';const d=new Date(t);return`${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`};
+const mSt=t=>{MM.st=t;const x=$('#mmst');if(x)x.textContent=t};
+function mSave(now){if(!MM.open)return;MM.open.dirty=1;mSt('저장 대기…');clearTimeout(mSave.t);mSave.t=setTimeout(mFlush,now?0:900)}
+async function mFlush(){const o=MM.open;if(!o||!o.dirty)return;if(o.saving){clearTimeout(mSave.t);mSave.t=setTimeout(mFlush,600);return}
+  o.dirty=0;o.saving=1;mSt('저장 중…');
+  try{await mPut(o.id,await mEnc(o),o.pw);mSt('저장됨 '+mTime(Date.now())+(MM.srv?' · 암호화되어 서버에 보관':' · 이 브라우저에만 보관'))}
+  catch(e){o.dirty=1;mSt(e&&e.code=='vault'?'저장 실패: 다른 곳에서 비밀번호가 바뀌었습니다. 잠그고 다시 여세요.':'저장 실패 · 잠시 뒤 다시 시도');if(!(e&&e.code=='vault')){clearTimeout(mSave.t);mSave.t=setTimeout(mFlush,5000)}}
+  o.saving=0}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState=='hidden')mFlush()});
+/* 30분 동안 손대지 않으면 자동 잠금 */
+setInterval(()=>{if(MM.open&&Date.now()-MM.idle>30*60e3){mFlush().finally(()=>{MM.open=null;MM.sel=null;MM.msg='30분 동안 사용하지 않아 잠갔습니다.';mRe()})}},30e3);
+['input','click','keydown'].forEach(ev=>document.addEventListener(ev,e=>{if(e.target.closest&&e.target.closest('#t-memo'))MM.idle=Date.now()},true));
+
+/* 표 계산: = 로 시작하는 수식 */
+const colN=s=>{let n=0;for(const c of s)n=n*26+c.charCodeAt(0)-64;return n},colS=n=>{let s='';while(n>0){const m=(n-1)%26;s=String.fromCharCode(65+m)+s;n=(n-m-1)/26}return s};
+class FE{constructor(m){this.m=m}}
+function fParse(src){const T=[],re=/\s*(?:(\d+(?:\.\d+)?|\.\d+)|("(?:[^"]|"")*")|(\$?[A-Za-z]{1,2}\$?\d+(?:\s*:\s*\$?[A-Za-z]{1,2}\$?\d+)?)(?![A-Za-z0-9_(])|([A-Za-z_][A-Za-z0-9_.]*)|(<>|<=|>=|[-+*/^&=<>(),%;]))/y;
+  let i=0;while(i<src.length){re.lastIndex=i;const m=re.exec(src);if(!m||m[0]===''){if(/^\s*$/.test(src.slice(i)))break;throw new FE('#ERR')}i=re.lastIndex;
+    if(m[1]!=null)T.push(['n',+m[1]]);else if(m[2]!=null)T.push(['s',m[2].slice(1,-1).replace(/""/g,'"')]);else if(m[3]!=null){const r=m[3].replace(/[\s$]/g,'').toUpperCase();T.push(r.includes(':')?['rg',...r.split(':')]:['r',r])}
+    else if(m[4]!=null)T.push(['id',m[4].toUpperCase()]);else if(m[5]!=null)T.push(['op',m[5]==';'?',':m[5]])}
+  let p=0;const pk=()=>T[p],isOp=o=>T[p]&&T[p][0]=='op'&&T[p][1]==o,eat=o=>{if(!isOp(o))throw new FE('#ERR');p++};
+  const cmp=()=>{let l=cat();while(T[p]&&T[p][0]=='op'&&['=','<>','<','>','<=','>='].includes(T[p][1])){const o=T[p++][1];l=['b',o,l,cat()]}return l};
+  const cat=()=>{let l=add();while(isOp('&')){p++;l=['b','&',l,add()]}return l};
+  const add=()=>{let l=mul();while(isOp('+')||isOp('-')){const o=T[p++][1];l=['b',o,l,mul()]}return l};
+  const mul=()=>{let l=pw();while(isOp('*')||isOp('/')){const o=T[p++][1];l=['b',o,l,pw()]}return l};
+  const pw=()=>{let l=un();while(isOp('^')){p++;l=['b','^',l,un()]}return l};
+  const un=()=>{if(isOp('-')){p++;return['u',un()]}if(isOp('+')){p++;return un()}let x=pr();while(isOp('%')){p++;x=['b','/',x,['n',100]]}return x};
+  const pr=()=>{const t=pk();if(!t)throw new FE('#ERR');
+    if(t[0]=='n'||t[0]=='s'||t[0]=='r'||t[0]=='rg'){p++;return t}
+    if(t[0]=='id'){p++;if(t[1]=='TRUE')return['n',true];if(t[1]=='FALSE')return['n',false];eat('(');const a=[];if(!isOp(')')){a.push(cmp());while(isOp(',')){p++;a.push(cmp())}}eat(')');return['f',t[1],a]}
+    if(isOp('(')){p++;const x=cmp();eat(')');return x}throw new FE('#ERR')};
+  const ast=cmp();if(p<T.length)throw new FE('#ERR');return ast}
+function sheetCalc(cells){const memo={},stk=new Set(),ast={};
+  const raw2v=raw=>{const t=String(raw).trim(),c=t.replace(/,/g,'');if(c!==''&&!isNaN(c))return+c;if(/^-?[\d.]+%$/.test(c))return parseFloat(c)/100;return t};
+  const val=ref=>{if(ref in memo)return memo[ref];if(stk.has(ref))return new FE('#순환');const raw=cells[ref];let v;
+    if(raw==null||raw==='')v=null;else if(String(raw)[0]=='='){stk.add(ref);try{if(!ast[ref])ast[ref]=fParse(String(raw).slice(1));v=ev(ast[ref]);if(Array.isArray(v))v=v[0]}catch(e){v=e instanceof FE?e:new FE('#ERR')}stk.delete(ref)}else v=raw2v(raw);
+    memo[ref]=v;return v};
+  const num=v=>{if(v instanceof FE)throw v;if(v==null||v==='')return 0;if(typeof v=='boolean')return+v;if(typeof v=='number')return v;const c=String(v).replace(/,/g,'').trim();if(c!==''&&!isNaN(c))return+c;throw new FE('#값')};
+  const range=(a,b)=>{const pa=a.match(/^([A-Z]+)(\d+)$/),pb=b.match(/^([A-Z]+)(\d+)$/);const c1=Math.min(colN(pa[1]),colN(pb[1])),c2=Math.max(colN(pa[1]),colN(pb[1])),r1=Math.min(+pa[2],+pb[2]),r2=Math.max(+pa[2],+pb[2]);
+    if((c2-c1+1)*(r2-r1+1)>20000)throw new FE('#범위');const o=[];for(let r=r1;r<=r2;r++)for(let c=c1;c<=c2;c++)o.push(val(colS(c)+r));return o};
+  const flat=a=>a.flatMap(x=>{const v=ev(x);return Array.isArray(v)?v.map(y=>({v:y,rg:1})):[{v,rg:0}]});
+  const nums=a=>{const o=[];for(const{v,rg}of flat(a)){if(v instanceof FE)throw v;if(typeof v=='number')o.push(v);else if(!rg&&v!=null&&v!=='')o.push(num(v))}return o};
+  const truthy=v=>{if(v instanceof FE)throw v;return typeof v=='string'?v!==''&&v.toUpperCase()!='FALSE':!!v};
+  const rnd=(x,d,f)=>{const k=10**d;return f(x*k)/k};
+  const F={SUM:a=>nums(a).reduce((s,x)=>s+x,0),AVERAGE:a=>{const n=nums(a);if(!n.length)throw new FE('#DIV/0');return n.reduce((s,x)=>s+x,0)/n.length},
+    MIN:a=>{const n=nums(a);return n.length?Math.min(...n):0},MAX:a=>{const n=nums(a);return n.length?Math.max(...n):0},
+    COUNT:a=>flat(a).filter(x=>typeof x.v=='number').length,COUNTA:a=>flat(a).filter(x=>x.v!=null&&x.v!=='').length,
+    ROUND:a=>rnd(num(ev(a[0])),a[1]?num(ev(a[1])):0,x=>Math.sign(x)*Math.round(Math.abs(x))),ROUNDUP:a=>rnd(num(ev(a[0])),a[1]?num(ev(a[1])):0,x=>Math.sign(x)*Math.ceil(Math.abs(x)-1e-9)),
+    ROUNDDOWN:a=>rnd(num(ev(a[0])),a[1]?num(ev(a[1])):0,Math.trunc),INT:a=>Math.floor(num(ev(a[0]))),ABS:a=>Math.abs(num(ev(a[0]))),
+    IF:a=>truthy(ev(a[0]))?(a[1]?ev(a[1]):true):(a[2]?ev(a[2]):false),IFERROR:a=>{try{const v=ev(a[0]);if(v instanceof FE)throw v;return v}catch(e){return ev(a[1])}},
+    AND:a=>flat(a).every(x=>truthy(x.v)),OR:a=>flat(a).some(x=>truthy(x.v)),NOT:a=>!truthy(ev(a[0])),
+    SUMIF:a=>{const R=ev(a[0]),S2=a[2]?ev(a[2]):R,c=ev(a[1]);const m=String(c).match(/^(<>|<=|>=|<|>|=)?(.*)$/),op=m[1]||'=',t=m[2],tn=t!==''&&!isNaN(t.replace(/,/g,''))?+t.replace(/,/g,''):t;
+      const ok=v=>{const x=typeof tn=='number'?(typeof v=='number'?v:NaN):String(v??'');return op=='='?x==tn:op=='<>'?x!=tn:op=='<'?x<tn:op=='>'?x>tn:op=='<='?x<=tn:x>=tn};
+      let s=0;(Array.isArray(R)?R:[R]).forEach((v,i)=>{const w=Array.isArray(S2)?S2[i]:S2;if(ok(v)&&typeof w=='number')s+=w});return s},
+    TODAY:()=>{const d=new Date();return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}};
+  F.AVG=F.AVERAGE;F['합계']=F.SUM;F['평균']=F.AVERAGE;
+  const ev=n=>{switch(n[0]){case'n':case's':return n[1];case'r':return val(n[1]);case'rg':return range(n[1],n[2]);case'u':return-num(ev(n[1]));
+    case'f':{const f=F[n[1]];if(!f)throw new FE('#함수?');return f(n[2])}
+    case'b':{const o=n[1];if(o=='&'){const s=x=>{x=ev(x);if(x instanceof FE)throw x;return x==null?'':typeof x=='number'?String(+x.toFixed(10)):String(x)};return s(n[2])+s(n[3])}
+      if('+-*/^'.includes(o)){const a=num(ev(n[2])),b=num(ev(n[3]));if(o=='/'&&b==0)throw new FE('#DIV/0');return o=='+'?a+b:o=='-'?a-b:o=='*'?a*b:o=='/'?a/b:a**b}
+      let a=ev(n[2]),b=ev(n[3]);if(a instanceof FE)throw a;if(b instanceof FE)throw b;if(a==null)a=typeof b=='number'?0:'';if(b==null)b=typeof a=='number'?0:'';
+      if(typeof a=='string'&&typeof b=='string'){a=a.toUpperCase();b=b.toUpperCase()}
+      return o=='='?a==b:o=='<>'?a!=b:o=='<'?a<b:o=='>'?a>b:o=='<='?a<=b:a>=b}}throw new FE('#ERR')};
+  const out={};for(const k in cells)out[k]=val(k);return{val:ref=>ref in out?out[ref]:val(ref)}}
+const fmtV=v=>v==null?'':v instanceof FE?v.m:typeof v=='boolean'?(v?'TRUE':'FALSE'):typeof v=='number'?(isFinite(v)?v.toLocaleString('ko-KR',{maximumFractionDigits:Math.abs(v)<1&&v!==0?4:2}):'#NUM'):String(v);
+
+/* 화면 */
+function rMemo(){const el=$('#mm');if(!el)return;MM.drawn=MM.ver;
+  if(!MM.open){
+    if(MM.list==null){el.innerHTML='<div class="box"><div class="pad note">불러오는 중…</div></div>';mLoad().then(l=>{MM.list=l;mRe()});return}
+    const ids=Object.keys(MM.list).sort((a,b)=>(MM.list[b].ts||0)-(MM.list[a].ts||0));
+    el.innerHTML=`<div class="grid2"><div class="box"><h3>회의록 폴더 <small>폴더마다 따로 비밀번호 · 내용은 이 기기에서 암호화된 뒤 저장되어 운영자도 비밀번호 없이는 볼 수 없습니다</small></h3><div class="pad" style="display:grid;gap:8px">
+      ${ids.map(id=>{const v=MM.list[id];return MM.pick==id?`<div class="mmv on"><b>${esc(v.name||'이름 없음')}</b><div class="row" style="gap:6px;margin-top:8px"><input class="t" type="password" id="mmpw" placeholder="비밀번호" autocomplete="current-password" style="flex:1"><button class="b p" id="mmgo">열기</button><button class="b" data-mvx>취소</button></div>${MM.msg?`<div class="dn" style="margin-top:6px">${esc(MM.msg)}</div>`:''}</div>`
+        :`<button class="mmv" data-mv="${id}"><b>${esc(v.name||'이름 없음')}</b><span class="note">잠김 · 마지막 수정 ${mTime(v.ts)}</span></button>`}).join('')||'<p class="note" style="margin:0">아직 회의록 폴더가 없습니다. 오른쪽에서 만드세요.</p>'}
+      ${!MM.pick&&MM.msg?`<div class="msg">${esc(MM.msg)}</div>`:''}
+      <p class="note" style="margin:0">${MM.srv?'모든 기기에서 같은 폴더가 보이고, 비밀번호를 아는 사람만 열 수 있습니다.':'지금은 서버에 연결되지 않아 이 브라우저에만 저장됩니다.'}</p></div></div>
+    <div class="box"><h3>새 회의록 폴더 만들기</h3><div class="pad" style="display:grid;gap:10px">
+      <input class="t" id="mmn" placeholder="폴더 이름 (예: 김대리 회의록)" maxlength="40">
+      <input class="t" type="password" id="mmn1" placeholder="비밀번호 (4자 이상)" autocomplete="new-password">
+      <input class="t" type="password" id="mmn2" placeholder="비밀번호 확인" autocomplete="new-password">
+      <div class="row"><button class="b p" id="mmmk">만들기</button></div><div id="mmnm"></div>
+      <p class="note" style="margin:0">비밀번호를 잊으면 누구도(운영자 포함) 열거나 되살릴 수 없습니다. 꼭 따로 적어 두세요.</p></div></div></div>`;
+    const f=$('#mmpw');if(f)f.focus();return}
+  const o=MM.open,D=o.data,doc=mDoc();
+  const side=D.folders.map((f,fi)=>{const L=D.docs.filter(d=>d.f==f).sort((a,b)=>(b.date||'').localeCompare(a.date||'')||(b.ts||0)-(a.ts||0));
+    return`<div class="mmf"><div class="row" style="gap:4px;flex-wrap:nowrap"><input class="t mmfn" data-fn="${fi}" value="${esc(f)}" aria-label="폴더 이름">${L.length?'':`<button class="b s" data-fdel="${fi}" title="빈 폴더 삭제">삭제</button>`}</div>
+      <div class="row" style="gap:4px;margin:4px 0"><button class="b s" data-nd="note" data-f="${fi}">+ 메모</button><button class="b s" data-nd="sheet" data-f="${fi}">+ 표</button></div>
+      ${L.map(d=>`<button class="mmd ${d.id==MM.sel?'on':''}" data-md="${d.id}"><span class="tag">${d.t=='sheet'?'표':'메모'}</span><span class="tt">${esc(d.title||'제목 없음')}</span><span class="note">${esc(d.date||'')}</span></button>`).join('')}</div>`}).join('');
+  let ed='<div class="pad note">왼쪽에서 문서를 고르거나 + 메모 / + 표로 새로 만드세요.</div>';
+  if(doc){const head=`<div class="row" style="gap:6px;margin-bottom:8px"><input class="t" data-mf="title" value="${esc(doc.title)}" placeholder="제목" style="flex:1;min-width:200px;font-weight:700;font-size:16px">
+      <input class="t" type="date" data-mf="date" value="${esc(doc.date||'')}"><select class="t" data-mf="f">${D.folders.map(f=>`<option ${f==doc.f?'selected':''}>${esc(f)}</option>`).join('')}</select>
+      <button class="b s r" id="mmddel">문서 삭제</button></div>`;
+    if(doc.t=='note')ed=`<div class="pad">${head}<textarea data-mf="body" class="mmnote" placeholder="회의 내용을 적으세요">${esc(doc.body||'')}</textarea></div>`;
+    else{const C=doc.cells||(doc.cells={}),R=doc.rows||30,K=doc.cols||8,calc=sheetCalc(C);let g=`<tr><th class="rn"></th>${Array.from({length:K},(_,c)=>`<th>${colS(c+1)}</th>`).join('')}</tr>`;
+      for(let r=1;r<=R;r++){g+=`<tr><th class="rn">${r}</th>`;for(let c=1;c<=K;c++){const ref=colS(c)+r,raw=C[ref],v=calc.val(ref),isF=raw!=null&&String(raw)[0]=='=';
+        g+=`<td><input data-c="${ref}" value="${esc(raw==null||raw===''?'':fmtV(v))}" class="${typeof v=='number'?'num':''} ${typeof v=='number'&&v<0?'neg':''} ${isF?'fx':''} ${v instanceof FE?'err':''}" spellcheck="false" autocomplete="off"></td>`}g+='</tr>'}
+      ed=`<div class="pad">${head}<div class="mmbar"><b id="mmref">${MM.cell||'A1'}</b><input class="t" id="mmfx" placeholder="값 또는 수식 (= 로 시작)" value="${esc(MM.cell&&C[MM.cell]||'')}" spellcheck="false"></div>
+        <div class="scroll mmgw"><table class="mmgrid">${g}</table></div>
+        <div class="row" style="gap:6px;margin-top:8px"><button class="b s" id="mmrow">행 10개 추가</button><button class="b s" id="mmcol">열 추가</button><span class="note">수식은 = 로 시작 · SUM AVERAGE MIN MAX COUNT ROUND IF SUMIF IFERROR · + − * / ^ & · 예) =SUM(B2:B10) · =B2*C2 · =ROUND(D2/E2*100,1) · Enter 아래 칸 · 방향키 이동</span></div></div>`}}
+  el.innerHTML=`<div class="box"><h3>${esc(o.name)} <small>열림 · 30분 동안 쓰지 않으면 자동으로 잠김</small><span style="flex:1"></span><span class="note" id="mmst">${esc(MM.st)}</span>
+      <button class="b s" id="mmpwc">비밀번호 변경</button><button class="b s r" id="mmvdel">폴더 전체 삭제</button><button class="b s p" id="mmlock">잠그기</button></h3>
+    <div id="mmpwf"></div><div class="mm"><aside>${side}<button class="b s" id="mmaddf" style="margin-top:6px">+ 폴더 추가</button></aside><div class="mmed">${ed}</div></div></div>`}
+function mRefresh(){const doc=mDoc();if(!doc||doc.t!='sheet')return;const calc=sheetCalc(doc.cells||{}),a=document.activeElement;
+  $$('#mm input[data-c]').forEach(i=>{if(i===a)return;const ref=i.dataset.c,raw=doc.cells[ref],v=calc.val(ref);i.value=raw==null||raw===''?'':fmtV(v);
+    i.className=`${typeof v=='number'?'num':''} ${typeof v=='number'&&v<0?'neg':''} ${raw!=null&&String(raw)[0]=='='?'fx':''} ${v instanceof FE?'err':''}`})}
+async function mOpen(id,pw){const L=await mLoad();MM.list=L;const v=L[id];if(!v){MM.msg='폴더를 찾지 못했습니다.';MM.pick=null;return mRe()}
+  try{const{key,data}=await mDec(v,pw);data.folders=data.folders&&data.folders.length?data.folders:['회의록'];data.docs=data.docs||[];
+    MM.open={id,name:v.name,salt:v.salt,pw,key,data};MM.pick=null;MM.msg='';MM.sel=null;MM.cell=null;MM.idle=Date.now();mSt('열림');mRe()}
+  catch(e){MM.msg='비밀번호가 맞지 않습니다.';mRe()}}
+document.addEventListener('click',async e=>{const t=e.target.closest('button');if(!t||!t.closest('#t-memo'))return;const o=MM.open;
+  if(t.dataset.mv){MM.pick=t.dataset.mv;MM.msg='';mRe()}
+  if(t.hasAttribute('data-mvx')){MM.pick=null;MM.msg='';mRe()}
+  if(t.id=='mmgo'){const pw=$('#mmpw').value;if(!pw)return;t.disabled=true;t.textContent='여는 중…';await mOpen(MM.pick,pw)}
+  if(t.id=='mmmk'){const nm=$('#mmn').value.trim(),a=$('#mmn1').value,b=$('#mmn2').value,m=$('#mmnm');
+    if(!nm){m.innerHTML='<span class="dn">폴더 이름을 적어 주세요.</span>';return}if(a.length<4){m.innerHTML='<span class="dn">비밀번호는 4자 이상으로 정해 주세요.</span>';return}if(a!==b){m.innerHTML='<span class="dn">두 비밀번호가 다릅니다.</span>';return}
+    t.disabled=true;const id=mid('v'),salt=b64(crypto.getRandomValues(new Uint8Array(16))),key=await mKey(a,salt),data={folders:['회의록'],docs:[]};
+    MM.open={id,name:nm,salt,pw:a,key,data};try{await mPut(id,await mEnc(MM.open),a);MM.list=null;MM.st='만들었습니다';MM.idle=Date.now();mRe()}catch(x){MM.open=null;m.innerHTML='<span class="dn">만들지 못했습니다. 다시 시도해 주세요.</span>';t.disabled=false}}
+  if(!o)return;
+  if(t.id=='mmlock'){await mFlush();MM.open=null;MM.sel=null;MM.list=null;MM.msg='잠갔습니다.';mRe()}
+  if(t.dataset.nd){const f=o.data.folders[+t.dataset.f],d={id:mid('d'),f,t:t.dataset.nd,title:'',date:TODAY,ts:Date.now()};if(d.t=='sheet'){d.cells={};d.rows=30;d.cols=8}else d.body='';
+    o.data.docs.push(d);MM.sel=d.id;MM.cell=null;mSave();mRe();const x=$('#mm [data-mf="title"]');if(x)x.focus()}
+  if(t.dataset.md){await Promise.resolve();MM.sel=t.dataset.md;MM.cell=null;mRe()}
+  if(t.id=='mmaddf'){let k=1,nm='새 폴더';while(o.data.folders.includes(nm))nm='새 폴더 '+(++k);o.data.folders.push(nm);mSave();mRe();const x=$$('#mm .mmfn');x[x.length-1].focus();x[x.length-1].select()}
+  if(t.dataset.fdel){const f=o.data.folders[+t.dataset.fdel];if(o.data.docs.some(d=>d.f==f))return;o.data.folders.splice(+t.dataset.fdel,1);if(!o.data.folders.length)o.data.folders.push('회의록');mSave();mRe()}
+  if(t.id=='mmddel'){if(!t.dataset.a){t.dataset.a=1;t.textContent='한 번 더 누르면 삭제';return}o.data.docs=o.data.docs.filter(d=>d.id!=MM.sel);MM.sel=null;mSave();mRe()}
+  if(t.id=='mmrow'){const d=mDoc();d.rows=(d.rows||30)+10;mSave();mRe()}
+  if(t.id=='mmcol'){const d=mDoc();if((d.cols||8)<52)d.cols=(d.cols||8)+1;mSave();mRe()}
+  if(t.id=='mmpwc'){$('#mmpwf').innerHTML=`<div class="pad row" style="gap:6px;border-bottom:1px solid var(--line)"><input class="t" type="password" id="mmc1" placeholder="새 비밀번호 (4자 이상)" autocomplete="new-password"><input class="t" type="password" id="mmc2" placeholder="새 비밀번호 확인" autocomplete="new-password"><button class="b p s" id="mmcgo">바꾸기</button><span id="mmcm"></span></div>`;$('#mmc1').focus()}
+  if(t.id=='mmcgo'){const a=$('#mmc1').value,b=$('#mmc2').value,m=$('#mmcm');if(a.length<4){m.innerHTML='<span class="dn">4자 이상</span>';return}if(a!==b){m.innerHTML='<span class="dn">두 비밀번호가 다릅니다</span>';return}
+    await mFlush();const old=o.pw,salt=b64(crypto.getRandomValues(new Uint8Array(16))),key=await mKey(a,salt),N={...o,salt,key,pw:a};
+    try{await mPut(o.id,await mEnc(N),old);Object.assign(o,{salt,key,pw:a});$('#mmpwf').innerHTML='<div class="msg" style="margin:0">비밀번호를 바꿨습니다. 다음부터 새 비밀번호로 여세요.</div>'}catch(x){m.innerHTML='<span class="dn">바꾸지 못했습니다</span>'}}
+  if(t.id=='mmvdel'){if(!t.dataset.a){t.dataset.a=1;t.textContent='정말 삭제? 한 번 더 (되살릴 수 없음)';return}
+    try{await mPut(o.id,null,o.pw);clearTimeout(mSave.t);MM.open=null;MM.sel=null;MM.list=null;MM.msg='폴더를 삭제했습니다.';mRe()}catch(x){mSt('삭제하지 못했습니다')}}});
+document.addEventListener('input',e=>{const t=e.target;if(!t.closest||!t.closest('#mm')||!MM.open)return;const d=mDoc();
+  if(t.dataset.mf&&d&&t.dataset.mf!='f'){d[t.dataset.mf]=t.value;d.ts=Date.now();if(t.dataset.mf=='title'){const s=$(`#mm [data-md="${d.id}"] .tt`);if(s)s.textContent=t.value||'제목 없음'}mSave()}
+  if(t.dataset.c&&d){const ref=t.dataset.c;if(t.value==='')delete d.cells[ref];else d.cells[ref]=t.value;d.ts=Date.now();const fx=$('#mmfx');if(fx)fx.value=t.value;mSave()}
+  if(t.id=='mmfx'&&d&&MM.cell){if(t.value==='')delete d.cells[MM.cell];else d.cells[MM.cell]=t.value;const c=$(`#mm input[data-c="${MM.cell}"]`);if(c)c.value=t.value;mSave()}});
+document.addEventListener('change',e=>{const t=e.target;if(!t.closest||!t.closest('#mm')||!MM.open)return;const o=MM.open,d=mDoc();
+  if(t.dataset.mf=='f'&&d){d.f=t.value;mSave();mRe()}
+  if(t.dataset.fn!=null){const i=+t.dataset.fn,old=o.data.folders[i],nm=t.value.trim()||old;if(nm!==old&&o.data.folders.includes(nm)){t.value=old;return}o.data.folders[i]=nm;o.data.docs.forEach(x=>{if(x.f==old)x.f=nm});mSave();mRe()}
+  if(t.id=='mmfx')mRefresh()});
+document.addEventListener('focusin',e=>{const t=e.target;if(!t.matches||!t.matches('#mm input[data-c]'))return;const d=mDoc();MM.cell=t.dataset.c;const raw=d.cells[MM.cell]??'';t.value=raw;
+  const r=$('#mmref');if(r)r.textContent=MM.cell;const fx=$('#mmfx');if(fx)fx.value=raw;t.select()});
+document.addEventListener('focusout',e=>{const t=e.target;if(t.matches&&t.matches('#mm input[data-c]'))setTimeout(mRefresh,0)});
+document.addEventListener('keydown',e=>{const t=e.target;if(!t.matches)return;
+  if(t.id=='mmpw'&&e.key=='Enter')$('#mmgo').click();if(t.id=='mmn2'&&e.key=='Enter')$('#mmmk').click();if(t.id=='mmc2'&&e.key=='Enter')$('#mmcgo').click();
+  if(t.id=='mmfx'&&e.key=='Enter'){e.preventDefault();mRefresh();const c=$(`#mm input[data-c="${MM.cell}"]`);if(c)c.focus()}
+  if(!t.matches('#mm input[data-c]'))return;const m=t.dataset.c.match(/^([A-Z]+)(\d+)$/);let c=colN(m[1]),r=+m[2];
+  if(e.key=='Enter'||e.key=='ArrowDown')r++;else if(e.key=='ArrowUp')r--;else if(e.key=='ArrowRight'&&t.selectionStart==t.value.length&&t.selectionEnd==t.value.length)c++;else if(e.key=='ArrowLeft'&&t.selectionStart==0&&t.selectionEnd==0)c--;else return;
+  const n=$(`#mm input[data-c="${colS(Math.max(1,c))}${Math.max(1,r)}"]`);if(n){e.preventDefault();n.focus()}});
+
 go(tab);initStore();
 }
 </script>
