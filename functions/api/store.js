@@ -1,7 +1,7 @@
 // 쿠팡 광고 장부 공용 저장소 (Cloudflare Pages Functions + KV)
 // 필요한 설정: KV 바인딩 이름 DB. (선택) 환경변수 TEAM_PASSWORD를 넣으면 비밀번호로 잠김, 없으면 누구나 공용
 const json = (o, s = 200) => new Response(JSON.stringify(o), { status: s, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
-const ok = k => /^(cfg|wk|y\d{4}|m\d{4}-\d{2}|d\d{4}-\d{2}-\d{2})$/.test(k);
+const ok = k => /^(cfg|wk|dl|y\d{4}|m\d{4}-\d{2}|d\d{4}-\d{2}-\d{2})$/.test(k);
 
 export async function onRequest({ request, env }) {
   const ch = new URL(request.url).searchParams.get('ch') === 'nv' ? 'nv:' : '';

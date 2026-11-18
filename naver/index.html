@@ -60,7 +60,7 @@ td.n,th.n{text-align:right}td.c{color:var(--mute);background:light-dark(#fafbfc,
 td.w{white-space:normal;min-width:190px;max-width:330px;line-height:1.35;padding-block:5px}
 td.w small{display:block;color:var(--mute);font-size:12px}
 tr.sun td:first-child{color:var(--red)}tr.sat td:first-child{color:var(--blue)}tr.today td{background:var(--sel)}
-tr.st td{background:var(--sub);font-weight:600}
+tr.st td{background:var(--sub);font-weight:600}tr.avg td{background:light-dark(#fafbfc,#181e27);color:var(--mute);font-size:13px}
 .xl th{background:#1f3864;color:#fff;white-space:normal;line-height:1.2;min-width:72px;font-size:12px;padding:4px 6px}.xl th.hy{background:#ffff00;color:#000}.xl th.hb{background:#4472c4}.xl tr.vat th{background:var(--panel);color:var(--mute);font-weight:400;height:20px;position:static}
 .xl td.in.yl input{background:light-dark(#fffbcc,#3b3712)}.xl td:first-child,.xl th:first-child{position:sticky;left:0;z-index:2;background:light-dark(#f2f2f2,#20262f)}.xl thead th:first-child{background:#1f3864;z-index:3}.xl tr.vat th:first-child{background:var(--panel)}.xl td.in input{min-width:80px}.xl td.in input.l{min-width:150px;text-align:left}tr.cmr td{background:light-dark(#f7f9fc,#171d26);font-size:13px;height:28px}tr.sec td{background:var(--head);font-weight:600;font-size:13px;color:var(--mute);height:28px}
 tfoot td,tr.gt td{font-weight:700;background:var(--head);border-top:2px solid var(--ink)}
@@ -843,14 +843,30 @@ function rDL(){const L=(S.dl&&S.dl.blocks)||[],b=L.find(x=>x.id==UI.dlb)||L[0],[
     const hd=['날짜','요일','총 노출수','광고 전환 판매 수','전환율 (CVR)','네이버 매출성장형','네이버 신규고객 광고','총 전환매출','총 ROAS','클릭수(회)','클릭당비용 (CPS)','매출액 (이카운트 기준)','총 판매수량','매출이익 (이카운트 기준)','배송비','순 광고비 제외 이익','개당 순 이익','개당광고비','클릭당 광고비','판매가','매출액기준 로하스','메모','네이버 설정 목표 로하스(%)','메모'];
     const hcls=i=>i==5||i==6?'hy':i==20||i==22?'hb':'';
     const per=(b.periods||[]).filter(p=>p.from.slice(0,7)==cur||p.to.slice(0,7)==cur);
+    /* 목표 로하스 변경 기준 자동 기간: 날짜별 목표값을 이어 받아 같은 목표끼리 묶음 */
+    const AG=[];{let tg=null;const prevD=Object.keys(b.rows).filter(d=>d<ds[0]).sort().reverse().find(d=>b.rows[d].tgt!=null);if(prevD)tg=n(b.rows[prevD].tgt);
+      for(const d of ds){const o=b.rows[d];if(o&&o.tgt!=null&&o.tgt!=='')tg=n(o.tgt);const has=o&&DLF.some(k=>o[k]!=null&&o[k]!=='');if(!has||tg==null)continue;const L=AG[AG.length-1];if(L&&L.tgt==tg&&L.last==addDays(d,-1)){L.days.push(d);L.last=d}else AG.push({tgt:tg,days:[d],last:d})}}
+    const avgRow=(lab,ds2)=>{const t=dlSum(b,ds2),k2=ds2.length||1,a={};DLF.forEach(x=>a[x]=t[x]/k2);const k=dlCalc(t,u),ka=dlCalc(a,u);return`<tr class="avg"><td colspan="2">${esc(lab)}</td><td class="n">${W(a.imp)}</td><td class="n">${(a.conv).toFixed(1)}</td><td class="n">${pc2(k.cvr)}</td><td class="n">${W(a.g)}</td><td class="n">${W(a.nw)}</td><td class="n">${W(a.as)}</td><td class="n">${pc2(k.roas)}</td><td class="n">${W(a.clk)}</td><td class="n">${nn(k.cpc)}</td><td class="n">${W(a.s)}</td><td class="n">${(a.q).toFixed(1)}</td><td class="n">${WN(a.p)}</td><td class="n">${nn(ka.sh)}</td><td class="n">${ka.after!=null?WN(ka.after):''}</td><td class="n">${nn(k.per)}</td><td class="n">${nn(k.adper)}</td><td class="n">${nn(k.clkc)}</td><td class="n">${nn(k.price)}</td><td class="n">${pc2(k.sroas)}</td><td></td><td></td><td></td></tr>`};
+    const agLab=g=>`목표 ${P(g.tgt)} · ${+g.days[0].slice(5,7)}/${+g.days[0].slice(8)}~${+g.last.slice(5,7)}/${+g.last.slice(8)} (${g.days.length}일)`;
+    const agRows=AG.map(g=>sumRow(agLab(g)+' 합산',g.days,'st',g.tgt)+avgRow('　└ 일평균',g.days)).join('');
+    const cmpT=AG.length?(()=>{const R=AG.map(g=>{const t=dlSum(b,g.days),k=dlCalc(t,u),dn=g.days.length;return{g,dn,c:(t.g+t.nw)/dn,roas:k.roas,sroas:k.sroas,after:k.after!=null?k.after/dn:null,q:t.q/dn,imp:t.imp/dn}});
+      const best=R.filter(r=>r.after!=null).sort((a,b)=>b.after-a.after)[0],worst=R.filter(r=>r.after!=null).sort((a,b)=>a.after-b.after)[0],L=[];
+      if(best&&R.length>1)L.push(`하루 순이익이 가장 좋았던 목표는 <b>${P(best.g.tgt)}</b>(${agLab(best.g)}): 일평균 ${WN(best.after)}원, 광고비 ${W(best.c)}원, ROAS ${pc2(best.roas)}.`);
+      if(worst&&worst!==best&&R.length>1)L.push(`가장 나빴던 목표는 <b>${P(worst.g.tgt)}</b>: 일평균 ${WN(worst.after)}원(광고비 ${W(worst.c)}원, ROAS ${pc2(worst.roas)}).`);
+      for(let i=1;i<R.length;i++){const a=R[i-1],c=R[i];L.push(`${P(a.g.tgt)} → <b>${P(c.g.tgt)}</b>로 ${c.g.tgt>a.g.tgt?'올린':'내린'} 뒤: 일평균 광고비 ${W(a.c)} → ${W(c.c)}원, 노출 ${W(a.imp)} → ${W(c.imp)}, ROAS ${pc2(a.roas)} → ${pc2(c.roas)}, 일평균 순이익 <b class="${c.after>=a.after?'up':'dn'}">${WN(a.after)} → ${WN(c.after)}원</b>.`)}
+      return`<div class="pad"><b>목표 로하스 변경 효과</b> <span class="note">날짜별 '네이버 설정 목표 로하스'가 바뀐 지점에서 자동으로 기간을 나눔 · 일수가 달라 일평균으로 비교</span>
+       <div class="scroll" style="margin-top:6px"><table><thead><tr><th>기간</th><th class="n">목표 로하스</th><th class="n">일수</th><th class="n">일평균 노출</th><th class="n">일평균 광고비</th><th class="n">ROAS</th><th class="n">매출액 ROAS</th><th class="n">일평균 판매</th><th class="n">일평균 순이익</th></tr></thead><tbody>
+       ${R.map(r=>`<tr class="${r===best&&R.length>1?'today':''}"><td>${+r.g.days[0].slice(5,7)}/${+r.g.days[0].slice(8)}~${+r.g.last.slice(5,7)}/${+r.g.last.slice(8)}</td><td class="n"><b>${P(r.g.tgt)}</b></td><td class="n">${r.dn}</td><td class="n">${W(r.imp)}</td><td class="n">${W(r.c)}</td><td class="n">${pc2(r.roas)}</td><td class="n">${pc2(r.sroas)}</td><td class="n">${r.q.toFixed(1)}</td><td class="n"><b>${r.after!=null?WN(r.after):''}</b></td></tr>`).join('')}</tbody></table></div>
+       <ol class="ins" style="padding-left:20px">${L.map(x=>`<li>${x}</li>`).join('')}</ol></div>`})():'';
     h+=`<div class="pad" style="padding-top:0"><div style="font-size:18px;font-weight:700;margin-bottom:6px">네이버 광고 일별 성과 — <input class="t" data-dlmeta="title" value="${esc(b.title)}" style="font-size:16px;font-weight:700;min-width:220px" aria-label="품목 이름"></div>
      <div class="row" style="margin-bottom:8px"><label class="note">개당 배송비 <input class="t" data-dlmeta="unit" inputmode="numeric" value="${b.unit?W(b.unit):''}" style="width:110px;background:#ffff8c;color:#000" aria-label="개당 배송비"></label><label class="note">관리주체 <input class="t" data-dlmeta="owner" value="${esc(b.owner||'')}" style="width:140px" aria-label="관리주체"></label><label class="note">메모 <input class="t" data-dlmeta="sub" value="${esc(b.sub||'')}" style="width:180px" aria-label="메모"></label><span style="flex:1"></span><button class="b s r" id="dldel">이 시트 삭제</button></div></div>
      <div class="scroll" style="max-height:75vh"><table id="dlt" class="xl"><thead><tr class="vat"><th colspan="11"></th><th>부가세 포함</th><th></th><th>부가세 포함</th><th>부가세 포함</th><th colspan="9"></th></tr><tr>${hd.map((x,i)=>`<th class="${hcls(i)}">${x}</th>`).join('')}</tr></thead><tbody>
      ${ds.map(row).join('')}
      ${sumRow('합계',ds,'gt',null)}
-     ${per.map(p=>{const pd2=ds.filter(d=>d>=p.from&&d<=p.to);return sumRow(p.label||`${+p.from.slice(5,7)}월 ${+p.from.slice(8)}일 부터 ${+p.to.slice(8)}일`,pd2,'st',p.tgt)}).join('')}
-     </tbody></table></div>
-     <div class="pad row" style="gap:6px"><b>구간 합산</b><span class="note">목표 로하스를 바꾼 구간별로 합계를 봅니다</span><input class="t" type="date" id="dlpf" aria-label="구간 시작"> ~ <input class="t" type="date" id="dlpt" aria-label="구간 끝"><input class="t" id="dlptg" inputmode="numeric" placeholder="목표 로하스 %" style="width:130px" aria-label="목표 로하스"><button class="b s" id="dlpadd">구간 추가</button>${per.length?`<button class="b s r" id="dlpclr">이 달 구간 지우기</button>`:''}</div>`}
+     ${AG.length?`<tr class="sec"><td colspan="24">목표 로하스 변경 기준 기간별 합산 (자동)</td></tr>`+agRows:''}
+     ${per.length?`<tr class="sec"><td colspan="24">직접 지정 구간</td></tr>`:''}${per.map(p=>{const pd2=ds.filter(d=>d>=p.from&&d<=p.to);return sumRow(p.label||`${+p.from.slice(5,7)}월 ${+p.from.slice(8)}일 부터 ${+p.to.slice(8)}일`,pd2,'st',p.tgt)}).join('')}
+     </tbody></table></div>${cmpT}
+     <div class="pad row" style="gap:6px"><b>구간 직접 지정</b><span class="note">자동 기간 외에 따로 보고 싶은 구간</span><input class="t" type="date" id="dlpf" aria-label="구간 시작"> ~ <input class="t" type="date" id="dlpt" aria-label="구간 끝"><input class="t" id="dlptg" inputmode="numeric" placeholder="목표 로하스 %" style="width:130px" aria-label="목표 로하스"><button class="b s" id="dlpadd">구간 추가</button>${per.length?`<button class="b s r" id="dlpclr">이 달 구간 지우기</button>`:''}</div>`}
   return h+'</div>'}
 document.addEventListener('click',e=>{const t=e.target;
   const bb=t.closest('[data-dlb]');if(bb){UI.dlb=bb.dataset.dlb;rDay();return}
