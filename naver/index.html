@@ -60,7 +60,9 @@ td.n,th.n{text-align:right}td.c{color:var(--mute);background:light-dark(#fafbfc,
 td.w{white-space:normal;min-width:190px;max-width:330px;line-height:1.35;padding-block:5px}
 td.w small{display:block;color:var(--mute);font-size:12px}
 tr.sun td:first-child{color:var(--red)}tr.sat td:first-child{color:var(--blue)}tr.today td{background:var(--sel)}
-tr.st td{background:var(--sub);font-weight:600}tr.cmr td{background:light-dark(#f7f9fc,#171d26);font-size:13px;height:28px}tr.sec td{background:var(--head);font-weight:600;font-size:13px;color:var(--mute);height:28px}
+tr.st td{background:var(--sub);font-weight:600}
+.xl th{background:#1f3864;color:#fff;white-space:normal;line-height:1.2;min-width:72px;font-size:12px;padding:4px 6px}.xl th.hy{background:#ffff00;color:#000}.xl th.hb{background:#4472c4}.xl tr.vat th{background:var(--panel);color:var(--mute);font-weight:400;height:20px;position:static}
+.xl td.in.yl input{background:light-dark(#fffbcc,#3b3712)}.xl td:first-child,.xl th:first-child{position:sticky;left:0;z-index:2;background:light-dark(#f2f2f2,#20262f)}.xl thead th:first-child{background:#1f3864;z-index:3}.xl tr.vat th:first-child{background:var(--panel)}.xl td.in input{min-width:80px}.xl td.in input.l{min-width:150px;text-align:left}tr.cmr td{background:light-dark(#f7f9fc,#171d26);font-size:13px;height:28px}tr.sec td{background:var(--head);font-weight:600;font-size:13px;color:var(--mute);height:28px}
 tfoot td,tr.gt td{font-weight:700;background:var(--head);border-top:2px solid var(--ink)}
 td.in{padding:0}td.in input{width:100%;min-width:92px;height:33px;border:0;background:transparent;color:var(--ink);font:inherit;text-align:right;padding:0 8px}
 td.in input.l{text-align:left;min-width:170px}
@@ -187,7 +189,7 @@ const DEF_GRP=[{kws:['탄소매트','전기매트'],name:'라이브박스 탄소
 const DEF_CTGT=CH=='nv'?{}:{'AI 스마트 광고_기타상품':850,'퓨어스팀 다리미_디앤디컴 관리':350,'진공포장기_디앤디컴 관리':200,'스팀다리미_디앤디컴 관리':850,'[매출최적화] 한일 의료기 매트_스피츠애드_시즌강화':400,'헤어드라이기_디앤디컴 관리':562,'사운드피츠(T3 Pro)_디앤디컴 관리':650,'라이브박스 가습기_디앤디컴 관리':750,'온트레일러_에어건_디앤디컴 관리':600,'휴대용 커피머신_디앤디컴 관리':950};
 const ctgtOf=c=>{const k=norm(c);for(const x in S.ctgt)if(norm(x)==k)return n(S.ctgt[x]);for(const x in DEF_CTGT)if(norm(x)==k)return DEF_CTGT[x];return null};
 const DEF_ADMAP=[['가정용 진공포장기 진공기 압축기 음식보관 유럽인증 진공롤 식품보관','E4-036-02021']];
-let S={ctgt:{},wk:{},days:{},months:{},camps:{},mon:{},day:{},map:{},ship:{},grp:{},names:{},shipNames:null,cfg:{...DEF}};
+let S={dl:{blocks:[]},ctgt:{},wk:{},days:{},months:{},camps:{},mon:{},day:{},map:{},ship:{},grp:{},names:{},shipNames:null,cfg:{...DEF}};
 const pad=v=>String(v).padStart(2,'0');
 const iso=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
 const TODAY=iso(new Date());
@@ -290,7 +292,7 @@ const ratioBar=(c,p)=>{if(!c)return'';if(!(p>0))return'<span class="chip bad">�
 let col=null,dirty=new Set(),saving=false,mode='local';
 const setSt=t=>$('#st').textContent=t;
 const yk=d=>'y'+d.slice(0,4);
-const allKeys=()=>['cfg',...new Set(Object.keys(S.days).map(yk)),...Object.keys(S.mon).map(m=>'m'+m),...Object.keys(S.day).map(d=>'d'+d),...(Object.keys(S.wk).length?['wk']:[])];
+const allKeys=()=>['cfg',...new Set(Object.keys(S.days).map(yk)),...Object.keys(S.mon).map(m=>'m'+m),...Object.keys(S.day).map(d=>'d'+d),...(Object.keys(S.wk).length?['wk']:[]),...(S.dl&&S.dl.blocks&&S.dl.blocks.length?['dl']:[])];
 function save(keys){FEE=null;keys.forEach(k=>dirty.add(k));try{localStorage.setItem(LK('cpad'),JSON.stringify(S))}catch(e){}
   clearTimeout(save.t);save.t=setTimeout(flush,mode=='kv'?1500:700)}
 async function flush(){
@@ -308,19 +310,21 @@ async function flush(){
 function docBody(k){if(k=='cfg')return{cfg:S.cfg,months:S.months,map:S.map,ship:S.ship,grp:S.grp,names:S.names,shipNames:S.shipNames,ctgt:S.ctgt};
   if(k[0]=='m'){const v=S.mon[k.slice(1)];return v?{mon:v}:null}
   if(k=='wk')return Object.keys(S.wk).length?{wk:S.wk}:null;
+  if(k=='dl')return S.dl&&S.dl.blocks&&S.dl.blocks.length?{dl:S.dl}:null;
   if(k[0]=='d'){const v=S.day[k.slice(1)];return v?{day:v}:null}
   const y=k.slice(1),o={days:{},camps:{}};
   for(const d in S.days)if(d.startsWith(y))o.days[d]=S.days[d];for(const m in S.camps)if(m.startsWith(y))o.camps[m]=S.camps[m];return o}
 function fix(){for(const k of['ctgt','wk','days','months','camps','mon','day','map','ship','grp','names'])if(!S[k]||typeof S[k]!='object'||Array.isArray(S[k]))S[k]={};
+  if(!S.dl||!Array.isArray(S.dl.blocks))S.dl={blocks:[]};
   if(!Array.isArray(S.shipNames))S.shipNames=null;S.cfg=Object.assign({},DEF,S.cfg);
   const learn=ec=>ec&&ec.items&&ec.items.forEach(([c,nm])=>{if(!S.names[c])S.names[c]=nm});
   for(const m in S.mon)learn(S.mon[m].ec);for(const d in S.day)learn(S.day[d].ec);FEE=null}
 const KEY=()=>{try{return localStorage.getItem(LK('cpad_key'))||''}catch(e){return''}};
 let kvLast=0;
 async function kvGet(){return fetch(API,{headers:{'x-team-key':KEY()},cache:'no-store'})}
-function applyDocs(entries){const N={ctgt:{},wk:{},days:{},months:{},camps:{},mon:{},day:{},map:{},ship:{},grp:{},names:{},shipNames:null,cfg:S.cfg};
+function applyDocs(entries){const N={dl:{blocks:[]},ctgt:{},wk:{},days:{},months:{},camps:{},mon:{},day:{},map:{},ship:{},grp:{},names:{},shipNames:null,cfg:S.cfg};
   for(const[id,v0]of entries){const v=v0||{};if(id=='cfg'){N.cfg=v.cfg||N.cfg;for(const k of['months','map','ship','grp','names','ctgt'])N[k]={...v[k]};N.shipNames=v.shipNames||null}
-    else if(id=='wk'){N.wk=v.wk||{}}else if(id[0]=='m'){if(v.mon)N.mon[id.slice(1)]=v.mon}else if(id[0]=='d'){if(v.day)N.day[id.slice(1)]=v.day}else{Object.assign(N.days,v.days);Object.assign(N.camps,v.camps)}}
+    else if(id=='wk'){N.wk=v.wk||{}}else if(id=='dl'){N.dl=v.dl||{blocks:[]}}else if(id[0]=='m'){if(v.mon)N.mon[id.slice(1)]=v.mon}else if(id[0]=='d'){if(v.day)N.day[id.slice(1)]=v.day}else{Object.assign(N.days,v.days);Object.assign(N.camps,v.camps)}}
   S=JSON.parse(JSON.stringify(N));fix();try{localStorage.setItem(LK('cpad'),JSON.stringify(S))}catch(e){}renderAll()}
 function showKey(msg){$('#keybar').hidden=false;$('#keymsg').textContent=msg||'';}
 async function useKV(docs){mode='kv';$('#keybar').hidden=true;kvLast=Date.now();const ids=Object.keys(docs||{});
@@ -452,7 +456,7 @@ function drawTrend(){const ml=[],ms=[],ma=[],mc=[],mr=[];for(let i=11;i>=0;i--){
 /* ---------- 일자별: 품목 × 일자 ---------- */
 const WK='일월화수목금토';
 const MET=[['s','매출'],['p','매출이익'],['q','수량'],['sh','배송비'],['c','광고비'],['a','광고매출'],['after','실이익']];
-function rDay(){const[y,m]=cur.split('-').map(Number),ds=daysIn(cur),B={};ds.forEach(d=>B[d]=dayBuild(d));
+function rDay(){const DLH=rDL();const[y,m]=cur.split('-').map(Number),ds=daysIn(cur),B={};ds.forEach(d=>B[d]=dayBuild(d));
   const names={},order={};
   ds.forEach(d=>{B[d].rows.forEach(r=>{names[r.key]=r.name;order[r.key]=(order[r.key]||0)+r.s+r.c*3});if(B[d].un.length){names['__un']='품목 미연결 광고';order['__un']=-1}});
   const met=UI.met;
@@ -472,7 +476,7 @@ function rDay(){const[y,m]=cur.split('-').map(Number),ds=daysIn(cur),B={};ds.for
     h+=`<div class="box"><h3>${esc(sel=='all'?'전체 합계':names[sel])} · 일자별 상세</h3><div class="scroll"><table><tr><th>일자</th><th class="n">수량</th><th class="n">매출</th><th class="n">매출이익</th><th class="n">배송비</th><th class="n">광고비</th><th class="n">광고매출</th><th class="n">ROAS</th><th class="n">실이익</th><th class="n">실이익률</th></tr>
      ${R.map(([d,r])=>{const wd=new Date(d).getDay();return tr(`<span style="color:${wd==0?'var(--red)':wd==6?'var(--blue)':''}">${+d.slice(5,7)}/${+d.slice(8)} (${WK[wd]})</span>`,r)}).join('')}${tr('합계',t,'gt')}</table></div></div>`}
   h+=manualDay();
-  $('#t-day').innerHTML=h;daySum();
+  $('#t-day').innerHTML=DLH+h;daySum();
   const clr=$('#clrm');if(clr)clr.onclick=()=>{if(clr.dataset.a){for(const k in S.days)if(k.startsWith(cur))delete S.days[k];save([yk(cur)]);rDay()}else{clr.dataset.a=1;clr.textContent='한 번 더 누르면 삭제';clr.classList.add('r')}}}
 function rowCalc(v){const c=n(v.c),a=n(v.a),s=n(v.s),i=n(v.i),k=n(v.k),o=n(v.o),has=v.p!=null&&v.p!=='';return[c?P(a/c*100):'–',c&&s?P(s/c*100):'–',has?WN(n(v.p)-n(v.sh)-c):'–',i?P1(k/i*100):'–',k?W(c/k):'–',k?P1(o/k*100):'–']}
 function manualDay(){const days=dim(cur),[y,m]=cur.split('-').map(Number),has=Object.keys(S.days).some(d=>d.startsWith(cur));let rows='';
@@ -794,9 +798,78 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-pm]');if(b
 document.addEventListener('keydown',e=>{if(e.key=='Enter'&&e.target.matches('tr[data-pid]'))e.target.click()});
 document.addEventListener('change',e=>{const t=e.target;if(t.id=='pasel'){UI.pid=t.value;UI.pkp=null;rPa()}else if(t.id=='pakp'){UI.pkp=t.value;rPa()}else if(t.id=='pakws'){UI.kws=t.value;rPa()}});
 
+/* ---------- 품목별 일자 광고 성과 (엑셀 양식) ---------- */
+const DLF=['imp','conv','g','nw','as','clk','s','q','p'];
+function parseDL(rows){const blocks=[];let B=null,H=null,sumH=null;
+  const nz=x=>String(x??'').replace(/\s+/g,'');
+  for(const r of rows){const c=r.map(cellS),a=c[0];
+    const tm=a.match(/일별\s*성과\s*[—–-]\s*(.+)$/);if(tm){B={title:tm[1].trim(),unit:0,owner:'',sub:'',rows:{},periods:[]};blocks.push(B);H=null;sumH=null;continue}
+    if(!B)continue;
+    const ui=c.findIndex(x=>nz(x)=='개당배송비');if(ui>=0&&!H){B.unit=n(r[ui+1]);}
+    const ow=c.find(x=>/^관리주체/.test(x));if(ow)B.owner=ow.replace(/^관리주체\s*/,'');
+    if(!H&&c[2]&&/합산/.test(c[2])&&!/노출/.test(c[2]))B.sub=c[2];
+    if(nz(a)=='날짜'){const h=c.map(nz),f=re=>h.findIndex(x=>re.test(x));
+      H={imp:f(/^총노출수/),conv:f(/^광고전환판매수/),g:f(/매출성장형/),nw:f(/신규고객/),as:f(/^총전환매출/),clk:f(/^클릭수/),s:f(/^매출액\(?이카운트/),q:f(/^총판매수량/),p:f(/^매출이익/),price:f(/^판매가/),sroas:f(/^매출액기준로하스/),tgt:f(/^네이버설정목표로하스|^목표로하스/)};continue}
+    if(!a&&c.some(x=>/^총\s*노출수/.test(x))){const h=c.map(nz);sumH={tgt:h.findIndex(x=>/^목표로하스/.test(x))};continue}
+    const d=r[0] instanceof Date?iso(new Date(r[0].getTime()+432e5)):pd(r[0]);
+    if(H&&d&&/^\d{4}-\d{2}-\d{2}$/.test(d)&&!/합/.test(a)){const o={};let any=0;
+      for(const k of DLF){const i=H[k];if(i>=0&&c[i]!==''&&!isNaN(n(r[i]))&&/[\d]/.test(c[i])){o[k]=n(r[i]);any=1}}
+      const memo=[];if(H.price>=0&&c[H.price]&&!/\d/.test(c[H.price])&&!/#DIV/.test(c[H.price]))memo.push(c[H.price]);if(H.sroas>=0&&c[H.sroas+1])memo.push(c[H.sroas+1]);if(memo.length){o.m1=memo.join(' ');any=1}
+      if(H.tgt>=0&&c[H.tgt]!==''&&/\d/.test(c[H.tgt])){const t=n(r[H.tgt]);o.tgt=t<50?Math.round(t*1000)/10:t;any=1}
+      if(H.tgt>=0&&c[H.tgt+1]){o.m2=c[H.tgt+1];any=1}
+      if(any)B.rows[d]=o;continue}
+    const pm=a.match(/(\d{1,2})\s*월\s*(\d{1,2})\s*일\s*(?:부터)?\s*(?:(\d{1,2})\s*월\s*)?(\d{1,2})\s*일/);
+    if(pm&&sumH){const m1=+pm[1],m2=pm[3]?+pm[3]:m1,y=yFor(m1),t=sumH.tgt>=0?n(r[sumH.tgt]):0;
+      B.periods.push({label:a,from:`${y}-${pad(m1)}-${pad(+pm[2])}`,to:`${y}-${pad(m2)}-${pad(+pm[4])}`,tgt:t?(t<50?Math.round(t*1000)/10:t):null})}}
+  return blocks.filter(b=>Object.keys(b.rows).length||b.periods.length)}
+function mergeDL(blocks){S.dl=S.dl||{};S.dl.blocks=S.dl.blocks||[];let nb=0,nd=0;
+  for(const b of blocks){let t=S.dl.blocks.find(x=>norm(x.title)==norm(b.title));if(!t){t={id:'b'+Date.now().toString(36)+nb,title:b.title,unit:0,owner:'',sub:'',rows:{},periods:[]};S.dl.blocks.push(t);nb++}
+    if(b.unit)t.unit=b.unit;if(b.owner)t.owner=b.owner;if(b.sub)t.sub=b.sub;for(const d in b.rows){t.rows[d]=b.rows[d];nd++}
+    for(const p of b.periods){const i=t.periods.findIndex(x=>x.from==p.from&&x.to==p.to);if(i>=0)t.periods[i]=p;else t.periods.push(p)}t.periods.sort((a,b)=>a.from<b.from?-1:1)}
+  save(['dl']);return{nb,nd,total:blocks.length}}
+function dlCalc(o,unit){const has=k=>o[k]!=null&&o[k]!=='',g=n(o.g),nw=n(o.nw),c=g+nw,clk=n(o.clk),conv=n(o.conv),q=n(o.q),s=n(o.s),p=n(o.p),as=n(o.as);
+  const sh=q?q*unit:null,after=has('g')||has('nw')||has('p')?p-n(sh)-c:null;
+  return{c,cvr:clk?conv/clk:null,roas:c?as/c:null,cpc:clk?c/clk:null,sh,after,per:q&&after!=null?after/q:null,adper:conv?c/conv:null,clkc:clk?g/clk:null,price:q?s/q:null,sroas:c?s/c:null}}
+const dlSum=(b,ds)=>{const t={};DLF.forEach(k=>t[k]=0);ds.forEach(d=>{const o=b.rows[d];if(o)DLF.forEach(k=>t[k]+=n(o[k]))});return t};
+const pc2=v=>v==null||!isFinite(v)?'':(v*100).toFixed(2)+'%',nn=v=>v==null||!isFinite(v)?'':WN(v);
+function rDL(){const L=(S.dl&&S.dl.blocks)||[],b=L.find(x=>x.id==UI.dlb)||L[0],[y,m]=cur.split('-').map(Number),days=dim(cur);
+  let h=`<div class="box"><h3>품목별 일자 광고 성과 <small>엑셀 양식 그대로 · 흰·노란 칸 직접 입력, 회색 칸 자동 계산 · 위에서 고른 월(${m}월) 기준</small><span style="flex:1"></span><label class="b s" style="display:inline-flex;align-items:center;cursor:pointer">일별 성과 엑셀 올리기<input type="file" class="dlfile" accept=".xlsx,.xls" hidden></label><button class="b s p" id="dladd">+ 품목 시트 추가</button></h3>
+   <div class="pad row" style="gap:6px">${L.map(x=>`<button class="b s ${x===b?'p':''}" data-dlb="${x.id}">${esc(x.title)}</button>`).join('')||'<span class="note">아직 시트가 없습니다. 일별 성과 엑셀을 올리거나 + 품목 시트 추가를 누르세요.</span>'}</div><div id="dlmsg"></div>`;
+  if(b){const ds=Array.from({length:days},(_,i)=>`${cur}-${pad(i+1)}`),u=n(b.unit);
+    const I=(d,f,v,cls='')=>`<td class="in ${cls}"><input data-dl="${b.id}" data-d="${d}" data-f="${f}" ${f=='m1'||f=='m2'?'class="l"':'inputmode="numeric"'} value="${v==null||v===''?'':esc(f=='m1'||f=='m2'?v:f=='tgt'?String(v):W(n(v)))}" aria-label="${d} ${f}"></td>`;
+    const C=v=>`<td class="n c">${v}</td>`;
+    const row=(d)=>{const o=b.rows[d]||{},k=dlCalc(o,u),wd=new Date(d+'T00:00:00').getDay();return`<tr class="${wd==0?'sun':wd==6?'sat':''} ${d==TODAY?'today':''}"><td>${+d.slice(5,7)}월 ${+d.slice(8)}일</td><td>${WK[wd]}</td>${I(d,'imp',o.imp)}${I(d,'conv',o.conv)}${C(pc2(k.cvr))}${I(d,'g',o.g,'yl')}${I(d,'nw',o.nw,'yl')}${I(d,'as',o.as)}${C(pc2(k.roas))}${I(d,'clk',o.clk)}${C(nn(k.cpc))}${I(d,'s',o.s,'yl')}${I(d,'q',o.q,'yl')}${I(d,'p',o.p,'yl')}${C(nn(k.sh))}${C(k.after!=null?`<b>${WN(k.after)}</b>`:'')}${C(nn(k.per))}${C(nn(k.adper))}${C(nn(k.clkc))}${C(nn(k.price))}${C(pc2(k.sroas))}${I(d,'m1',o.m1)}${I(d,'tgt',o.tgt)}${I(d,'m2',o.m2)}</tr>`};
+    const sumRow=(lab,ds2,cls,tgt)=>{const t=dlSum(b,ds2),k=dlCalc(t,u);return`<tr class="${cls}"><td colspan="2">${esc(lab)}</td><td class="n">${W(t.imp)}</td><td class="n">${W(t.conv)}</td><td class="n">${pc2(k.cvr)}</td><td class="n">${W(t.g)}</td><td class="n">${W(t.nw)}</td><td class="n">${W(t.as)}</td><td class="n">${pc2(k.roas)}</td><td class="n">${W(t.clk)}</td><td class="n">${nn(k.cpc)}</td><td class="n">${W(t.s)}</td><td class="n">${W(t.q)}</td><td class="n">${WN(t.p)}</td><td class="n">${nn(k.sh)}</td><td class="n">${k.after!=null?WN(k.after):''}</td><td class="n">${nn(k.per)}</td><td class="n">${nn(k.adper)}</td><td class="n">${nn(k.clkc)}</td><td class="n">${nn(k.price)}</td><td class="n">${pc2(k.sroas)}</td><td></td><td class="n">${tgt?P(tgt):''}</td><td></td></tr>`};
+    const hd=['날짜','요일','총 노출수','광고 전환 판매 수','전환율 (CVR)','네이버 매출성장형','네이버 신규고객 광고','총 전환매출','총 ROAS','클릭수(회)','클릭당비용 (CPS)','매출액 (이카운트 기준)','총 판매수량','매출이익 (이카운트 기준)','배송비','순 광고비 제외 이익','개당 순 이익','개당광고비','클릭당 광고비','판매가','매출액기준 로하스','메모','네이버 설정 목표 로하스(%)','메모'];
+    const hcls=i=>i==5||i==6?'hy':i==20||i==22?'hb':'';
+    const per=(b.periods||[]).filter(p=>p.from.slice(0,7)==cur||p.to.slice(0,7)==cur);
+    h+=`<div class="pad" style="padding-top:0"><div style="font-size:18px;font-weight:700;margin-bottom:6px">네이버 광고 일별 성과 — <input class="t" data-dlmeta="title" value="${esc(b.title)}" style="font-size:16px;font-weight:700;min-width:220px" aria-label="품목 이름"></div>
+     <div class="row" style="margin-bottom:8px"><label class="note">개당 배송비 <input class="t" data-dlmeta="unit" inputmode="numeric" value="${b.unit?W(b.unit):''}" style="width:110px;background:#ffff8c;color:#000" aria-label="개당 배송비"></label><label class="note">관리주체 <input class="t" data-dlmeta="owner" value="${esc(b.owner||'')}" style="width:140px" aria-label="관리주체"></label><label class="note">메모 <input class="t" data-dlmeta="sub" value="${esc(b.sub||'')}" style="width:180px" aria-label="메모"></label><span style="flex:1"></span><button class="b s r" id="dldel">이 시트 삭제</button></div></div>
+     <div class="scroll" style="max-height:75vh"><table id="dlt" class="xl"><thead><tr class="vat"><th colspan="11"></th><th>부가세 포함</th><th></th><th>부가세 포함</th><th>부가세 포함</th><th colspan="9"></th></tr><tr>${hd.map((x,i)=>`<th class="${hcls(i)}">${x}</th>`).join('')}</tr></thead><tbody>
+     ${ds.map(row).join('')}
+     ${sumRow('합계',ds,'gt',null)}
+     ${per.map(p=>{const pd2=ds.filter(d=>d>=p.from&&d<=p.to);return sumRow(p.label||`${+p.from.slice(5,7)}월 ${+p.from.slice(8)}일 부터 ${+p.to.slice(8)}일`,pd2,'st',p.tgt)}).join('')}
+     </tbody></table></div>
+     <div class="pad row" style="gap:6px"><b>구간 합산</b><span class="note">목표 로하스를 바꾼 구간별로 합계를 봅니다</span><input class="t" type="date" id="dlpf" aria-label="구간 시작"> ~ <input class="t" type="date" id="dlpt" aria-label="구간 끝"><input class="t" id="dlptg" inputmode="numeric" placeholder="목표 로하스 %" style="width:130px" aria-label="목표 로하스"><button class="b s" id="dlpadd">구간 추가</button>${per.length?`<button class="b s r" id="dlpclr">이 달 구간 지우기</button>`:''}</div>`}
+  return h+'</div>'}
+document.addEventListener('click',e=>{const t=e.target;
+  const bb=t.closest('[data-dlb]');if(bb){UI.dlb=bb.dataset.dlb;rDay();return}
+  if(t.id=='dladd'){S.dl=S.dl||{blocks:[]};S.dl.blocks=S.dl.blocks||[];const id='b'+Date.now().toString(36);S.dl.blocks.push({id,title:'새 품목',unit:0,owner:'',sub:'',rows:{},periods:[]});UI.dlb=id;save(['dl']);rDay();const x=document.querySelector('[data-dlmeta="title"]');if(x){x.focus();x.select()}}
+  if(t.id=='dldel'){if(!t.dataset.a){t.dataset.a=1;t.textContent='한 번 더 누르면 삭제';return}S.dl.blocks=S.dl.blocks.filter(x=>x.id!==(UI.dlb||S.dl.blocks[0].id));UI.dlb=null;save(['dl']);rDay()}
+  if(t.id=='dlpadd'){const b=S.dl.blocks.find(x=>x.id==UI.dlb)||S.dl.blocks[0],f=$('#dlpf').value,to=$('#dlpt').value,tg=$('#dlptg').value.trim();if(!b||!f||!to)return;b.periods.push({label:`${+f.slice(5,7)}월 ${+f.slice(8)}일 부터 ${+to.slice(8)}일`,from:f,to,tgt:tg?n(tg):null});b.periods.sort((a,c)=>a.from<c.from?-1:1);save(['dl']);rDay()}
+  if(t.id=='dlpclr'){const b=S.dl.blocks.find(x=>x.id==UI.dlb)||S.dl.blocks[0];b.periods=b.periods.filter(p=>!(p.from.slice(0,7)==cur||p.to.slice(0,7)==cur));save(['dl']);rDay()}});
+document.addEventListener('change',async e=>{const t=e.target;
+  if(t.matches('input[data-dl]')){const b=S.dl.blocks.find(x=>x.id==t.dataset.dl),d=t.dataset.d,f=t.dataset.f,v=t.value.trim(),o=b.rows[d]||(b.rows[d]={});
+    if(v==='')delete o[f];else o[f]=f=='m1'||f=='m2'?v:n(v);if(!Object.keys(o).length)delete b.rows[d];save(['dl']);keepFocus(rDay)}
+  else if(t.matches('[data-dlmeta]')){const b=S.dl.blocks.find(x=>x.id==UI.dlb)||S.dl.blocks[0],k=t.dataset.dlmeta,v=t.value.trim();b[k]=k=='unit'?n(v):v;save(['dl']);rDay()}
+  else if(t.matches('.dlfile')){const f=t.files[0];if(!f)return;try{for(let i=0;i<50&&!window.XLSX;i++)await new Promise(r=>setTimeout(r,100));const wb=XLSX.read(await f.arrayBuffer(),{type:'array',cellDates:true});
+      let all=[];for(const sn of wb.SheetNames)all=all.concat(parseDL(XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:true,defval:''})));
+      if(!all.length){$('#dlmsg').innerHTML='<div class="msg err">"네이버 광고 일별 성과 — 품목명" 제목 줄을 찾지 못했습니다.</div>';return}
+      const r=mergeDL(all);rDay();$('#dlmsg').innerHTML=`<div class="msg">${esc(f.name)}: 품목 시트 ${all.length}개(${all.map(b=>esc(b.title)).join(', ')}) · 일자 ${r.nd}줄 반영</div>`}catch(x){$('#dlmsg').innerHTML=`<div class="msg err">읽지 못했습니다: ${esc(x.message||x)}</div>`}}});
+
 /* ---------- 직접 입력 공통 ---------- */
 function keepFocus(fn){setTimeout(()=>{const a=document.activeElement,d=a&&a.dataset||{};let sel=null;
-  if(d.f!=null&&d.ri!=null)sel=`input[data-ri="${d.ri}"][data-f="${d.f}"]`;else if(d.f!=null&&d.mk!=null)sel=`input[data-mk="${CSS.escape(d.mk)}"][data-f="${d.f}"]`;else if(d.wunit!=null)sel=`input[data-wunit="${CSS.escape(d.wunit)}"]`;
+  if(d.f!=null&&d.ri!=null)sel=`input[data-ri="${d.ri}"][data-f="${d.f}"]`;else if(d.f!=null&&d.mk!=null)sel=`input[data-mk="${CSS.escape(d.mk)}"][data-f="${d.f}"]`;else if(d.wunit!=null)sel=`input[data-wunit="${CSS.escape(d.wunit)}"]`;else if(d.dl!=null)sel=`input[data-dl="${d.dl}"][data-d="${d.d}"][data-f="${d.f}"]`;
   fn();if(sel){const e=document.querySelector(sel);if(e){e.focus();e.select&&e.select()}}},0)}
 const addDays=(d,k)=>{const t=new Date(d+'T00:00:00');t.setDate(t.getDate()+k);return iso(t)};
 document.addEventListener('change',e=>{const t=e.target;
@@ -820,9 +893,9 @@ document.addEventListener('click',e=>{const t=e.target;
   else if(t.matches('[data-wrdel]')){if(!t.dataset.a){t.dataset.a=1;t.textContent='삭제?';return}const id=UI.wk&&S.wk[UI.wk]?UI.wk:Object.keys(S.wk).sort().pop();S.wk[id].rows.splice(+t.dataset.wrdel,1);save(['wk']);rWk()}
   else if(t.matches('[data-mreset]')){const M=S.mon[cur];if(M&&M.ov){delete M.ov[t.dataset.mreset];if(!Object.keys(M.ov).length)delete M.ov;if(!Object.keys(M).length)delete S.mon[cur]}save(['m'+cur]);rDash()}
   else if(t.id=='madd'){const M=S.mon[cur]||(S.mon[cur]={}),ov=M.ov||(M.ov={}),k='x'+Date.now();ov[k]={name:'새 품목'};save(['m'+cur]);rDash();const x=document.querySelector(`input[data-mk="${k}"][data-f="name"]`);if(x){x.focus();x.select()}}});
-document.addEventListener('keydown',e=>{const t=e.target;if(e.key!='Enter'||!t.matches('#wkt input,#pt input'))return;e.preventDefault();
-  let tr=t.closest('tr').nextElementSibling,sel=t.dataset.wunit!=null?'input[data-wunit]':`input[data-f="${t.dataset.f}"]`,nx=null;while(tr&&!(nx=tr.querySelector(sel)))tr=tr.nextElementSibling;t.blur();if(nx){nx.focus();nx.select()}},true);
-document.addEventListener('focusin',e=>{if(e.target.matches('#wkt input,#pt input'))e.target.select()});
+document.addEventListener('keydown',e=>{const t=e.target;if(e.key!='Enter'||!t.matches('#wkt input,#pt input,#dlt input'))return;e.preventDefault();
+  let tr=t.closest('tr').nextElementSibling,sel=t.dataset.wunit!=null?'input[data-wunit]':t.dataset.dl!=null?`input[data-dl][data-f="${t.dataset.f}"]`:`input[data-f="${t.dataset.f}"]`,nx=null;while(tr&&!(nx=tr.querySelector(sel)))tr=tr.nextElementSibling;t.blur();if(nx){nx.focus();nx.select()}},true);
+document.addEventListener('focusin',e=>{if(e.target.matches('#wkt input,#pt input,#dlt input'))e.target.select()});
 /* ---------- 입력 이벤트 ---------- */
 document.addEventListener('change',e=>{const t=e.target;
   if(t.matches('#dt input')){const tr=t.closest('tr'),d=tr.dataset.d,f=t.dataset.f,raw=t.value.trim();
@@ -859,6 +932,7 @@ function parseCSV(t){t=t.replace(/^﻿/,'');const h=t.split('\n')[0],dl=(h.match
 const cellS=c=>String(c??'').trim();
 function detect(rows){const top=rows.slice(0,6).map(r=>r.map(cellS).join('|')).join('\n');
   if(/캠페인명/.test(top)&&/매출이익/.test(top)&&/전환\s*매출|총\s*전환매출/.test(top.replace(/\n/g,''))&&/매출성장형|신규고객/.test(top))return'wk';
+  if(rows.slice(0,3).some(r=>/일별\s*성과\s*[—–-]/.test(cellS(r[0]))))return'dl';
   if(/품목코드/.test(top)&&/이익/.test(top)&&/매출/.test(top))return'ec';
   const hi=rows.findIndex((r,i)=>i<10&&r.some(c=>cellS(c)=='광고비'));
   if(hi>=0){const h=rows[hi].map(cellS);if(h.includes('캠페인명')&&!h.some(x=>/^(날짜|일자)$/.test(x)))return'ad'}
@@ -917,6 +991,7 @@ function loadRows(rows,name){rows=rows.filter(r=>r&&r.some(c=>c!==''&&c!=null));
       upMsg(`<span><b>네이버 광고 리포트(주간 ${wlab({from:key,to})})</b> · ${esc(name)}<br>${W(data.rows)}행 · 광고비 ${W(data.tot.c)}원 · 전환매출(${S.cfg.win==1?'1일':'14일'}) ${W(AW(data.tot))}원 → <b>주간 ${wlab(S.wk[r.id])}</b> 품목 ${r.upd}개 갱신${r.add?` · ${r.add}개 추가`:''}${r.miss.length?` · 리포트에 없는 품목: ${r.miss.map(x=>esc(short(x).t)).join(', ')}`:''}<br><span class="note">노출·클릭·광고비·전환 판매(주문수)·전환매출을 리포트 값으로 바꿨고, 매출액·매출이익은 그대로입니다.</span></span><button class="b s p" data-go="wk">주간 보기</button>`);renderAll();return}
     put(scope,key,'ad',data);cur=key.slice(0,7);$('#mp').value=cur;
     upMsg(`<span><b>네이버 광고 리포트</b> · ${esc(name)}<br>${W(data.rows)}행 · 캠페인 ${Object.keys(data.camps).length}개 · 광고비 ${W(data.tot.c)}원 · 전환매출(14일) ${W(data.tot.a14)}원 → ${where(scope,key)}</span>${moveCtl('ad',scope,key)}`);renderAll();return}
+  if(kind=='dl'){const bl=parseDL(rows);if(!bl.length){upMsg(`${esc(name)}: 일별 성과 블록을 찾지 못했습니다.`,1);return}const r2=mergeDL(bl);upMsg(`<span><b>품목별 일자 광고 성과</b> · ${esc(name)}<br>품목 시트 ${bl.length}개(${bl.map(b=>esc(b.title)).join(', ')}) · 일자 ${r2.nd}줄 반영</span><button class="b s p" data-go="day">일자별 보기</button>`);renderAll();return}
   if(kind=='wk'){const ws=parseWK(rows);if(!ws.length){upMsg(`${esc(name)}: 주차 기간 줄('9월01일 - 9월 07일까지')을 찾지 못했습니다.`,1);return}
     ws.forEach(w=>S.wk[w.from]=w);save(['wk']);UI.wk=ws[ws.length-1].from;
     upMsg(`<span><b>주간 광고 리포트</b> · ${esc(name)}<br>${ws.length}주 (${wlab(ws[0])} ~ ${wlab(ws[ws.length-1])}) · 품목 줄 ${ws.reduce((a,w)=>a+w.rows.length,0)}개 반영</span><button class="b s p" data-go="wk">주간 보기</button>`);renderAll();return}
