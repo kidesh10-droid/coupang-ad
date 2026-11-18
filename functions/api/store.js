@@ -7,6 +7,28 @@ const ok = k => /^(cfg|wk|dl|y\d{4}|m\d{4}-\d{2}|d\d{4}-\d{2}-\d{2})$/.test(k);
 const okMemo = k => /^v[a-z0-9]{4,32}$/.test(k);
 const sha = async s => [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)))].map(b => b.toString(16).padStart(2, '0')).join('');
 const ADM = 'sys:admin';
+const GAP = 10 * 60e3, KEEP = 30 * 86400; // 버전 간격 10분 · 보관 30일
+/* 덩어리 삭제 판단: 주차·품목 줄·일별 시트·이카운트/광고 자료·배송비 기준표가 줄면 삭제로 봄 */
+const units = (k, v) => {
+  if (!v) return null;
+  if (k === 'wk') { const w = v.wk || {}; return { a: Object.keys(w).length, b: Object.values(w).reduce((s, x) => s + ((x && x.rows) || []).length, 0) }; }
+  if (k === 'dl') return { a: ((v.dl && v.dl.blocks) || []).length, b: 0 };
+  if (k[0] === 'm' || k[0] === 'd') { const o = v.mon || v.day || {}; return { a: (o.ec ? 1 : 0) + (o.ad ? 1 : 0), b: 0 }; }
+  if (k === 'cfg') return { a: Object.keys(v.ship || {}).length, b: 0 };
+  return null;
+};
+const shrinks = (k, cur, v) => { const a = units(k, cur), b = units(k, v); return !!(a && b && (b.a < a.a || b.b < a.b)); };
+async function snap(env, ch, k, cur, force) {
+  const ix = (await env.DB.get('histidx:' + ch, 'json')) || {}, now = Date.now();
+  if (!force && ix[k] && now - ix[k] < GAP) return;
+  await env.DB.put('hist:' + ch + String(now).padStart(14, '0') + ':' + k, JSON.stringify(cur === null ? { __none: 1 } : cur), { expirationTtl: KEEP, metadata: { k, ts: now } });
+  ix[k] = now; await env.DB.put('histidx:' + ch, JSON.stringify(ix));
+}
+async function histList(env, ch) {
+  const out = []; let cursor;
+  do { const l = await env.DB.list({ prefix: 'hist:' + ch, cursor }); l.keys.forEach(x => { const m = x.name.slice(('hist:' + ch).length).match(/^(\d{14}):(.+)$/); if (m) out.push({ name: x.name, ts: +m[1], k: m[2] }); }); cursor = l.list_complete ? null : l.cursor; } while (cursor);
+  return out.sort((a, b) => a.ts - b.ts);
+}
 const adminOk = async (env, pw) => { const a = await env.DB.get(ADM, 'json'); return !!(a && pw && await sha(a.salt + pw) === a.h); };
 const body = async request => { try { return await request.json(); } catch { return null; } };
 const decode = s => { try { return decodeURIComponent(s || ''); } catch { return ''; } };
@@ -31,6 +53,27 @@ export async function onRequest({ request, env }) {
       const salt = crypto.randomUUID();
       await env.DB.put(ADM, JSON.stringify({ salt, h: await sha(salt + b.pw), at: Date.now() }));
       return json({ ok: true });
+    }
+    return json({ error: 'bad' }, 400);
+  }
+
+  /* 버전 기록 · 복구 (운영자만) */
+  const hq = qp.get('hist');
+  if (hq) {
+    if (!await adminOk(env, decode(request.headers.get('x-admin-key')))) return json({ error: 'admin' }, 403);
+    const L = await histList(env, ch);
+    if (hq === 'list') return json({ items: L.map(x => ({ ts: x.ts, k: x.k })) });
+    if (hq === 'restore' && request.method === 'POST') {
+      const b = await body(request) || {}, T = +b.ts; if (!T) return json({ error: 'bad' }, 400);
+      const pick = {}; for (const x of L) if (x.ts >= T && !pick[x.k]) pick[x.k] = x; // 그 시점 이후 첫 기록 = 그 시점의 내용
+      let n = 0;
+      for (const [k, x] of Object.entries(pick)) {
+        const v = await env.DB.get(x.name, 'json'), cur = await env.DB.get(ch + 'doc:' + k, 'json');
+        await snap(env, ch, k, cur, true); // 복구 직전 상태도 남김 → 복구 취소 가능
+        if (!v || v.__none) await env.DB.delete(ch + 'doc:' + k); else await env.DB.put(ch + 'doc:' + k, JSON.stringify(v));
+        n++;
+      }
+      return json({ ok: true, docs: n });
     }
     return json({ error: 'bad' }, 400);
   }
@@ -83,10 +126,15 @@ export async function onRequest({ request, env }) {
     if (!b) return json({ error: 'bad_json' }, 400);
     const docs = b.docs || {};
     // 전체 삭제처럼 여러 문서를 한 번에 지우거나 설정(cfg)을 지우는 요청은 운영자만
-    const dels = Object.entries(docs).filter(([k, v]) => ok(k) && v === null).map(([k]) => k);
-    if ((b.wipe || dels.length >= 3 || dels.includes('cfg')) && !await adminOk(env, decode(request.headers.get('x-admin-key')))) return json({ error: 'admin' }, 403);
-    for (const [k, v] of Object.entries(docs)) {
-      if (!ok(k)) continue;
+    const ks = Object.keys(docs).filter(ok), curs = {};
+    await Promise.all(ks.map(async k => { curs[k] = await env.DB.get(P + k, 'json'); }));
+    // 입력·수정은 누구나, 삭제(문서 삭제·덩어리로 줄어드는 저장)는 운영자만
+    const isDel = b.wipe || ks.some(k => (docs[k] === null && curs[k] != null) || shrinks(k, curs[k], docs[k]));
+    if (isDel && !await adminOk(env, decode(request.headers.get('x-admin-key')))) return json({ error: 'admin', msg: '삭제는 운영자만 할 수 있습니다' }, 403);
+    for (const k of ks) {
+      const v = docs[k], cur = curs[k];
+      if (v === null && cur == null) continue;
+      await snap(env, ch, k, cur, v === null || isDel); // 10분에 한 번, 삭제는 항상 기록
       if (v === null) await env.DB.delete(P + k);
       else await env.DB.put(P + k, JSON.stringify(v));
     }

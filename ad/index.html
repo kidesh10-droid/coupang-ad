@@ -111,6 +111,7 @@ textarea{width:100%;min-height:120px;font-size:14px}
 table.xl th.hl{background:light-dark(#fff59d,#4a4520)!important;color:light-dark(#222,#fff)!important}
 .upguide{border:1px solid var(--red);border-left:4px solid var(--red);padding:10px 12px;color:var(--red);font-size:13px;line-height:1.6}.upguide table{margin:6px 0;border-collapse:collapse}.upguide th,.upguide td{border:1px solid light-dark(#f3c1c1,#5a2a2a);padding:3px 8px;text-align:left;color:var(--red)}.upguide code{font-size:12px;background:light-dark(#fff0f0,#2a1616);padding:0 3px}.upguide ul{margin:4px 0 0;padding-left:18px}
 .mmgrid input.pick{outline:2px dashed var(--blue);outline-offset:-2px}
+.admdlg{position:fixed;inset:0;background:rgba(0,0,0,.35);display:grid;place-items:center;z-index:100}.admdlg .box{width:min(420px,92vw);margin:0;box-shadow:0 10px 40px rgba(0,0,0,.25)}
 </style>
 </head>
 <body>
@@ -325,7 +326,7 @@ function save(keys){FEE=null;keys.forEach(k=>dirty.add(k));try{localStorage.setI
 async function flush(){
   if(mode=='kv'){if(saving){clearTimeout(save.t);save.t=setTimeout(flush,800);return}if(!dirty.size)return;saving=true;setSt('저장 중…');const ks=[...dirty];dirty.clear();const docs={};ks.forEach(k=>docs[k]=docBody(k));
     try{const r=await fetch(API,{method:'PUT',headers:{'content-type':'application/json','x-team-key':KEY(),'x-admin-key':encodeURIComponent(ADM.pw||'')},body:JSON.stringify({docs})});
-      if(r.status==401){ks.forEach(k=>dirty.add(k));mode='kvauth';showKey('비밀번호가 바뀌었습니다. 다시 입력해 주세요.');setSt('팀 비밀번호 필요')}else if(!r.ok)throw 0;else{kvLast=Date.now();setSt('공용 저장소 · 팀 공유 중')}}
+      if(r.status==401){ks.forEach(k=>dirty.add(k));mode='kvauth';showKey('비밀번호가 바뀌었습니다. 다시 입력해 주세요.');setSt('팀 비밀번호 필요')}else if(r.status==403){setSt('삭제는 운영자만 · 서버 자료로 되돌림');saving=false;try{const g=await kvGet();if(g.ok){const d=await g.json();applyDocs(Object.entries(d.docs||{}))}}catch(x){}admAsk(()=>{});return}else if(!r.ok)throw 0;else{kvLast=Date.now();setSt('공용 저장소 · 팀 공유 중')}}
     catch(e){ks.forEach(k=>dirty.add(k));setSt('저장 실패 · 다시 시도');clearTimeout(save.t);save.t=setTimeout(flush,5000)}saving=false;if(dirty.size){clearTimeout(save.t);save.t=setTimeout(flush,800)}return}
   if(mode=='kvauth'){setSt('팀 비밀번호 필요 · 이 브라우저에만 임시 저장');return}
   if(!col){setSt(mode=='local'?'이 브라우저에 저장됨':'저장됨');return}
@@ -1181,7 +1182,7 @@ async function admCall(a,b){
   if(a=='status')return{set:!!L,local:1};if(a=='check')return{ok:await chk(b.pw)};
   if(a=='set'){if(L&&!await chk(b.old))return{error:'admin',status:403};const salt=Math.random().toString(36).slice(2);localStorage.setItem('cpad_adm',JSON.stringify({salt,h:await shaHex(salt+b.pw)}));return{ok:true}}}
 async function rAdm(){const box=$('#cfglock'),body=$('#cfgbody');if(!box)return;
-  if(ADM.pw){body.hidden=false;box.innerHTML=`<div class="msg" style="justify-content:space-between"><span><b>운영자 모드</b> · 설정과 전체 삭제는 운영자 비밀번호로만 열립니다.</span><span class="row" style="gap:6px"><button class="b s" id="admchg">운영자 비밀번호 변경</button><button class="b s" id="admlock">잠그기</button></span></div><div id="admform"></div>`;return}
+  if(ADM.pw){body.hidden=false;box.innerHTML=`<div class="msg" style="justify-content:space-between"><span><b>운영자 모드</b> · 설정과 전체 삭제는 운영자 비밀번호로만 열립니다.</span><span class="row" style="gap:6px"><button class="b s" id="admchg">운영자 비밀번호 변경</button><button class="b s" id="admlock">잠그기</button></span></div><div id="admform"></div><div id="admhist"></div>`;HIST.items=null;HIST.msg='';rHist();return}
   body.hidden=true;
   if(ADM.set==null){box.innerHTML='<div class="box"><div class="pad note">확인 중…</div></div>';const s=await admCall('status');ADM.set=!!(s&&s.set);}
   box.innerHTML=ADM.set?`<div class="box" style="max-width:460px"><h3>설정 · 운영자 전용</h3><div class="pad" style="display:grid;gap:10px">
@@ -1204,6 +1205,36 @@ document.addEventListener('click',async e=>{const id=e.target.id;
   if(id=='admcgo'){const a=$('#admc1').value,b=$('#admc2').value,m=$('#admcm');if(a.length<4){m.innerHTML='<span class="dn">4자 이상으로 정해 주세요.</span>';return}if(a!==b){m.innerHTML='<span class="dn">두 비밀번호가 다릅니다.</span>';return}
     const r=await admCall('set',{pw:a,old:ADM.pw});if(r&&r.ok){admOpen(a);$('#cfglock').insertAdjacentHTML('beforeend','<div class="msg">운영자 비밀번호를 바꿨습니다.</div>')}else m.innerHTML='<span class="dn">바꾸지 못했습니다. 잠근 뒤 다시 열어 주세요.</span>'}});
 document.addEventListener('keydown',e=>{if(e.key!='Enter')return;const id=e.target.id;if(id=='admpw')$('#admgo').click();if(id=='admn2')$('#admmk').click();if(id=='admc2')$('#admcgo').click()});
+
+/* 버전 기록 (운영자 전용) · 저장 10분 간격 · 30일 보관 */
+const HLAB=k=>k=='cfg'?'설정·배송비·목표':k=='wk'?'주간':k=='dl'?'일자별 시트':k[0]=='y'?`${k.slice(1)}년 일자 입력`:k[0]=='m'?`${k.slice(1,5)}.${k.slice(6)} 월 자료`:k[0]=='d'?`${+k.slice(6,8)}/${+k.slice(9)} 일자 자료`:k;
+const HIST={items:null,msg:''};
+async function rHist(){const el=$('#admhist');if(!el)return;
+  if(mode!='kv'){el.innerHTML='<div class="box"><h3>버전 기록</h3><div class="pad note">공용 저장소(사이트 주소)로 열었을 때만 쓸 수 있습니다.</div></div>';return}
+  if(HIST.items==null){HIST.at=Date.now();el.innerHTML='<div class="box"><h3>버전 기록</h3><div class="pad note">불러오는 중…</div></div>';
+    try{const r=await fetch(API+(API.includes('?')?'&':'?')+'hist=list',{headers:{'x-team-key':KEY(),'x-admin-key':encodeURIComponent(ADM.pw||'')},cache:'no-store'});const j=await r.json();HIST.items=r.ok?j.items:[];if(!r.ok)HIST.msg='불러오지 못했습니다.'}catch(e){HIST.items=[];HIST.msg='불러오지 못했습니다.'}}
+  const G=[];[...HIST.items].sort((a,b)=>b.ts-a.ts).forEach(x=>{const m=Math.floor(x.ts/60e3),L=G[G.length-1];if(L&&L.m==m){L.ts=Math.min(L.ts,x.ts);if(!L.ks.includes(x.k))L.ks.push(x.k)}else G.push({m,ts:x.ts,ks:[x.k]})});
+  const ft=t=>{const d=new Date(t),w='일월화수목금토'[d.getDay()];return`${d.getMonth()+1}/${d.getDate()}(${w}) ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`};
+  el.innerHTML=`<div class="box"><h3>버전 기록 · 이전 시점으로 되돌리기 <small>원드라이브처럼 · 자료가 바뀔 때 10분 간격으로 바로 전 상태를 서버에 보관 · 30일 지나면 자동 삭제 · 운영자만 복구</small><span style="flex:1"></span><button class="b s" id="hrefresh">새로 고침</button></h3>
+    ${HIST.msg?`<div class="pad dn">${esc(HIST.msg)}</div>`:''}
+    <div class="scroll" style="max-height:420px"><table><thead><tr><th>시점</th><th>그때 바뀐 자료</th><th></th></tr></thead><tbody>
+    ${G.slice(0,300).map(g=>`<tr><td style="white-space:nowrap"><b>${ft(g.ts)}</b> <span class="note">저장 직전</span></td><td class="w">${g.ks.map(k=>esc(HLAB(k))).join(', ')}</td><td><button class="b s" data-hrs="${g.ts}">이 시점으로 복구</button></td></tr>`).join('')||'<tr><td colspan="3" class="note">아직 기록이 없습니다. 자료를 저장하면 10분 간격으로 쌓입니다.</td></tr>'}
+    </tbody></table></div><p class="note pad" style="margin:0">복구하면 그 시점 이후에 바뀐 자료가 모두 그 시점 상태로 돌아갑니다. 복구 직전 상태도 기록으로 남아서, 잘못 복구했으면 맨 위 시점으로 다시 되돌리면 됩니다. 회의록은 폴더 비밀번호로 따로 관리되어 여기서 복구되지 않습니다.</p></div>`}
+document.addEventListener('click',async e=>{const t=e.target.closest('button');if(!t)return;
+  if(t.id=='hrefresh'){HIST.items=null;HIST.msg='';rHist()}
+  if(t.dataset.hrs){if(!t.dataset.a){t.dataset.a=1;t.textContent='한 번 더 누르면 복구';return}t.disabled=true;t.textContent='복구 중…';
+    try{await flush();const r=await fetch(API+(API.includes('?')?'&':'?')+'hist=restore',{method:'POST',headers:{'content-type':'application/json','x-team-key':KEY(),'x-admin-key':encodeURIComponent(ADM.pw||'')},body:JSON.stringify({ts:+t.dataset.hrs})});const j=await r.json();
+      if(!r.ok)throw 0;const g=await kvGet();if(g.ok){const d=await g.json();applyDocs(Object.entries(d.docs||{}))}HIST.items=null;HIST.msg='';await rHist();$('#admhist').insertAdjacentHTML('afterbegin',`<div class="msg">복구했습니다 · 자료 ${j.docs}개를 그 시점으로 되돌렸습니다.</div>`)}
+    catch(x){t.textContent='복구 실패';t.disabled=false}}});
+
+/* 삭제는 운영자만: 삭제 버튼을 누르면 운영자 비밀번호를 먼저 확인 (입력·수정은 누구나) */
+const DELSEL='[data-wrdel],[data-wdel],#wkdel,#dldel,#dlpclr,#clrm,[data-del],[data-sdel],[data-mreset],#rst';
+function admAsk(then){if(ADM.pw)return then();const d=document.createElement('div');d.className='admdlg';
+  d.innerHTML=`<div class="box" role="dialog" aria-modal="true" aria-label="운영자 확인"><h3>삭제는 운영자만 할 수 있습니다</h3><div class="pad" style="display:grid;gap:10px"><p class="note" style="margin:0">입력·수정은 누구나 할 수 있고, 자료 삭제는 운영자 비밀번호가 필요합니다.</p><input class="t" type="password" id="adq" placeholder="운영자 비밀번호" autocomplete="current-password"><div class="row" style="gap:6px"><button class="b p" id="adqgo">확인</button><button class="b" id="adqx">취소</button></div><div class="dn" id="adqm"></div></div></div>`;
+  document.body.appendChild(d);const inp=d.querySelector('#adq');inp.focus();
+  const go=async()=>{const pw=inp.value;if(!pw)return;const r=await admCall('check',{pw});if(r&&r.ok){ADM.pw=pw;try{sessionStorage.setItem('cpad_admpw',pw)}catch(x){}d.remove();then()}else d.querySelector('#adqm').textContent='비밀번호가 맞지 않습니다.'};
+  d.querySelector('#adqgo').onclick=go;d.querySelector('#adqx').onclick=()=>d.remove();inp.onkeydown=e=>{if(e.key=='Enter')go();if(e.key=='Escape')d.remove()};d.onclick=e=>{if(e.target===d)d.remove()}}
+document.addEventListener('click',e=>{const t=e.target.closest&&e.target.closest(DELSEL);if(!t||ADM.pw||t.closest('#t-memo'))return;e.preventDefault();e.stopImmediatePropagation();admAsk(()=>t.click())},true);
 
 /* ---------- 회의록 (폴더별 비밀번호 · 브라우저에서 암호화) ---------- */
 const MAPI='/api/store?ns=memo';
