@@ -199,6 +199,7 @@ table.xl th.hl{background:light-dark(#fff59d,#4a4520)!important;color:light-dark
 <section id="t-help" hidden>
 <div class="help">
   <div class="box"><h3>한눈에 보기</h3><div class="pad">
+    <p class="hl-red"><b>운영자 요청(이전 버전 되돌리기·삭제·설정 변경)은 대표 운영자 김영환에게.</b></p>
     <p><b>쿠팡 광고 장부</b>는 이카운트 매출·이익과 쿠팡 광고 리포트를 합쳐서, 품목별로 <b>광고비와 배송비까지 뺀 진짜 순이익</b>과 ROAS를 계산하고 무엇을 바꿔야 할지 알려주는 공용 장부입니다.</p>
     <ol>
       <li><b>파일 올리기</b>: 업로드 탭에 이카운트·쿠팡 리포트 엑셀을 끌어다 놓으면 끝. 종류와 기간은 자동으로 알아봅니다.</li>
@@ -262,6 +263,7 @@ table.xl th.hl{background:light-dark(#fff59d,#4a4520)!important;color:light-dark
   </div></div>
 
   <div class="box"><h3>5. 저장 · 공유 · 권한</h3><div class="pad">
+    <p class="hl-red"><b>이전 버전 되돌리기, 자료 삭제, 설정 변경 등 운영자 권한이 필요한 일은 대표 운영자 김영환에게 요청하세요.</b></p>
     <ul>
       <li><b>저장은 자동</b>입니다. 오른쪽 위 글자가 '저장 중…' → <b>'공용 저장소 · 팀 공유 중'</b>이면 완료. 동기화 버튼은 필요 없습니다.</li>
       <li>다른 기기는 창을 다시 누르거나 1분이 지나면 새 자료를 가져옵니다. 바로 보려면 새로고침.</li>
@@ -288,7 +290,7 @@ table.xl th.hl{background:light-dark(#fff59d,#4a4520)!important;color:light-dark
       <tr><td>광고가 엉뚱한 품목에 붙음</td><td>품목·배송비 탭에서 이름 연결·합산 그룹 확인. 계속되면 알려주세요.</td></tr>
       <tr><td>배송비가 0원으로 계산됨</td><td>품목·배송비 탭에서 개당 배송비 입력(대시보드에 '배송비 미입력' 개수 표시).</td></tr>
       <tr><td>전환 판매가 주문 건수로 보임</td><td>그 리포트를 다시 올리면 '총 판매수량'으로 바뀝니다.</td></tr>
-      <tr><td>잘못 올리거나 지웠음</td><td>운영자: 설정 → 버전 기록 → '파일 업로드 직전' 시점 복구.</td></tr>
+      <tr><td>잘못 올리거나 지웠음</td><td>대표 운영자 김영환에게 요청 → 설정 → 버전 기록 → '파일 업로드 직전' 시점 복구.</td></tr>
     </tbody></table>
   </div></div>
 </div>
@@ -1376,7 +1378,7 @@ document.addEventListener('click',async e=>{const t=e.target.closest('button');i
 /* 삭제는 운영자만: 삭제 버튼을 누르면 운영자 비밀번호를 먼저 확인 (입력·수정은 누구나) */
 const DELSEL='[data-wrdel],[data-wdel],#wkdel,#dldel,#dlpclr,#clrm,[data-del],[data-sdel],[data-mreset],#rst';
 function admAsk(then){if(ADM.pw)return then();const d=document.createElement('div');d.className='admdlg';
-  d.innerHTML=`<div class="box" role="dialog" aria-modal="true" aria-label="운영자 확인"><h3>삭제는 운영자만 할 수 있습니다</h3><div class="pad" style="display:grid;gap:10px"><p class="note" style="margin:0">입력·수정은 누구나 할 수 있고, 자료 삭제는 운영자 비밀번호가 필요합니다.</p><input class="t" type="password" id="adq" placeholder="운영자 비밀번호" autocomplete="current-password"><div class="row" style="gap:6px"><button class="b p" id="adqgo">확인</button><button class="b" id="adqx">취소</button></div><div class="dn" id="adqm"></div></div></div>`;
+  d.innerHTML=`<div class="box" role="dialog" aria-modal="true" aria-label="운영자 확인"><h3>삭제는 운영자만 할 수 있습니다</h3><div class="pad" style="display:grid;gap:10px"><p class="note" style="margin:0">입력·수정은 누구나 할 수 있고, 자료 삭제는 운영자 비밀번호가 필요합니다. 삭제·되돌리기가 필요하면 <b>대표 운영자 김영환</b>에게 요청하세요.</p><input class="t" type="password" id="adq" placeholder="운영자 비밀번호" autocomplete="current-password"><div class="row" style="gap:6px"><button class="b p" id="adqgo">확인</button><button class="b" id="adqx">취소</button></div><div class="dn" id="adqm"></div></div></div>`;
   document.body.appendChild(d);const inp=d.querySelector('#adq');inp.focus();
   const go=async()=>{const pw=inp.value;if(!pw)return;const r=await admCall('check',{pw});if(r&&r.ok){ADM.pw=pw;try{sessionStorage.setItem('cpad_admpw',pw)}catch(x){}d.remove();then()}else d.querySelector('#adqm').textContent='비밀번호가 맞지 않습니다.'};
   d.querySelector('#adqgo').onclick=go;d.querySelector('#adqx').onclick=()=>d.remove();inp.onkeydown=e=>{if(e.key=='Enter')go();if(e.key=='Escape')d.remove()};d.onclick=e=>{if(e.target===d)d.remove()}}
@@ -1645,7 +1647,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('.xbtn,[data-xall
   if(b.classList.contains('xbtn'))xBox(b.closest('.box'),b);else if(b.dataset.xall=='weeks')xAllWeeks(b);else xTab(b)},true);
 
 /* 새 버전 알림: 사이트가 업데이트되면 '새로고침' 띠를 띄움 (예전 화면으로 계속 작업하는 일 방지) */
-const BUILD='20261119-100339';
+const BUILD='20261119-102013';
 async function verCheck(){if(!/^https?:/.test(location.protocol)||BUILD.startsWith('__'))return;try{const t=await (await fetch(location.pathname,{cache:'no-store'})).text(),m=t.match(/const BUILD='([^']+)'/);
   if(m&&m[1]!==BUILD&&!$('#newver')){const d=document.createElement('div');d.id='newver';d.innerHTML=`<b>새 버전이 올라왔습니다.</b> 지금 화면은 이전 버전이라 업로드 결과가 다를 수 있어요. <button class="b s p" onclick="location.reload()">새로고침</button>`;document.body.prepend(d)}}catch(e){}}
 addEventListener('focus',verCheck);setInterval(()=>{if(document.visibilityState=='visible')verCheck()},120e3);setTimeout(verCheck,3000);
