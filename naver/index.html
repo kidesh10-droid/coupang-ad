@@ -370,7 +370,9 @@ function grpOf(code,name){const g=S.grp[code];if(g!=null&&g!=='')return g=='-'?n
   const d=DEF_GRP.find(d=>d.kws.some(k=>String(name||S.names[code]||'').includes(k)));return d?{name:d.name,code:d.code}:null}
 const keyFor=(code,name)=>{const g=grpOf(code,name);return g?'g:'+g.name:code};
 let FEE=null;
-function fees(){if(FEE)return FEE;const cat=catalog(),L=shipList(),auto=matchAll(L.map(x=>x[0]),cat),own={};
+/* 네이버(스마트스토어): 배송비 개당 3,000원 고정, 알피쿨 냉장고만 6,000원 */
+const nvFee=nm=>/ALPICOOL|알피쿨/i.test(String(nm))&&!/배터리|케이블|시거잭|컨버터|어댑터|가방|커버/.test(String(nm))?6000:3000;
+function fees(){if(FEE)return FEE;if(CH=='nv'){const o={};for(const[c,nm]of catalog())o[c]={f:nvFee(nm),src:'네이버 고정'};return FEE=o}const cat=catalog(),L=shipList(),auto=matchAll(L.map(x=>x[0]),cat),own={};
   L.forEach(([nm,f])=>{const c=auto[nm];if(c&&own[c]==null)own[c]={f:n(f),src:nm}});
   const out={};for(const[c]of cat){if(S.ship[c]!=null&&S.ship[c]!=='')out[c]={f:n(S.ship[c]),src:'직접입력'};else if(own[c])out[c]=own[c]}
   const gf={};for(const[c,nm]of cat){const k=keyFor(c,nm);if(k[0]=='g'&&out[c]&&gf[k]==null)gf[k]=out[c]}
@@ -403,7 +405,7 @@ function nvCode(nm,camps){if(CH!='nv')return null;const t=nm+' '+(camps||[]).joi
 function adCode(nm,auto,camps){const m=S.map[nm];if(m)return m=='-'?null:m;const nv=nvCode(nm,camps);if(nv)return nv;const nn=norm(nm),d=DEF_ADMAP.find(([pre])=>nn.startsWith(norm(pre)));return d?d[1]:auto[nm]||null}
 
 /* ---------- 분석 핵심: 품목(그룹)별 매출·이익·배송비·광고비 ---------- */
-function feeName(nm){const SL=shipList(),m=matchAll([nm],SL.map((x,i)=>[String(i),x[0],0,0,0]))[nm];return m!=null?n(SL[+m][1]):null}
+function feeName(nm){if(CH=='nv')return nvFee(nm);const SL=shipList(),m=matchAll([nm],SL.map((x,i)=>[String(i),x[0],0,0,0]))[nm];return m!=null?n(SL[+m][1]):null}
 function build(items,ad,ov){const v=VAT(),FE=fees(),rows={},un=[];
   const row=(code,name)=>{const g=grpOf(code,name),key=g?'g:'+g.name:code;
     return rows[key]||(rows[key]={key,code:g?(g.code||code):code,name:g?g.name:(name||S.names[code]||code),grp:!!g,mem:new Set(),q:0,s:0,p:0,sh:0,nofee:0,c:0,a:0,o:0,k:0,i:0,camps:new Set(),ads:0})};
@@ -703,7 +705,7 @@ function parseWK(rows){const weeks=[];let W=null,H=null;
   return weeks.filter(w=>w.rows.length)}
 const WM=[['s','매출액'],['p','매출이익'],['sh','배송비'],['c','광고비'],['as','전환매출'],['after','순이익'],['q','판매수량'],['conv','광고 전환 판매']];
 function wkBuild(){const ids=Object.keys(S.wk).sort(),names=new Set();ids.forEach(id=>S.wk[id].rows.forEach(r=>names.add(r.name)));
-  const SL=shipList(),K=wkKeys([...names,...SL.map(x=>x[0])]),unitBy={},disp={},feeBy={};SL.forEach(([nm,f])=>{const k=K[nm];if(feeBy[k]==null)feeBy[k]=n(f)});
+  const SL=shipList(),K=wkKeys([...names,...SL.map(x=>x[0])]),unitBy={},disp={},feeBy={};SL.forEach(([nm,f])=>{const k=K[nm];if(feeBy[k]==null)feeBy[k]=n(f)});if(CH=='nv')for(const nm of names)feeBy[K[nm]]=nvFee(nm);
   ids.forEach(id=>S.wk[id].rows.forEach(r=>{const k=K[r.name];if(r.unit&&unitBy[k]==null)unitBy[k]=r.unit;if(k.startsWith('g:'))disp[k]=k.slice(2);else if(!disp[k]||/\[/.test(r.name)||!/\[/.test(disp[k]))disp[k]=r.name}));
   const FE=fees(),cat=catalog(),shipAuto=cat.length?matchAll([...names],cat):{};
   const W={};for(const id of ids){const w=S.wk[id],by={};
@@ -1058,7 +1060,7 @@ const pc2=v=>v==null||!isFinite(v)?'':(v*100).toFixed(2)+'%',nn=v=>v==null||!isF
 function rDL(){const L=(S.dl&&S.dl.blocks)||[],b=L.find(x=>x.id==UI.dlb)||L[0],[y,m]=cur.split('-').map(Number),days=dim(cur);
   let h=`<div class="box"><h3>품목별 일자 광고 성과 <small>엑셀 양식 그대로 · 흰·노란 칸 직접 입력, 회색 칸 자동 계산 · 위에서 고른 월(${m}월) 기준</small><span style="flex:1"></span><label class="b s" style="display:inline-flex;align-items:center;cursor:pointer">일별 성과 엑셀 올리기<input type="file" class="dlfile" accept=".xlsx,.xls" hidden></label><button class="b s p" id="dladd">+ 품목 시트 추가</button></h3>
    <div class="pad row" style="gap:6px">${L.map(x=>`<button class="b s ${x===b?'p':''}" data-dlb="${x.id}">${esc(x.title)}</button>`).join('')||'<span class="note">아직 시트가 없습니다. 일별 성과 엑셀을 올리거나 + 품목 시트 추가를 누르세요.</span>'}</div><div id="dlmsg"></div>`;
-  if(b){const ds=Array.from({length:days},(_,i)=>`${cur}-${pad(i+1)}`),u=n(b.unit);
+  if(b){const ds=Array.from({length:days},(_,i)=>`${cur}-${pad(i+1)}`),u=CH=='nv'?nvFee(b.title):n(b.unit);
     const I=(d,f,v,cls='')=>`<td class="in ${cls}"><input data-dl="${b.id}" data-d="${d}" data-f="${f}" ${f=='m1'||f=='m2'?'class="l"':'inputmode="numeric"'} value="${v==null||v===''?'':esc(f=='m1'||f=='m2'?v:f=='tgt'?String(v):W(n(v)))}" aria-label="${d} ${f}"></td>`;
     const C=v=>`<td class="n c">${v}</td>`;
     const row=(d)=>{const o=b.rows[d]||{},k=dlCalc(o,u),wd=new Date(d+'T00:00:00').getDay();return`<tr class="${wd==0?'sun':wd==6?'sat':''} ${d==TODAY?'today':''}"><td>${+d.slice(5,7)}월 ${+d.slice(8)}일</td><td>${WK[wd]}</td>${I(d,'imp',o.imp)}${I(d,'conv',o.conv)}${C(pc2(k.cvr))}${I(d,'g',o.g,'yl')}${I(d,'nw',o.nw,'yl')}${I(d,'as',o.as)}${C(pc2(k.roas))}${I(d,'clk',o.clk)}${C(nn(k.cpc))}${I(d,'s',o.s,'yl')}${I(d,'q',o.q,'yl')}${I(d,'p',o.p,'yl')}${C(nn(k.sh))}${C(k.after!=null?`<b>${WN(k.after)}</b>`:'')}${C(nn(k.per))}${C(nn(k.adper))}${C(nn(k.clkc))}${C(nn(k.price))}${C(pc2(k.sroas))}${I(d,'m1',o.m1)}${I(d,'tgt',o.tgt)}${I(d,'m2',o.m2)}</tr>`};
@@ -1676,7 +1678,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('.xbtn,[data-xall
   if(b.classList.contains('xbtn'))xBox(b.closest('.box'),b);else if(b.dataset.xall=='weeks')xAllWeeks(b);else xTab(b)},true);
 
 /* 새 버전 알림: 사이트가 업데이트되면 '새로고침' 띠를 띄움 (예전 화면으로 계속 작업하는 일 방지) */
-const BUILD='20261119-135637';
+const BUILD='20261119-140405';
 async function verCheck(){if(!/^https?:/.test(location.protocol)||BUILD.startsWith('__'))return;try{const t=await (await fetch(location.pathname,{cache:'no-store'})).text(),m=t.match(/const BUILD='([^']+)'/);
   if(m&&m[1]!==BUILD&&!$('#newver')){const d=document.createElement('div');d.id='newver';d.innerHTML=`<b>새 버전이 올라왔습니다.</b> 지금 화면은 이전 버전이라 업로드 결과가 다를 수 있어요. <button class="b s p" onclick="location.reload()">새로고침</button>`;document.body.prepend(d)}}catch(e){}}
 addEventListener('focus',verCheck);setInterval(()=>{if(document.visibilityState=='visible')verCheck()},120e3);setTimeout(verCheck,3000);
