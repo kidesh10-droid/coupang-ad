@@ -1125,7 +1125,7 @@ async function readFile(f){try{
     const wb=XLSX.read(await f.arrayBuffer(),{type:'array',cellDates:true});const ws=wb.Sheets[wb.SheetNames[0]];loadRows(XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:''}),f.name)}
   else{const buf=await f.arrayBuffer();let t=new TextDecoder('utf-8').decode(buf);if(t.includes(String.fromCharCode(65533)))t=new TextDecoder('euc-kr').decode(buf);loadRows(parseCSV(t),f.name)}
  }catch(e){upMsg(`${esc(f.name)}: 파일을 읽지 못했습니다 — ${esc(e.message)}`,1)}}
-async function readFiles(fs){fs.sort((a,b)=>/품목|이익|ecount|이카운트/i.test(b.name)-/품목|이익|ecount|이카운트/i.test(a.name));for(const f of fs)await readFile(f)}
+async function readFiles(fs){const pr=f=>/주간/.test(f.name)?0:/품목|이익|ecount|이카운트/i.test(f.name)?2:1;fs.sort((a,b)=>pr(a)-pr(b));/* 주간 시트 → 광고 리포트 → 이카운트 순: 주간 틀이 먼저 있어야 이카운트 매출이 그 줄에 들어감 */for(const f of fs)await readFile(f)}
 function apply(){const sel={};$$('#map select').forEach(s=>{if(s.value!=='')sel[s.dataset.f]=+s.value});
   if(sel.d==null){upMsg('날짜 열을 골라 주세요.',1);return}
   const add=$('input[name=mode]:checked').value=='add',fs=FIELDS.map(x=>x[0]).filter(f=>sel[f]!=null),byD={};let skip=0;
@@ -1459,39 +1459,63 @@ const xNum=t=>{t=String(t).replace(/\s+/g,' ').trim().replace(/\*$/,'');if(t==='
   if(/^[\d,]+(\.\d+)?$/.test(u)){const v=+u.replace(/,/g,'');return{v:neg?-v:v,z:/\./.test(u)?'#,##0.0#':'#,##0'}}
   if(/^[\d,]+(\.\d+)?%$/.test(u)){const v=+u.replace(/[,%]/g,'')/100;return{v:neg?-v:v,z:/\./.test(u)?'0.0#%':'0%'}}
   if(/^[\d,]+원$/.test(u)){const v=+u.replace(/[,원]/g,'');return{v:neg?-v:v,z:'#,##0'}}return{v:t}};
-function tblAOA(tb,R,M,r0){const occ={};let r=r0;
-  for(const tr of tb.querySelectorAll('tr')){if(tr.closest('table')!==tb||!tr.getClientRects().length)continue;let c=0;R[r]=R[r]||[];
-    for(const td of tr.children){while(occ[r+','+c])c++;const inp=td.querySelector('input:not([type=checkbox]),select');let t=inp?(inp.tagName=='SELECT'?(inp.selectedOptions[0]||{}).text||'':inp.value):td.innerText;
-      const cs=+td.colSpan||1,rs=+td.rowSpan||1,x=xNum(t);R[r][c]={...x,h:td.tagName=='TH'};
+function tblAOA(tb,R,M,r0,RC){const occ={};let r=r0;
+  for(const tr of tb.querySelectorAll('tr')){if(tr.closest('table')!==tb||!tr.getClientRects().length)continue;let c=0;R[r]=R[r]||[];RC[r]=tr.className||'';
+    for(const td of tr.children){while(occ[r+','+c])c++;const inp=td.querySelector('input:not([type=checkbox]),select');let t=inp?(inp.tagName=='SELECT'?(inp.selectedOptions[0]||{}).text||'':inp.value):td.innerText;if(!inp&&td.querySelector('button')){const cl=td.cloneNode(true);cl.querySelectorAll('button').forEach(x=>x.remove());t=cl.textContent}
+      const cs=+td.colSpan||1,rs=+td.rowSpan||1,x=xNum(t);R[r][c]={...x,h:td.tagName=='TH',hl:td.classList.contains('hl'),neg:td.classList.contains('dn')||td.classList.contains('neg')||!!td.querySelector('.dn,.neg'),b:!!td.querySelector('b')};
       if(cs>1||rs>1){M.push({s:{r,c},e:{r:r+rs-1,c:c+cs-1}});for(let i=0;i<rs;i++)for(let j=0;j<cs;j++)if(i||j)occ[(r+i)+','+(c+j)]=1}c+=cs}r++}
   return r}
-function boxSheet(box){const R=[],M=[];let r=0;const tbs=[...box.querySelectorAll('table')].filter(t=>!t.parentElement.closest('table')&&t.getClientRects().length);
-  tbs.forEach((tb,i)=>{if(i){r++}r=tblAOA(tb,R,M,r)});
-  const W0=Math.max(0,...Array.from(R,x=>x?x.length:0)),A=Array.from({length:R.length},(_,ri)=>Array.from({length:W0},(_,i)=>R[ri]&&R[ri][i]?R[ri][i].v:''));const ws=XLSX.utils.aoa_to_sheet(A);
-  Array.from(R).forEach((row,ri)=>row&&row.forEach((x,ci)=>{if(x&&x.z){const a=XLSX.utils.encode_cell({r:ri,c:ci});if(ws[a])ws[a].z=x.z}}));ws['!merges']=M;
-  ws['!cols']=(A[0]||[]).map((_,ci)=>({wch:Math.min(40,Math.max(6,...A.map(r=>String(r[ci]??'').length*(/[가-힣]/.test(String(r[ci]??''))?1.8:1.1))))}));
-  ws['!freeze']={xSplit:1,ySplit:1};return ws}
 const boxTitle=box=>{const h=box.querySelector('h3,h2,summary,.pad>b');if(!h)return'표';let t='';for(const n of h.childNodes){if(n.nodeType==3)t+=n.textContent;else if(!n.matches('small,button,select,input,label,span'))t+=n.textContent}return t.replace(/\s+/g,' ').trim()||'표'};
+const boxNote=box=>{const s=box.querySelector('h3 small,summary small');return s?s.textContent.replace(/\s+/g,' ').trim():''};
+function boxData(box,title){const R=[],M=[],RC=[];let r=0;const tbs=[...box.querySelectorAll('table')].filter(t=>!t.parentElement.closest('table')&&t.getClientRects().length);
+  tbs.forEach((tb,i)=>{if(i){RC[r]='gap';R[r]=[];r++}r=tblAOA(tb,R,M,r,RC)});const W0=Math.max(0,...Array.from(R,x=>x?x.length:0));
+  return{title:title||boxTitle(box),note:boxNote(box),R:Array.from({length:R.length},(_,i)=>R[i]||[]),M,RC:Array.from({length:R.length},(_,i)=>RC[i]||''),W:W0}}
 const sheetName=(t,used)=>{let b=t.replace(/[\\\/\?\*\[\]:]/g,' ').slice(0,28).trim()||'Sheet',n=b,i=2;while(used.has(n))n=b.slice(0,26)+' '+i++;used.add(n);return n};
 const TABN={dash:'대시보드',wk:'주간',pw:'주간분석',pm:'월간분석',day:'일자별',mon:'월별집계',item:'품목배송비',up:'업로드'};
-function xSave(wb,name){XLSX.writeFile(wb,`${(CH=='nv'?'네이버':'네이버')}광고_${name}_${TODAY}.xlsx`.replace(/[\\\/:*?"<>|\s]+/g,'_'))}
-function xBox(box){if(!window.XLSX)return;const wb=XLSX.utils.book_new(),t=boxTitle(box);XLSX.utils.book_append_sheet(wb,boxSheet(box),sheetName(t,new Set()));xSave(wb,`${TABN[tab]||tab}_${t}`)}
-function xTab(){if(!window.XLSX)return;const wb=XLSX.utils.book_new(),used=new Set();$$(`#t-${tab} .box`).forEach(b=>{if(b.querySelector('table')&&b.getClientRects().length)XLSX.utils.book_append_sheet(wb,boxSheet(b),sheetName(boxTitle(b),used))});if(wb.SheetNames.length)xSave(wb,`${TABN[tab]||tab}_전체`)}
+const xFile=name=>`${(CH=='nv'?'네이버':'네이버')}광고_${name}_${TODAY}.xlsx`.replace(/[\\\/:*?"<>|\s]+/g,'_');
+/* 서식 있는 엑셀(ExcelJS) — 못 불러오면 서식 없이 SheetJS로 */
+let EJP=null;const loadEJ=()=>EJP||(EJP=new Promise((ok,no)=>{if(window.ExcelJS)return ok(window.ExcelJS);const urls=['https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js','https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js'];
+  const tryU=i=>{if(i>=urls.length){EJP=null;return no(new Error('load'))}const sc=document.createElement('script');sc.src=urls[i];sc.onload=()=>window.ExcelJS?ok(window.ExcelJS):tryU(i+1);sc.onerror=()=>tryU(i+1);document.head.appendChild(sc)};tryU(0)}));
+const FMT=z=>z=='0%'?'0%;[Red]-0%':z&&z.includes('%')?'0.0%;[Red]-0.0%':z=='#,##0.0#'?'#,##0.0#;[Red]-#,##0.0#':'#,##0;[Red]-#,##0';
+async function xWrite(list,fname,btn){const lab=btn&&btn.textContent;if(btn){btn.disabled=true;btn.textContent='만드는 중…'}
+  try{const EJ=await loadEJ(),wb=new EJ.Workbook();wb.creator='광고 장부';const used=new Set(),F='맑은 고딕',BD={style:'thin',color:{argb:'FFD5DBE5'}},BRD={top:BD,left:BD,bottom:BD,right:BD};
+    for(const d of list){const ws=wb.addWorksheet(sheetName(d.title,used),{views:[{state:'frozen',xSplit:1,ySplit:2+(d.RC.findIndex((c,i)=>d.R[i].length&&!d.R[i].some(x=>x&&x.h))>0?d.RC.findIndex((c,i)=>d.R[i].length&&!d.R[i].some(x=>x&&x.h)):1),showGridLines:false}],properties:{defaultRowHeight:18}});
+      const W=Math.max(1,d.W);ws.mergeCells(1,1,1,W);const t=ws.getCell(1,1);t.value=d.title;t.font={name:F,size:14,bold:true,color:{argb:'FF1F2A44'}};ws.getRow(1).height=24;
+      ws.mergeCells(2,1,2,W);const n2=ws.getCell(2,1);n2.value=`${d.note?d.note+' · ':''}내려받은 날 ${TODAY}`;n2.font={name:F,size:9,color:{argb:'FF7A8599'}};
+      const o=2;d.R.forEach((row,ri)=>{const rc=d.RC[ri]||'',gap=rc=='gap',xr=ws.getRow(ri+1+o),isH=row.some(x=>x&&x.h),first=row[0]&&String(row[0].v||''),sub=/^└|^\s*└/.test(first);
+        if(gap)return;for(let ci=0;ci<W;ci++){const x=row[ci],cell=xr.getCell(ci+1);if(x){cell.value=x.v===''?null:x.v;if(typeof x.v=='number')cell.numFmt=FMT(x.z)}
+          const num=x&&typeof x.v=='number';cell.border=BRD;cell.font={name:F,size:10,bold:!!(x&&x.b)};cell.alignment={vertical:'middle',horizontal:isH?'center':num?'right':'left',wrapText:isH};
+          if(isH){cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:x&&x.hl?'FFFFF59D':'FF2F4A7A'}};cell.font={name:F,size:10,bold:true,color:{argb:x&&x.hl?'FF222222':'FFFFFFFF'}};cell.border={top:{style:'thin',color:{argb:'FF8FA3C7'}},left:{style:'thin',color:{argb:'FF8FA3C7'}},bottom:{style:'thin',color:{argb:'FF8FA3C7'}},right:{style:'thin',color:{argb:'FF8FA3C7'}}}}
+          else if(/\bgt\b/.test(rc)){cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFE3E9F3'}};cell.font={name:F,size:10,bold:true};cell.border={...BRD,top:{style:'medium',color:{argb:'FF2F4A7A'}}}}
+          else if(/\bst\b/.test(rc)){cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFF2F5FA'}};cell.font={name:F,size:10,bold:true}}
+          else if(/\bsec\b/.test(rc)){cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFE8EEF8'}};cell.font={name:F,size:10,bold:true,color:{argb:'FF2F4A7A'}}}
+          else if(/\bavg\b/.test(rc)){cell.font={name:F,size:9,italic:true,color:{argb:'FF6B7280'}}}
+          else if(sub){cell.font={name:F,size:9,color:{argb:'FF6B7280'}};if(ci==0)cell.alignment={indent:1,vertical:'middle'}}
+          else if(/\btoday\b|\bon\b/.test(rc)){cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFF8E1'}}}
+          if(x&&x.neg&&!isH)cell.font={...cell.font,color:{argb:'FFD32F2F'}}}
+        if(isH)xr.height=30});
+      d.M.forEach(m=>{try{ws.mergeCells(m.s.r+1+o,m.s.c+1,m.e.r+1+o,m.e.c+1)}catch(e){}});
+      for(let ci=0;ci<W;ci++){let w=6;d.R.forEach(row=>{const x=row[ci];if(!x||x.h&&d.M.length)return;const v=x.v,sx=typeof v=='number'?(Math.abs(v)>=1000?Math.abs(v).toLocaleString().length+2:String(v).length+2):String(v??'');w=Math.max(w,typeof sx=='number'?sx:[...sx].reduce((a,ch)=>a+(/[가-힣]/.test(ch)?1.9:1.05),0)+1)});const col=ws.getColumn(ci+1);if(w>26){col.width=Math.min(58,w);col.eachCell({includeEmpty:false},(cl,rn)=>{if(rn>2)cl.alignment={...(cl.alignment||{}),wrapText:true,vertical:'top'}})}else col.width=Math.min(ci==0?42:24,Math.max(ci==0?14:8,w))}
+      ws.pageSetup={orientation:'landscape',fitToPage:true,fitToWidth:1,fitToHeight:0}}
+    const buf=await wb.xlsx.writeBuffer(),a=document.createElement('a');a.href=URL.createObjectURL(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));a.download=xFile(fname);document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},2000)}
+  catch(e){if(window.XLSX){const wb=XLSX.utils.book_new(),used=new Set();list.forEach(d=>{const A=d.R.map(r=>Array.from({length:d.W},(_,i)=>r[i]?r[i].v:''));const ws=XLSX.utils.aoa_to_sheet(A);ws['!merges']=d.M;XLSX.utils.book_append_sheet(wb,ws,sheetName(d.title,used))});XLSX.writeFile(wb,xFile(fname))}}
+  finally{if(btn){btn.disabled=false;btn.textContent=lab}}}
+function xBox(box,btn){const d=boxData(box);xWrite([d],`${TABN[tab]||tab}_${d.title}`,btn)}
+function xTab(btn){const L=[];$$(`#t-${tab} .box`).forEach(b=>{if(b.querySelector('table')&&b.getClientRects().length)L.push(boxData(b))});if(L.length)xWrite(L,`${TABN[tab]||tab}_전체`,btn)}
 /* 주간: 모든 주차를 주차별 시트로 */
-function xAllWeeks(){if(!window.XLSX)return;const ids=Object.keys(S.wk).sort(),keep=UI.wk,wb=XLSX.utils.book_new(),used=new Set();
-  for(const id of ids){UI.wk=id;rWk();const tb=$('#wkt');if(tb)XLSX.utils.book_append_sheet(wb,boxSheet(tb.closest('.box')),sheetName(wlab(S.wk[id]).replace(/\//g,'.'),used))}
-  UI.wk=keep;rWk();if(wb.SheetNames.length)xSave(wb,`주간_전체주차_${ids.length}주`)}
+function xAllWeeks(btn){const ids=Object.keys(S.wk).sort(),keep=UI.wk,L=[];
+  for(const id of ids){UI.wk=id;rWk();const tb=$('#wkt');if(tb)L.push(boxData(tb.closest('.box'),wlab(S.wk[id]).replace(/\//g,'.')+' 품목별'))}
+  UI.wk=keep;rWk();if(L.length)xWrite(L,`주간_전체주차_${ids.length}주`,btn)}
 function xButtons(){if(!['dash','wk','pw','pm','day','mon','item'].includes(tab))return;const sec=$('#t-'+tab);if(!sec)return;
   sec.querySelectorAll('.box').forEach(b=>{const h=b.querySelector(':scope>h3')||b.querySelector(':scope>details>summary,:scope>.pad>b:first-child');if(!h||h.querySelector('.xbtn')||!b.querySelector('table'))return;
-    const x=document.createElement('button');x.className='b s xbtn';x.type='button';x.title='이 표를 엑셀(.xlsx)로 내려받기';x.textContent='엑셀 다운로드';h.appendChild(x)});
+    const x=document.createElement('button');x.className='b s xbtn';x.type='button';x.title='이 표를 엑셀(.xlsx)로 내려받기 · 서식 포함';x.textContent='엑셀 다운로드';h.appendChild(x)});
   if(!sec.querySelector('.xall')){const bar=document.createElement('div');bar.className='xall';bar.innerHTML=`<button class="b s" data-xall="tab">이 탭 표 전체 엑셀</button>${tab=='wk'?'<button class="b s" data-xall="weeks">모든 주차 엑셀 (주차별 시트)</button>':''}`;sec.prepend(bar)}}
 new MutationObserver(()=>{clearTimeout(xButtons.t);xButtons.t=setTimeout(xButtons,50)}).observe(document.querySelector('main'),{childList:true,subtree:true});
-document.addEventListener('click',e=>{const b=e.target.closest('.xbtn,[data-xall]');if(!b)return;e.stopPropagation();
-  if(!window.XLSX){b.textContent='엑셀 도구 불러오는 중…';return}
-  if(b.classList.contains('xbtn'))xBox(b.closest('.box'));else if(b.dataset.xall=='weeks')xAllWeeks();else xTab()},true);
+document.addEventListener('click',e=>{const b=e.target.closest('.xbtn,[data-xall]');if(!b)return;e.stopPropagation();loadEJ().catch(()=>{});
+  if(b.classList.contains('xbtn'))xBox(b.closest('.box'),b);else if(b.dataset.xall=='weeks')xAllWeeks(b);else xTab(b)},true);
 
 /* 새 버전 알림: 사이트가 업데이트되면 '새로고침' 띠를 띄움 (예전 화면으로 계속 작업하는 일 방지) */
-const BUILD='20261119-094506';
+const BUILD='20261119-094929';
 async function verCheck(){if(!/^https?:/.test(location.protocol)||BUILD.startsWith('__'))return;try{const t=await (await fetch(location.pathname,{cache:'no-store'})).text(),m=t.match(/const BUILD='([^']+)'/);
   if(m&&m[1]!==BUILD&&!$('#newver')){const d=document.createElement('div');d.id='newver';d.innerHTML=`<b>새 버전이 올라왔습니다.</b> 지금 화면은 이전 버전이라 업로드 결과가 다를 수 있어요. <button class="b s p" onclick="location.reload()">새로고침</button>`;document.body.prepend(d)}}catch(e){}}
 addEventListener('focus',verCheck);setInterval(()=>{if(document.visibilityState=='visible')verCheck()},120e3);setTimeout(verCheck,3000);
