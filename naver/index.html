@@ -112,6 +112,7 @@ table.xl th.hl{background:light-dark(#fff59d,#4a4520)!important;color:light-dark
 .upguide{border:1px solid var(--red);border-left:4px solid var(--red);padding:10px 12px;color:var(--red);font-size:13px;line-height:1.6}.upguide table{margin:6px 0;border-collapse:collapse}.upguide th,.upguide td{border:1px solid light-dark(#f3c1c1,#5a2a2a);padding:3px 8px;text-align:left;color:var(--red)}.upguide code{font-size:12px;background:light-dark(#fff0f0,#2a1616);padding:0 3px}.upguide ul{margin:4px 0 0;padding-left:18px}
 .mmgrid input.pick{outline:2px dashed var(--blue);outline-offset:-2px}
 .admdlg{position:fixed;inset:0;background:rgba(0,0,0,.35);display:grid;place-items:center;z-index:100}.admdlg .box{width:min(420px,92vw);margin:0;box-shadow:0 10px 40px rgba(0,0,0,.25)}
+#newver{position:sticky;top:0;z-index:50;background:#fff3cd;color:#5c4400;border-bottom:2px solid #e0a800;padding:8px 14px;display:flex;gap:10px;align-items:center;justify-content:center;font-size:14px}
 </style>
 </head>
 <body>
@@ -1452,6 +1453,11 @@ document.addEventListener('keydown',e=>{const t=e.target;if(!t.matches)return;
   if(e.key=='Enter'||e.key=='ArrowDown')r++;else if(e.key=='ArrowUp')r--;else if(e.key=='ArrowRight'&&t.selectionStart==t.value.length&&t.selectionEnd==t.value.length)c++;else if(e.key=='ArrowLeft'&&t.selectionStart==0&&t.selectionEnd==0)c--;else return;
   const n=$(`#mm input[data-c="${colS(Math.max(1,c))}${Math.max(1,r)}"]`);if(n){e.preventDefault();n.focus()}});
 
+/* 새 버전 알림: 사이트가 업데이트되면 '새로고침' 띠를 띄움 (예전 화면으로 계속 작업하는 일 방지) */
+const BUILD='20261119-093714';
+async function verCheck(){if(!/^https?:/.test(location.protocol)||BUILD.startsWith('__'))return;try{const t=await (await fetch(location.pathname,{cache:'no-store'})).text(),m=t.match(/const BUILD='([^']+)'/);
+  if(m&&m[1]!==BUILD&&!$('#newver')){const d=document.createElement('div');d.id='newver';d.innerHTML=`<b>새 버전이 올라왔습니다.</b> 지금 화면은 이전 버전이라 업로드 결과가 다를 수 있어요. <button class="b s p" onclick="location.reload()">새로고침</button>`;document.body.prepend(d)}}catch(e){}}
+addEventListener('focus',verCheck);setInterval(()=>{if(document.visibilityState=='visible')verCheck()},120e3);setTimeout(verCheck,3000);
 go(tab);initStore();
 }
 </script>
