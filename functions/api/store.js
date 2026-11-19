@@ -1,6 +1,6 @@
 // 쿠팡 광고 장부 공용 저장소 (Cloudflare Pages Functions + KV)
 // 필요한 설정: KV 바인딩 이름 DB. (선택) 환경변수 TEAM_PASSWORD를 넣으면 비밀번호로 잠김, 없으면 누구나 공용
-// ?admin=status|set|check  운영자 비밀번호 (설정 탭·전체 삭제 보호)
+// ?admin=status|set|check  관리자 비밀번호 (설정 탭·전체 삭제 보호)
 // ?ns=memo                 회의록 폴더 (브라우저에서 암호화된 내용만 저장, 수정·삭제는 그 폴더 비밀번호 필요)
 const json = (o, s = 200) => new Response(JSON.stringify(o), { status: s, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
 const ok = k => /^(cfg|wk|dl|y\d{4}|m\d{4}-\d{2}|d\d{4}-\d{2}-\d{2})$/.test(k);
@@ -39,7 +39,7 @@ export async function onRequest({ request, env }) {
   if (!env.DB) return json({ error: 'no_kv' }, 503);
   if (env.TEAM_PASSWORD && (request.headers.get('x-team-key') || '') !== env.TEAM_PASSWORD) return json({ error: 'auth' }, 401);
 
-  /* 운영자 비밀번호 */
+  /* 관리자 비밀번호 */
   const adm = qp.get('admin');
   if (adm) {
     const a = await env.DB.get(ADM, 'json');
@@ -57,7 +57,7 @@ export async function onRequest({ request, env }) {
     return json({ error: 'bad' }, 400);
   }
 
-  /* 버전 기록 · 복구 (운영자만) */
+  /* 버전 기록 · 복구 (관리자만) */
   const hq = qp.get('hist');
   if (hq) {
     if (!await adminOk(env, decode(request.headers.get('x-admin-key')))) return json({ error: 'admin' }, 403);
@@ -97,7 +97,7 @@ export async function onRequest({ request, env }) {
       const cur = await env.DB.get(P + b.id, 'json');
       if (cur) {
         const key = decode(request.headers.get('x-vault-key'));
-        // 폴더 비밀번호가 맞거나, 운영자가 폴더를 지우는 경우(내용은 암호라 운영자도 못 읽음)
+        // 폴더 비밀번호가 맞거나, 관리자가 폴더를 지우는 경우(내용은 암호라 관리자도 못 읽음)
         const adminDel = b.doc === null && await adminOk(env, decode(request.headers.get('x-admin-key')));
         if (!adminDel && await sha('vh:' + cur.salt + key) !== cur.vh) return json({ error: 'vault' }, 403);
       }
@@ -127,12 +127,12 @@ export async function onRequest({ request, env }) {
     const b = await body(request);
     if (!b) return json({ error: 'bad_json' }, 400);
     const docs = b.docs || {};
-    // 전체 삭제처럼 여러 문서를 한 번에 지우거나 설정(cfg)을 지우는 요청은 운영자만
+    // 전체 삭제처럼 여러 문서를 한 번에 지우거나 설정(cfg)을 지우는 요청은 관리자만
     const ks = Object.keys(docs).filter(ok), curs = {};
     await Promise.all(ks.map(async k => { curs[k] = await env.DB.get(P + k, 'json'); }));
-    // 입력·수정은 누구나, 삭제(문서 삭제·덩어리로 줄어드는 저장)는 운영자만
+    // 입력·수정은 누구나, 삭제(문서 삭제·덩어리로 줄어드는 저장)는 관리자만
     const isDel = b.wipe || ks.some(k => (docs[k] === null && curs[k] != null) || shrinks(k, curs[k], docs[k]));
-    if (isDel && !await adminOk(env, decode(request.headers.get('x-admin-key')))) return json({ error: 'admin', msg: '삭제는 운영자만 할 수 있습니다' }, 403);
+    if (isDel && !await adminOk(env, decode(request.headers.get('x-admin-key')))) return json({ error: 'admin', msg: '삭제는 관리자만 할 수 있습니다' }, 403);
     for (const k of ks) {
       const v = docs[k], cur = curs[k];
       if (v === null && cur == null) continue;
