@@ -1334,7 +1334,7 @@ function markNeg(root){(root||document).querySelectorAll('main td, main .kpi b')
   (root||document).querySelectorAll('main td.in input').forEach(i=>i.classList.toggle('neg',NEG.test(i.value)))}
 new MutationObserver(()=>{clearTimeout(markNeg.t);markNeg.t=setTimeout(()=>markNeg(),0)}).observe(document.querySelector('main'),{childList:true,subtree:true});
 document.addEventListener('input',e=>{if(e.target.matches('td.in input'))e.target.classList.toggle('neg',NEG.test(e.target.value))});
-{const sw=$('#chsw');if(/pages\.dev|localhost|127\.0\.0\.1/.test(location.hostname)||location.protocol=='https:'&&!/claude/.test(location.hostname)){sw.hidden=false;sw.href=CH=='nv'?'/ad/':'/naver/';sw.textContent=CH=='nv'?'쿠팡 광고 장부로 →':'네이버 광고 장부로 →';sw.style.borderColor=CH=='nv'?'#1d3f8f':'#0b7a43';sw.style.color=CH=='nv'?'#1d3f8f':'#0b7a43'}}
+{const sw=$('#chsw');if(/pages\.dev|localhost|127\.0\.0\.1/.test(location.hostname)||location.protocol=='https:'&&!/claude/.test(location.hostname)){sw.hidden=false;sw.href=CH=='nv'?'/ad/':'/naver/';sw.textContent=CH=='nv'?'\uCFE0\uD321 광고 장부로 →':'네이버 광고 장부로 →'/* 네이버 장부 빌드에서 글자가 바뀌지 않게 유니코드로 */;sw.style.borderColor=CH=='nv'?'#1d3f8f':'#0b7a43';sw.style.color=CH=='nv'?'#1d3f8f':'#0b7a43'}}
 /* ---------- 관리자 잠금 (설정 탭) ---------- */
 const ADM={pw:null,set:null,msg:''};
 try{ADM.pw=sessionStorage.getItem('cpad_admpw')}catch(e){}
@@ -1667,7 +1667,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('.xbtn,[data-xall
   if(b.classList.contains('xbtn'))xBox(b.closest('.box'),b);else if(b.dataset.xall=='weeks')xAllWeeks(b);else xTab(b)},true);
 
 /* 새 버전 알림: 사이트가 업데이트되면 '새로고침' 띠를 띄움 (예전 화면으로 계속 작업하는 일 방지) */
-const BUILD='20261119-105555';
+const BUILD='20261119-135227';
 async function verCheck(){if(!/^https?:/.test(location.protocol)||BUILD.startsWith('__'))return;try{const t=await (await fetch(location.pathname,{cache:'no-store'})).text(),m=t.match(/const BUILD='([^']+)'/);
   if(m&&m[1]!==BUILD&&!$('#newver')){const d=document.createElement('div');d.id='newver';d.innerHTML=`<b>새 버전이 올라왔습니다.</b> 지금 화면은 이전 버전이라 업로드 결과가 다를 수 있어요. <button class="b s p" onclick="location.reload()">새로고침</button>`;document.body.prepend(d)}}catch(e){}}
 addEventListener('focus',verCheck);setInterval(()=>{if(document.visibilityState=='visible')verCheck()},120e3);setTimeout(verCheck,3000);
