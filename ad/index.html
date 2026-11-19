@@ -1673,12 +1673,37 @@ function xButtons(){if(!['dash','wk','pw','pm','day','mon','item'].includes(tab)
   sec.querySelectorAll('.box').forEach(b=>{const h=b.querySelector(':scope>h3')||b.querySelector(':scope>details>summary,:scope>.pad>b:first-child');if(!h||h.querySelector('.xbtn')||!b.querySelector('table'))return;
     const x=document.createElement('button');x.className='b s xbtn';x.type='button';x.title='이 표를 엑셀(.xlsx)로 내려받기 · 서식 포함';x.textContent='엑셀 다운로드';h.appendChild(x)});
   if(!sec.querySelector('.xall')){const bar=document.createElement('div');bar.className='xall';bar.innerHTML=`<button class="b s" data-xall="tab">이 탭 표 전체 엑셀</button>${tab=='wk'?'<button class="b s" data-xall="weeks">모든 주차 엑셀 (주차별 시트)</button>':''}`;sec.prepend(bar)}}
+/* 모든 표 끝에 합계 줄: 합계가 없는 표에 자동으로 붙임 (금액·수량은 더하고, ROAS·CTR·CPC·CVR은 합계로 다시 계산) */
+const TSUM=/광고비|순이익|실이익|매출|이익|배송비|효과|수량|판매|노출|클릭|전환|주문|한도|비용|금액|원\)/,TNO=/ROAS|율|CTR|CPC|CVR|단가|개당|평균|목표|판매가|손익분기|권장|순위|%|비중|일수|판정|코드|이름|품목|키워드|캠페인|지면|기간|메모|출처|상태|목적/;
+function tGrid(tr){const o=[];let c=0;for(const td of tr.children){const cs=+td.colSpan||1;o.push({td,c,cs});c+=cs}return o}
+function addTotals(){if(['help','memo','up','cfg'].includes(tab))return;const sec=$('#t-'+tab);if(!sec)return;
+  sec.querySelectorAll('table').forEach(tb=>{if(tb.parentElement.closest('table')||!tb.getClientRects().length||tb.closest('.upguide,.nototal'))return;
+    const rows=[...tb.rows].filter(r=>r.closest('table')===tb);if(rows.length<2)return;
+    const isT=r=>r.classList.contains('gt')&&!r.classList.contains('autot')||/^\s*(합계|소계|위 \d+개|전체|광고 품목 소계|\d+주 합계)/.test((r.cells[0]||{}).innerText||'');
+    if(rows.some(isT))return;
+    const hr=[...rows].reverse().find(r=>r.querySelector('th')&&!r.querySelector('td'))||rows.find(r=>r.querySelector('th'));if(!hr)return;
+    const H={};tGrid(hr).forEach(x=>{H[x.c]=x.td.innerText.replace(/\s+/g,' ').trim()});const ncol=tGrid(hr).reduce((a,x)=>a+x.cs,0);
+    const body=rows.filter(r=>r!==hr&&!r.classList.contains('autot')&&!r.querySelector('th')&&!/\b(sub|sec|st|avg|gap)\b/.test(r.className)&&!/^\s*└/.test((r.cells[0]||{}).innerText||'')&&r.getClientRects().length);if(!body.length)return;
+    const S0={},cnt={};body.forEach(r=>tGrid(r).forEach(x=>{if(x.cs>1)return;const inp=x.td.querySelector('input:not([type=checkbox])');const v=xNum(inp?inp.value:x.td.innerText);if(typeof v.v=='number'){S0[x.c]=(S0[x.c]||0)+v.v;cnt[x.c]=(cnt[x.c]||0)+1}}));
+    const col=re=>{for(const c in H)if(re.test(H[c])&&S0[c]!=null)return S0[c];return null};
+    const ad=col(/^광고비|광고비 계|^비용|총비용/),clk=col(/^클릭/),imp=col(/^노출/),am=col(/전환매출|광고매출/),sm=col(/^(총매출|매출액|매출)(?!이익)/),cv=col(/전환 판매|^전환$|주문|전환수/);
+    const cells=[];for(let c=0;c<ncol;c++){const h=H[c]||'';let v='';
+      if(c==0)v=`합계 (${body.length}개)`;
+      else if(/ROAS/.test(h)&&ad&&(/매출액/.test(h)?sm:am)!=null)v=P((/매출액/.test(h)?sm:am)/ad*100);
+      else if(/^CTR/.test(h)&&imp)v=P1(clk/imp*100);else if(/^CPC/.test(h)&&clk)v=W(ad/clk);else if(/^CVR/.test(h)&&clk&&cv!=null)v=P1(cv/clk*100);
+      else if(tab!='item'&&S0[c]!=null&&TSUM.test(h)&&!TNO.test(h.replace(/광고비|매출|이익/g,'')))v=WN(S0[c]);
+      else if(S0[c]!=null&&!h)v='';
+      cells.push(`<td class="${c?'n':''}">${v}</td>`)}
+    const sig=cells.join('');const old=tb.querySelector('tr.autot');if(old&&old.dataset.sig===sig)return;if(old)old.remove();
+    const tr=document.createElement('tr');tr.className='gt autot';tr.dataset.sig=sig;tr.innerHTML=sig;(tb.tBodies[tb.tBodies.length-1]||tb).appendChild(tr)})}
+document.addEventListener('input',e=>{if(e.target.closest&&e.target.closest('main table')){clearTimeout(addTotals.t);addTotals.t=setTimeout(addTotals,300)}});
+new MutationObserver(()=>{clearTimeout(addTotals.t);addTotals.t=setTimeout(addTotals,80)}).observe(document.querySelector('main'),{childList:true,subtree:true});
 new MutationObserver(()=>{clearTimeout(xButtons.t);xButtons.t=setTimeout(xButtons,50)}).observe(document.querySelector('main'),{childList:true,subtree:true});
 document.addEventListener('click',e=>{const b=e.target.closest('.xbtn,[data-xall]');if(!b)return;e.stopPropagation();loadEJ().catch(()=>{});
   if(b.classList.contains('xbtn'))xBox(b.closest('.box'),b);else if(b.dataset.xall=='weeks')xAllWeeks(b);else xTab(b)},true);
 
 /* 새 버전 알림: 사이트가 업데이트되면 '새로고침' 띠를 띄움 (예전 화면으로 계속 작업하는 일 방지) */
-const BUILD='20261119-140405';
+const BUILD='20261119-140748';
 async function verCheck(){if(!/^https?:/.test(location.protocol)||BUILD.startsWith('__'))return;try{const t=await (await fetch(location.pathname,{cache:'no-store'})).text(),m=t.match(/const BUILD='([^']+)'/);
   if(m&&m[1]!==BUILD&&!$('#newver')){const d=document.createElement('div');d.id='newver';d.innerHTML=`<b>새 버전이 올라왔습니다.</b> 지금 화면은 이전 버전이라 업로드 결과가 다를 수 있어요. <button class="b s p" onclick="location.reload()">새로고침</button>`;document.body.prepend(d)}}catch(e){}}
 addEventListener('focus',verCheck);setInterval(()=>{if(document.visibilityState=='visible')verCheck()},120e3);setTimeout(verCheck,3000);
