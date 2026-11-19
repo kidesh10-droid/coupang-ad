@@ -597,7 +597,7 @@ function rDash(){DPL=null;const el=$('#t-dash'),[yy,mm]=cur.split('-'),X=analyze
       const sk=(L,f)=>L.reduce((a,x)=>a+(f(x)||0),0);
       html+=`<div class="grid2"><div class="box"><h3>캠페인별 <small>${camps.length}개</small></h3><div class="scroll">${tb(camps,'캠페인')}</div></div>
        <div class="box"><h3>노출 지면별</h3><div class="scroll">${tb(pl,'지면')}</div><p class="note pad" style="margin:0">키워드 '-'는 비검색·외부 채널처럼 키워드가 없는 노출입니다.</p></div></div>
-       <div class="grid2"><div class="box"><h3>전환 0건 키워드 <small>광고비 많은 순 15개 · 제외 키워드 후보</small><span style="flex:1"></span><button class="b s p" data-kwx="zero">전체 ${W(z.n)}개 엑셀</button></h3><p class="kwwarn">대표 키워드만 보여줍니다 — 광고비가 커서 <b>당장 대응이 필요한 것</b>만 표시. 전체 ${W(z.n)}개(광고비 ${W(z.c*v)}원)는 <b>'전체 엑셀'</b>로 확인하세요. (자사) 표시는 자사 브랜드·모델 키워드라 제외 대신 입찰가 하향을 권장.</p><div class="scroll"><table><tr><th>키워드</th><th class="n">광고비</th><th class="n">클릭</th><th class="n">노출</th></tr>${kz.map(k=>`<tr><td class="w">${esc(k.k)}${isBrandKw(k.k,(A.kwAll||[]).find(x=>x[0]==k.k)?.[8])?' <span class="chip warn">자사</span>':''}</td><td class="n dn">${W(k.c*v)}</td><td class="n">${W(k.k2)}</td><td class="n">${W(k.i)}</td></tr>`).join('')||'<tr><td colspan="4" class="note">없음</td></tr>'}
+       <div class="grid2"><div class="box"><h3>전환 0건 키워드 <small>광고비 많은 순 15개 · 제외 키워드 후보</small><span style="flex:1"></span><button class="b s p" data-kwx="zero">전체 ${W(z.n)}개 엑셀</button></h3><p class="kwwarn">대표 키워드만 보여줍니다 — 광고비가 커서 <b>당장 대응이 필요한 것</b>만 표시. 전체 ${W(z.n)}개(광고비 ${W(z.c*v)}원)는 <b>'전체 엑셀'</b>로 확인하세요. (자사)·(핵심) = 브랜드·모델명·대표 검색어 → 제외 금지 · (관련) = 상품 관련 검색어 → 제외 말고 입찰가 하향 · (경쟁사) → 제외 1순위.</p><div class="scroll"><table><tr><th>키워드</th><th class="n">광고비</th><th class="n">클릭</th><th class="n">노출</th></tr>${kz.map(k=>`<tr><td class="w">${esc(k.k)}${(()=>{const x=(A.kwAll||[]).find(x=>x[0]==k.k),c=kwClass(k.k,x?.[8],x?[x[8],x[9]]:[]);return c?` <span class="chip ${c=='comp'?'bad':'warn'}">${{brand:'자사',core:'핵심',rel:'관련',comp:'경쟁사'}[c]}</span>`:''})()}</td><td class="n dn">${W(k.c*v)}</td><td class="n">${W(k.k2)}</td><td class="n">${W(k.i)}</td></tr>`).join('')||'<tr><td colspan="4" class="note">없음</td></tr>'}
          <tr class="st"><td>위 ${kz.length}개 소계</td><td class="n">${W(sk(kz,x=>x.c)*v)}</td><td class="n">${W(sk(kz,x=>x.k2))}</td><td class="n">${W(sk(kz,x=>x.i))}</td></tr><tr class="gt"><td>전환 0건 전체 ${z.approx?'약 ':''}${W(z.n)}개</td><td class="n">${W(z.c*v)}</td><td></td><td></td></tr></table></div></div>
        <div class="box"><h3>매출 낸 키워드 <small>광고매출 많은 순 15개</small><span style="flex:1"></span><button class="b s p" data-kwx="all">전체 키워드 엑셀</button></h3><p class="kwwarn">대표 키워드만 보여줍니다. 판매가 난 키워드 전체와 ROAS·연결 상품은 <b>'전체 키워드 엑셀'</b>에서 확인하세요.</p><div class="scroll"><table><tr><th>키워드</th><th class="n">광고비</th><th class="n">광고매출</th><th class="n">ROAS</th><th class="n">판매수량</th></tr>${kg.map(k=>`<tr><td class="w">${esc(k.k)}</td><td class="n">${W(k.c*v)}</td><td class="n">${W(AW(k))}</td><td class="n">${P(k.c?AW(k)/k.c/v*100:null)}</td><td class="n">${W(OW(k))}</td></tr>`).join('')||'<tr><td colspan="5" class="note">없음</td></tr>'}
          <tr class="gt"><td>위 ${kg.length}개 합계</td><td class="n">${W(sk(kg,x=>x.c)*v)}</td><td class="n">${W(sk(kg,AW))}</td><td class="n">${P(sk(kg,x=>x.c)?sk(kg,AW)/sk(kg,x=>x.c)/v*100:null)}</td><td class="n">${W(sk(kg,OW))}</td></tr></table></div></div></div>`}}
@@ -886,10 +886,11 @@ function judge(v,hist,mode){if(!v||(v.c<=0&&v.s<=0))return null;
   const seq=[...hist,v];let ls=0;for(let i=seq.length-1;i>=0&&seq[i].after<0;i--)ls++;
   if(ls>=3)acts.push({pri:1,t:`${ls}${per} 연속 적자 — 운영 방향 정하기`,why:`최근 ${ls}${per} 누적 순이익 ${WN(seq.slice(-ls).reduce((a,x)=>a+x.after,0))}원`,eff:0,how:'재고 소진·랭킹 유지가 목적이면 전략 품목으로 지정해 손실 한도를 정하고, 아니면 예산을 절반으로 줄여 한두 주 자연 판매 비중을 확인'});
   const kw=(v.kw||[]).filter(k=>k.k!='-'),dash=(v.kw||[]).find(k=>k.k=='-');
-  const BR=['라이브박스','livebox','케민','kemin','사운드피츠','soundpeats','한일','온트레일러','캔스톤','브이스팀','퓨어',...(modelOf(v.name||'')?[modelOf(v.name).toLowerCase()]:[])],isBr=k=>{const t=norm(k.k);return BR.some(b=>t.includes(norm(b)))};
-  if(kw.length&&v.c>0){const zAll=kw.filter(k=>k.c>0&&!AW(k)).sort((a,b)=>b.c-a.c),z=zAll.filter(k=>!isBr(k)),zb=zAll.filter(isBr),zc=z.reduce((a,k)=>a+k.c,0);
-    if(zb.length&&zb.reduce((a,k)=>a+k.c,0)>v.c*.03)acts.push({pri:2,t:`자사 브랜드 키워드 ${zb.length}개 전환 0 — 제외하지 말고 점검`,why:`브랜드·모델명 검색인데 광고비 ${W(zb.reduce((a,k)=>a+k.c,0))}원에 판매 0개`,eff:0,how:`${zb.slice(0,5).map(k=>k.k).join(', ')} — 가격·품절·상세페이지·리뷰 확인, 입찰가만 낮추기`});
-    if(z.length&&zc>v.c*.03)acts.push({pri:zc>v.c*.12?1:2,t:`제외 키워드 등록 ${Math.min(z.length,10)}개`,why:`전환 0건 키워드에 ${W(zc)}원(광고비의 ${P(zc/v.c*100)})`,eff:z.slice(0,10).reduce((a,k)=>a+k.c,0),how:z.slice(0,10).map(k=>`${k.k}(${W(k.c)})`).join(', ')});
+  const kcl=k=>kwClass(k.k,v.name,v.an),isBr=k=>['brand','core'].includes(kcl(k));
+  if(kw.length&&v.c>0){const zAll=kw.filter(k=>k.c>0&&!AW(k)).sort((a,b)=>b.c-a.c),zb=zAll.filter(isBr),zr=zAll.filter(k=>kcl(k)=='rel'),z=zAll.filter(k=>!isBr(k)&&kcl(k)!='rel').sort((a,b)=>(kcl(b)=='comp')-(kcl(a)=='comp')||b.c-a.c),zc=z.reduce((a,k)=>a+k.c,0);
+    if(zb.length&&zb.reduce((a,k)=>a+k.c,0)>v.c*.03)acts.push({pri:2,t:`자사·핵심 키워드 ${zb.length}개 판매 0 — 제외 금지, 점검`,why:`브랜드·모델명·대표 검색어인데 광고비 ${W(zb.reduce((a,k)=>a+k.c,0))}원에 판매 0개 (이 기간만의 일일 수 있음)`,eff:0,how:`${zb.slice(0,5).map(k=>k.k).join(', ')} — 가격·품절·상세페이지·리뷰 확인, 입찰가만 낮추기`});
+    if(z.length&&zc>v.c*.03)acts.push({pri:zc>v.c*.12?1:2,t:`제외 키워드 등록 ${Math.min(z.length,10)}개 (상품과 무관·경쟁사)`,why:`판매 0인 무관·경쟁사 키워드에 ${W(zc)}원(광고비의 ${P(zc/v.c*100)}) · 자사·대표·관련 검색어는 제외 목록에서 뺐음`,eff:z.slice(0,10).reduce((a,k)=>a+k.c,0),how:z.slice(0,10).map(k=>`${k.k}(${W(k.c)})${kcl(k)=='comp'?' 경쟁사':''}`).join(', ')});
+    const zrc=zr.reduce((a,k)=>a+k.c,0);if(zr.length&&zrc>v.c*.03)acts.push({pri:2,t:`관련 키워드 ${zr.length}개 판매 0 — 제외 말고 입찰가 하향`,why:`상품과 관련된 검색어인데 광고비 ${W(zrc)}원에 판매 0개 · 이 기간만의 일일 수 있어 끄지 말고 입찰가를 낮춰 지켜보기`,eff:0,how:zr.slice(0,8).map(k=>`${k.k}(${W(k.c)})`).join(', ')});
     const up=kw.filter(k=>k.c>0&&OW(k)>=1&&bep&&AW(k)/k.c*100>=Math.max(bep*2,(roas||0)*1.3)).sort((a,b)=>AW(b)-AW(a)).slice(0,6);
     if(up.length&&st!='stop')acts.push({pri:3,t:`잘 팔리는 키워드 입찰 상향 ${up.length}개`,why:'손익분기의 2배 이상 ROAS + 판매 있음',eff:0,how:up.map(k=>`${k.k}(${P(AW(k)/k.c*100)})`).join(', ')});
     const dn=kw.filter(k=>k.c>v.c*.02&&OW(k)>=1&&bep&&AW(k)/k.c*100<bep).sort((a,b)=>b.c-a.c).slice(0,6);
@@ -903,7 +904,7 @@ const PRI={1:['긴급','bad'],2:['개선','warn'],3:['기회','good']};
 const actRow=(a,nm)=>`<tr><td><span class="chip ${PRI[a.pri][1]}">${PRI[a.pri][0]}</span></td>${nm!=null?`<td class="w"><b>${esc(short(nm).t)}</b></td>`:''}<td class="w"><b>${esc(a.t)}</b><small>${esc(a.why)}</small></td><td class="w" style="max-width:520px;white-space:pre-line">${esc(a.how)}</td><td class="n">${a.eff?(a.pri==3?'+':'')+W(a.eff)+'원':''}</td></tr>`;
 /* ---------- 품목 분석 ---------- */
 const kwMerge=lists=>{const m={};for(const L of lists)for(const x of L||[]){const o=m[x.k]||(m[x.k]={k:x.k,c:0,i:0,k2:0,o1:0,o14:0,a1:0,a14:0});for(const f of['c','i','k2','o1','o14','a1','a14'])o[f]+=n(x[f])}return Object.values(m)};
-const norm1=(o,src)=>({cm:o.cm||null,imp:n(src=='w'?o.imp:o.i),clk:n(src=='w'?o.clk:o.k),c:n(o.c),conv:n(src=='w'?o.conv:o.o),as:n(src=='w'?o.as:o.a),s:n(o.s),q:n(o.q),p:n(o.p),sh:n(o.sh),after:n(o.after),tgt:o.tgt||null});
+const norm1=(o,src)=>({cm:o.cm||null,imp:n(src=='w'?o.imp:o.i),clk:n(src=='w'?o.clk:o.k),c:n(o.c),conv:n(src=='w'?o.conv:o.o),as:n(src=='w'?o.as:o.a),s:n(o.s),q:n(o.q),p:n(o.p),sh:n(o.sh),after:n(o.after),tgt:o.tgt||null,an:o.adNames||null});
 const cmAdd=(a,b)=>{if(!b)return a;const o=JSON.parse(JSON.stringify(a||{}));for(const c in b){const t=o[c]||(o[c]={imp:0,clk:0,c:0,conv:0,as:0});for(const f in t)t[f]+=n(b[c][f])}return o};
 function paData(){const B=wkBuild(),ms=[...new Set([...Object.keys(S.mon),...Object.keys(S.day).map(d=>d.slice(0,7))])].sort(),MX={};
   ms.forEach(m=>{const X=analyze(m);if(X&&X.rows.length)MX[m]=X});const months=Object.keys(MX).sort();
@@ -1645,12 +1646,34 @@ async function xWrite(list,fname,btn){const lab=btn&&btn.textContent;if(btn){btn
     const buf=await wb.xlsx.writeBuffer(),a=document.createElement('a');a.href=URL.createObjectURL(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));a.download=xFile(fname);document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},2000)}
   catch(e){if(window.XLSX){const wb=XLSX.utils.book_new(),used=new Set();list.forEach(d=>{const A=d.R.map(r=>Array.from({length:d.W},(_,i)=>r[i]?r[i].v:''));const ws=XLSX.utils.aoa_to_sheet(A);ws['!merges']=d.M;XLSX.utils.book_append_sheet(wb,ws,sheetName(d.title,used))});XLSX.writeFile(wb,xFile(fname))}}
   finally{if(btn){btn.disabled=false;btn.textContent=lab}}}
-const BRW=['라이브박스','livebox','케민','kemin','사운드피츠','soundpeats','한일','일신','온트레일러','아이온','캔스톤','브이스팀','vsteam','퓨어','pure'];
-const isBrandKw=(k,p)=>{const t=norm(k),md=p&&modelOf(p);return BRW.some(b=>t.includes(norm(b)))||!!(md&&t.includes(norm(md)))};
+const BRW=['라이브박스','livebox','케민','kemin','사운드피츠','soundpeats','한일','일신','온트레일러','ontrailer','아이온','캔스톤','브이스팀','vsteam','퓨어','pure','피파인','피핀','fifine','fifne','알피쿨','알피콜','alpicool','디앤디컴','진진로진','꼼지락','리케이','링킨'];
+const GENW=new Set(['블랙','화이트','그레이','실버','딥그레이','웜베이지','베이지','핑크','보라','네이비','싱글','더블','세트','대형','소형','미니','신형','정품','전용','해외','추가','관리','키워드','브랜드','일반','매체','통합','소재','강화','효율화','시즌','테스트','진행중','공통']);
+/* 키워드 분류: brand = 자사 브랜드·모델명, core = 그 상품의 대표 검색어(상품명·광고그룹 이름의 핵심 낱말) → 둘 다 '제외' 금지 */
+const KSYN=t=>t.replace(/드라이어/g,'드라이기').replace(/스텐드/g,'스탠드').replace(/커피머신|커피기계/g,'커피머신').replace(/전기장판|전기매트|탄소매트|온열매트/g,'전기매트').replace(/진공기|진공포장기|진공밀봉기/g,'진공포장기');
+const sh2=t=>{const o=new Set();for(let i=0;i<t.length-1;i++)o.add(t.slice(i,i+2));return o};
+const contain=(a,b)=>{const A=sh2(a),B=sh2(b);if(!A.size)return 0;let c=0;A.forEach(x=>{if(B.has(x))c++});return c/A.size};
+/* 키워드 분류: brand = 자사 브랜드·모델명, core = 그 상품의 대표 검색어(상품명·광고그룹 이름과 거의 같은 말) → 둘 다 '제외' 금지 */
+function kwClass(k,name,groups){const t=KSYN(norm(k));if(!t)return null;if(BRW.some(b=>t.includes(norm(b))))return'brand';
+  const nm=String(name||''),models=(nm.toUpperCase().match(/[A-Z]{1,4}-?\d{1,4}[A-Z]?\d*/g)||[]).map(norm).filter(x=>x.length>=3);if(models.some(m=>t.includes(m)))return'brand';
+  const words=nm.split(/[^0-9A-Za-z가-힣]+/).map(x=>KSYN(x.toLowerCase())).filter(x=>x.length>=2&&!GENW.has(x)&&!/^\d+$/.test(x)&&/[가-힣]/.test(x));
+  const heads=new Set(words);for(let i=0;i<words.length-1;i++){heads.add(words[i]+words[i+1]);if(i<words.length-2)heads.add(words[i]+words[i+1]+words[i+2])}
+  if(heads.has(t))return'core';
+  const targets=[...heads,...(groups||[]).map(g=>KSYN(norm(String(g).split('·')[0].replace(/^\s*\d+\s*/,'').replace(/(브랜드\s*)?(일반\s*)?키워드_?|매체_?|_소재\d*|_브랜드요청|_추가\s*관리|_효율화/g,''))))].filter(x=>x&&x.length>=2);
+  for(const g of targets){if(t==g)return'core';const c=contain(t,g);if(t.length>=3&&(c>=.85||(t.length<=8&&c>=.75)))return'core'}
+  if(COMP.some(b=>t.includes(norm(b))))return'comp';
+  const ctx=KSYN(norm(nm+' '+(groups||[]).join(' ')+' '+NAMEHINT.filter(([re])=>re.test(nm+' '+(groups||[]).join(' '))).map(x=>x[1]).join(' ')));if(HEADN.some(h=>ctx.includes(h)&&t.includes(h)))return'rel';
+  return null}
+/* 상품 종류를 나타내는 낱말: 이 말이 들어간 키워드는 '관련 키워드'(제외 대신 입찰가 하향) */
+const HEADN=['다리미','커피머신','에스프레소','드라이기','가습기','냉장고','냉동고','온장고','마이크','스탠드','마이크암','붐암','전기매트','진공포장기','진공','에어건','블로워','이어폰','청소기','랜턴','에어펌프','공기주입기','스피커','ssd','그래픽카드'];
+/* 상품명에 종류가 안 적힌 품목의 종류 */
+const NAMEHINT=[[/kemin|케민|alpicool|알피쿨|jd35|온트레일러.*(냉|jd)/i,'냉장고 냉동고 냉온장고 온장고'],[/사운드피츠|soundpeats|t3\s*pro|pearlclip/i,'이어폰'],[/am8|bm88|피핀|피파인|fifine/i,'마이크 스탠드'],[/aion|아이온|ag150/i,'에어건 블로워'],[/al4200|에어펌프/i,'에어펌프 랜턴'],[/vp8310|진공\s*포장/i,'진공포장기'],[/hf500|가습기/i,'가습기'],[/th114|th116|드라이/i,'드라이기']];
+/* 경쟁사·다른 브랜드: 판매 0이면 제외 1순위 */
+const COMP=['다이슨','dyson','필립스','philips','윈토르','벤딕트','브라이언','qcy','레드미','redmi','루리랩','jrl','크루거','hons','네스프레소','nespresso','아우틴','마키타','샤오미','보아르','신일','테팔','드롱기','유닉스','에어팟','airpods','로데','rode','슈어','shure','블루예티','블루예티','아이피쿨','미닉스'];
+const isBrandKw=(k,p,g)=>!!kwClass(k,p,g);
 function xKw(kind,btn){const A=monthAD(cur);if(!A)return;const v=VAT(),win=S.cfg.win==1?1:14,L=(A.kwAll&&A.kwAll.length?A.kwAll:A.kws.filter(k=>k.k!='-').map(k=>[k.k,k.c,k.i,k.k2,k.o1,k.o14,k.a1,k.a14,'','']));
   const o=x=>win==1?n(x[4]):n(x[5]),a=x=>win==1?n(x[6]):n(x[7]),hd=c=>c.map(t=>({v:t,h:true}));const lists=[];
   const z=L.filter(x=>n(x[1])>0&&!o(x)&&!a(x)).sort((p,q)=>q[1]-p[1]),zs=z.reduce((s,x)=>s+n(x[1]),0);
-  const act=x=>{const c=n(x[1])*v;if(isBrandKw(x[0],x[8]))return'자사 키워드 · 입찰가 하향(제외 X)';return c>=10000?'제외 등록 (긴급)':c>=3000?'제외 검토':c>=1000?'지켜보기':'소액 · 정리 선택'};
+  const act=x=>{const c=n(x[1])*v,kc=kwClass(x[0],x[8],[x[8],x[9]]);if(kc=='brand')return'자사 브랜드·모델 키워드 · 제외 금지 · 입찰가만 조정';if(kc=='core')return'대표 검색어(핵심) · 제외 금지 · 입찰가·소재 점검';if(kc=='rel')return c>=3000?'관련 키워드 · 제외 말고 입찰가 하향':'관련 키워드 · 지켜보기';if(kc=='comp')return'경쟁사 키워드 · 제외 등록';return c>=10000?'제외 등록 (긴급)':c>=3000?'제외 검토':c>=1000?'지켜보기':'소액 · 정리 선택'};
   const rowZ=(x,i)=>[{v:i+1,z:'#,##0'},{v:x[0],b:i<15},{v:x[8]||''},{v:x[9]||''},{v:Math.round(n(x[1])*v),z:'#,##0',neg:true},{v:n(x[3]),z:'#,##0'},{v:n(x[2]),z:'#,##0'},{v:n(x[2])?n(x[3])/n(x[2]):0,z:'0.0%'},{v:n(x[3])?Math.round(n(x[1])*v/n(x[3])):0,z:'#,##0'},{v:z.length&&zs?n(x[1])/zs:0,z:'0.0%'},{v:act(x),neg:/긴급/.test(act(x))}];
   if(kind=='zero'||kind=='all'){const R0=[hd(['순위','키워드','연결 상품(광고비 최다)','캠페인','광고비','클릭','노출','CTR','CPC','0건 광고비 중 비중','권장 대응'])];z.forEach((x,i)=>R0.push(rowZ(x,i)));
     R0.push([{v:'합계'},{v:`${z.length}개`},{v:''},{v:''},{v:Math.round(zs*v),z:'#,##0'},{v:z.reduce((s,x)=>s+n(x[3]),0),z:'#,##0'},{v:z.reduce((s,x)=>s+n(x[2]),0),z:'#,##0'},{v:''},{v:''},{v:1,z:'0%'},{v:''}]);
@@ -1703,7 +1726,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('.xbtn,[data-xall
   if(b.classList.contains('xbtn'))xBox(b.closest('.box'),b);else if(b.dataset.xall=='weeks')xAllWeeks(b);else xTab(b)},true);
 
 /* 새 버전 알림: 사이트가 업데이트되면 '새로고침' 띠를 띄움 (예전 화면으로 계속 작업하는 일 방지) */
-const BUILD='20261119-140748';
+const BUILD='20261119-141425';
 async function verCheck(){if(!/^https?:/.test(location.protocol)||BUILD.startsWith('__'))return;try{const t=await (await fetch(location.pathname,{cache:'no-store'})).text(),m=t.match(/const BUILD='([^']+)'/);
   if(m&&m[1]!==BUILD&&!$('#newver')){const d=document.createElement('div');d.id='newver';d.innerHTML=`<b>새 버전이 올라왔습니다.</b> 지금 화면은 이전 버전이라 업로드 결과가 다를 수 있어요. <button class="b s p" onclick="location.reload()">새로고침</button>`;document.body.prepend(d)}}catch(e){}}
 addEventListener('focus',verCheck);setInterval(()=>{if(document.visibilityState=='visible')verCheck()},120e3);setTimeout(verCheck,3000);
