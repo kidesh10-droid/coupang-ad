@@ -598,8 +598,32 @@ function wkCheck(id){const w=S.wk[id],L=[],SL=shipList(),K=wkKeys([...w.rows.map
     const f=fee[K[r.name]];if(r.unit&&f!=null&&n(r.unit)!=f)L.push(`${nm}: 엑셀의 개당 배송비 ${W(r.unit)}원이 배송비 표(${W(f)}원)와 달라 <b>배송비 표 ${W(f)}원 기준</b>으로 계산했습니다${q?` (배송비 ${W(Math.abs(n(r.unit)-f)*q)}원 차이)`:''}.`);
     if(q>0&&(r.sh==null||n(r.sh)==0))L.push(`${nm}: 판매수량 ${W(q)}개인데 배송비 칸이 ${r.sh==null?'비어 있어':'0원이라'} 장부에서 개당 배송비로 채워 계산했습니다.`)}
   return L}
-function mergeWkAd(from,to,ad){let id=Object.keys(S.wk).find(k=>S.wk[k].from==from)||Object.keys(S.wk).find(k=>S.wk[k].from<=to&&S.wk[k].to>=from);
-  if(!id){id=from;S.wk[id]={from,to,rows:[]}}const w=S.wk[id];
+/* 주차 찾기 · 없으면 직전 주 품목 줄(이름·목표·판매가·개당 배송비)을 틀로 새로 만듦 */
+function wkGet(from,to){let id=Object.keys(S.wk).find(k=>S.wk[k].from==from)||Object.keys(S.wk).find(k=>S.wk[k].from<=to&&S.wk[k].to>=from);
+  /* 광고 리포트만으로 자동 생성된 주(매출·판매가·목표가 하나도 없음)는 직전 주 틀로 다시 만듦 */
+  const bare=id&&S.wk[id].rows.every(r=>!n(r.s)&&!n(r.q)&&!n(r.p)&&r.tgt==null&&!n(r.price));
+  if(!id||bare){const keep=id?S.wk[id]:null;id=id||from;const prev=Object.keys(S.wk).filter(k=>k<from).sort().pop(),P=prev?S.wk[prev].rows:[];if(keep&&!P.length)return id;
+    S.wk[id]={from,to,rows:P.map(r=>({name:r.name,tgt:r.tgt??null,price:r.price||0,unit:r.unit||0,budget:r.budget||0,promo:r.promo||'',st:r.st||'',note:'',imp:0,clk:0,g:0,nw:0,conv:0,as:0,s:0,q:0,p:0,sh:null}))}}
+  return id}
+const dayDiff=(a,b)=>Math.round((new Date(b)-new Date(a))/864e5)+1;
+/* 이카운트 기간 자료 → 그 주 품목 줄의 매출액·판매수량·매출이익 */
+function mergeWkEc(from,to,ec){const id=wkGet(from,to),w=S.wk[id],items=ec.items.filter(([,,q,s,p])=>q||s||p);
+  const K=wkKeys([...w.rows.map(r=>r.name),...items.map(i=>i[1])]),first={};w.rows.forEach((r,i)=>{const k=K[r.name];if(first[k]==null)first[k]=i});
+  const fixK=k=>{if(first[k]!=null||!k||!k.startsWith('M:'))return k;const m=k.slice(2);return Object.keys(first).find(x=>x.startsWith('M:')&&(m.startsWith(x.slice(2))||x.slice(2).startsWith(m)))||k};
+  const agg={},other=[];for(const it of items){const k=fixK(K[it[1]]);if(first[k]==null){other.push(it);continue}const o=agg[k]||(agg[k]={s:0,q:0,p:0});o.q+=n(it[2]);o.s+=n(it[3]);o.p+=n(it[4])}
+  let upd=0;w.rows.forEach((r,i)=>{const k=K[r.name],o=first[k]===i?agg[k]:null;if(o)upd++;Object.assign(r,{s:o?Math.round(o.s):0,q:o?o.q:0,p:o?Math.round(o.p):0})});
+  w.ecFile=ec.file;save(['wk']);UI.wk=id;return{id,upd,other}}
+/* 월 자료는 기간 조각으로 쌓아 합침: 겹치지 않으면 더하고, 이미 포함된 기간이면 그대로 */
+function monAdd(m,kind,seg){const M=S.mon[m]||(S.mon[m]={}),key=kind=='ec'?'ecs':'ads';
+  let L=M[key]||(M[kind]?[{...M[kind],from:M[kind].from||(kind=='ad'&&M.ec&&M.ec.from)||m+'-01',to:M[kind].to||(kind=='ad'&&M.ec&&M.ec.to)||m+'-31'}]:[]);
+  const inside=L.find(x=>x.from<=seg.from&&x.to>=seg.to&&!(x.from==seg.from&&x.to==seg.to));if(inside)return{skip:inside};
+  const drop=L.filter(x=>!(x.to<seg.from||x.from>seg.to)),part=drop.filter(x=>!(x.from>=seg.from&&x.to<=seg.to));
+  L=L.filter(x=>!drop.includes(x));L.push(seg);L.sort((a,b)=>a.from<b.from?-1:1);M[key]=L;
+  const f=L[0].from,t=L.reduce((a,x)=>x.to>a?x.to:a,'');
+  if(kind=='ec'){const r=L.length==1?{...L[0]}:mergeEC(L);r.from=f;r.to=t;r.file=L.map(x=>x.file).join(' + ');M.ec=r;r.items.forEach(([c,nm])=>S.names[c]=nm)}
+  else{const r=L.length==1?{...L[0]}:mergeAD(L);r.from=f;r.to=t;r.file=L.map(x=>x.file).join(' + ');M.ad=r}
+  save(['m'+m,'cfg']);return{L,part,f,t}}
+function mergeWkAd(from,to,ad){const id=wkGet(from,to),w=S.wk[id];
   const names=Object.keys(ad.prods).filter(nm=>{const x=ad.prods[nm];return n(x.c)>0||AW(x)>0||n(x.i)>0});
   const K=wkKeys([...w.rows.map(r=>r.name),...names]),first={};w.rows.forEach((r,i)=>{const k=K[r.name];if(first[k]==null)first[k]=i});
   const base={};names.forEach(nm=>{const bt=short(nm).t;(base[bt]||(base[bt]=[])).push(nm)});
@@ -607,7 +631,7 @@ function mergeWkAd(from,to,ad){let id=Object.keys(S.wk).find(k=>S.wk[k].from==fr
   const fix=k=>{if(first[k]!=null||!k.startsWith('M:'))return k;const m=k.slice(2),hit=Object.keys(first).find(x=>x.startsWith('M:')&&(m.startsWith(x.slice(2))||x.slice(2).startsWith(m)));return hit||k};
   const agg={};for(const nm of names){const x=ad.prods[nm],k=fix(K[nm]),o=agg[k]||(agg[k]={name:short(nm).t,imp:0,clk:0,c:0,conv:0,as:0,kw:[]});o.imp+=n(x.i);o.clk+=n(x.k);o.c+=n(x.c);o.conv+=OW(x);o.as+=AW(x);if(x.kw)o.kw=kwMerge([o.kw,x.kw]);if(x.cm){o.cm=o.cm||{};for(const c in x.cm){const y=x.cm[c],t=o.cm[c]||(o.cm[c]={imp:0,clk:0,c:0,conv:0,as:0});t.imp+=n(y.i);t.clk+=n(y.k);t.c+=n(y.c);t.conv+=OW(y);t.as+=AW(y)}}}
   let upd=0,add=0;const miss=[];
-  for(const k in agg){const o=agg[k];let i=first[k];if(i==null){w.rows.push({name:o.name,sh:null});i=w.rows.length-1;first[k]=i;add++}else upd++;
+  for(const k in agg){const o=agg[k];let i=first[k];if(i==null){w.rows.push({name:o.name||k.replace(/^[A-Za-z]:/,''),sh:null});i=w.rows.length-1;first[k]=i;K[w.rows[i].name]=k;add++}else upd++;
     Object.assign(w.rows[i],{imp:o.imp,clk:o.clk,g:Math.round(o.c),nw:0,conv:o.conv,as:Math.round(o.as),kw:o.kw.length?o.kw:null,cm:o.cm||null})}
   w.rows.forEach((r,i)=>{const k=fix(K[r.name]||'');if(agg[k]&&first[k]!==i)Object.assign(r,{imp:0,clk:0,g:0,nw:0,conv:0,as:0,kw:null,cm:null});else if(!agg[k]&&n(r.g)+n(r.nw)>0)miss.push(r.name)});
   w.adFile=ad.file;w.to=w.to||to;save(['wk']);UI.wk=id;return{id,upd,add,miss}}
@@ -1061,11 +1085,19 @@ const moveCtl=(kind,sc,k)=>`<span class="row"><input class="t" type="${sc=='d'?'
 function loadRows(rows,name){rows=rows.filter(r=>r&&r.some(c=>c!==''&&c!=null));if(!rows.length){upMsg(`${esc(name)}: 내용이 비어 있습니다.`,1);return}
   const kind=detect(rows);
   if(kind=='ec'){const{scope,key,data}=parseEC(rows,name);if(!data.items.length){upMsg(`${esc(name)}: 품목 행을 찾지 못했습니다.`,1);return}
+    const head=`<b>이카운트 품목별 이익현황</b> · ${esc(name)}<br>${data.from?data.from+' ~ '+data.to+' · ':''}품목 ${data.items.length}개 · 매출 ${W(data.tot.s)}원 · 이익 ${W(data.tot.p)}원`;
+    if(scope=='m'&&data.from&&data.to&&data.from.slice(0,7)==data.to.slice(0,7)){const dn=dayDiff(data.from,data.to),m=data.from.slice(0,7),L=[];
+      if(dn<=10){const r=mergeWkEc(data.from,data.to,data);L.push(`→ <b>주간 ${wlab(S.wk[r.id])}</b> 품목 ${r.upd}개에 매출액·판매수량·매출이익 입력${r.other.length?` (광고 품목이 아닌 ${r.other.length}개 · 매출 ${W(r.other.reduce((a,i)=>a+n(i[3]),0))}원은 주간 표에 없음)`:''}`)}
+      const mr=monAdd(m,'ec',{...data});
+      L.push(mr.skip?`→ ${m} 월 자료는 이미 ${mr.skip.from.slice(5)}~${mr.skip.to.slice(5)} 기간을 포함하고 있어 그대로 둠`:`→ <b>${m} 월 자료</b>에 합침: 이제 ${mr.f.slice(5)}~${mr.t.slice(5)} (${mr.L.length}개 기간) · 매출 ${W(S.mon[m].ec.tot.s)}원${mr.part.length?` <span class="dn">· 겹치는 이전 자료 ${mr.part.map(x=>x.from.slice(5)+'~'+x.to.slice(5)).join(', ')}는 빼고 이번 파일로 대체</span>`:''}`);
+      cur=m;$('#mp').value=cur;upMsg(`<span>${head}<br>${L.join('<br>')}</span><button class="b s p" data-go="wk">주간 보기</button><button class="b s p" data-go="dash">대시보드</button>`);renderAll();return}
     put(scope,key,'ec',data);cur=key.slice(0,7);$('#mp').value=cur;
-    upMsg(`<span><b>이카운트 품목별 이익현황</b> · ${esc(name)}<br>${data.from?data.from+' ~ '+data.to+' · ':''}품목 ${data.items.length}개 · 매출 ${W(data.tot.s)}원 · 이익 ${W(data.tot.p)}원 → ${where(scope,key)}</span>${moveCtl('ec',scope,key)}`);renderAll();return}
+    upMsg(`<span>${head} → ${where(scope,key)}</span>${moveCtl('ec',scope,key)}`);renderAll();return}
   if(kind=='ad'){const{scope,key,to,data}=parseAD(rows,name);
+    if(scope=='w'&&key.slice(0,7)==to.slice(0,7)){const mr=monAdd(key.slice(0,7),'ad',{...data,from:key,to});data._mon=mr.skip?`${key.slice(0,7)} 월 광고 자료는 이미 ${mr.skip.from.slice(5)}~${mr.skip.to.slice(5)} 기간을 포함해 그대로 둠`:`<b>${key.slice(0,7)} 월 광고 자료</b>에 합침: 이제 ${mr.f.slice(5)}~${mr.t.slice(5)} · 광고비 ${W(S.mon[key.slice(0,7)].ad.tot.c)}원${mr.part.length?` <span class="dn">· 겹치는 이전 자료 ${mr.part.map(x=>x.from.slice(5)+'~'+x.to.slice(5)).join(', ')}는 빼고 대체</span>`:''}`}
+    if(scope=='w'&&dayDiff(key,to)>10){cur=key.slice(0,7);$('#mp').value=cur;upMsg(`<span><b>쿠팡 광고 리포트(${key.slice(5)}~${to.slice(5)}, ${dayDiff(key,to)}일)</b> · ${esc(name)}<br>${W(data.rows)}행 · 광고비 ${W(data.tot.c)}원 → ${data._mon||'월 자료'}<br><span class="note">10일이 넘는 기간이라 주간 표에는 넣지 않았습니다.</span></span><button class="b s p" data-go="dash">대시보드</button>`);renderAll();return}
     if(scope=='w'){const r=mergeWkAd(key,to,data);cur=key.slice(0,7);$('#mp').value=cur;
-      upMsg(`<span><b>쿠팡 광고 리포트(주간 ${wlab({from:key,to})})</b> · ${esc(name)}<br>${W(data.rows)}행 · 광고비 ${W(data.tot.c)}원 · 전환매출(${S.cfg.win==1?'1일':'14일'}) ${W(AW(data.tot))}원 → <b>주간 ${wlab(S.wk[r.id])}</b> 품목 ${r.upd}개 갱신${r.add?` · ${r.add}개 추가`:''}${r.miss.length?` · 리포트에 없는 품목: ${r.miss.map(x=>esc(short(x).t)).join(', ')}`:''}<br><span class="note">노출·클릭·광고비·전환 판매(주문수)·전환매출을 리포트 값으로 바꿨고, 매출액·매출이익은 그대로입니다.</span></span><button class="b s p" data-go="wk">주간 보기</button>`);renderAll();return}
+      upMsg(`<span><b>쿠팡 광고 리포트(주간 ${wlab({from:key,to})})</b> · ${esc(name)}<br>${W(data.rows)}행 · 광고비 ${W(data.tot.c)}원 · 전환매출(${S.cfg.win==1?'1일':'14일'}) ${W(AW(data.tot))}원 → <b>주간 ${wlab(S.wk[r.id])}</b> 품목 ${r.upd}개 갱신${r.add?` · ${r.add}개 추가`:''}${r.miss.length?` · 리포트에 없는 품목: ${r.miss.map(x=>esc(short(x).t)).join(', ')}`:''}${data._mon?'<br>→ '+data._mon:''}<br><span class="note">노출·클릭·광고비·전환 판매(주문수)·전환매출을 리포트 값으로 바꿨습니다. 매출액·판매수량·매출이익은 같은 기간 이카운트 파일을 올리면 채워집니다.</span></span><button class="b s p" data-go="wk">주간 보기</button><button class="b s p" data-go="dash">대시보드</button>`);renderAll();return}
     put(scope,key,'ad',data);cur=key.slice(0,7);$('#mp').value=cur;
     upMsg(`<span><b>쿠팡 광고 리포트</b> · ${esc(name)}<br>${W(data.rows)}행 · 캠페인 ${Object.keys(data.camps).length}개 · 광고비 ${W(data.tot.c)}원 · 전환매출(14일) ${W(data.tot.a14)}원 → ${where(scope,key)}</span>${moveCtl('ad',scope,key)}`);renderAll();return}
   if(kind=='dl'){const bl=parseDL(rows);if(!bl.length){upMsg(`${esc(name)}: 일별 성과 블록을 찾지 못했습니다.`,1);return}const r2=mergeDL(bl);upMsg(`<span><b>품목별 일자 광고 성과</b> · ${esc(name)}<br>품목 시트 ${bl.length}개(${bl.map(b=>esc(b.title)).join(', ')}) · 일자 ${r2.nd}줄 반영</span><button class="b s p" data-go="day">일자별 보기</button>`);renderAll();return}
