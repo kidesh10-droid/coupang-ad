@@ -114,6 +114,7 @@ table.xl th.hl{background:light-dark(#fff59d,#4a4520)!important;color:light-dark
 .admdlg{position:fixed;inset:0;background:rgba(0,0,0,.35);display:grid;place-items:center;z-index:100}.admdlg .box{width:min(420px,92vw);margin:0;box-shadow:0 10px 40px rgba(0,0,0,.25)}
 #newver{position:sticky;top:0;z-index:50;background:#fff3cd;color:#5c4400;border-bottom:2px solid #e0a800;padding:8px 14px;display:flex;gap:10px;align-items:center;justify-content:center;font-size:14px}
 .xbtn{margin-left:6px;flex:none}.xall{display:flex;gap:6px;justify-content:flex-end;margin:0 0 8px}
+.kwwarn{color:var(--red);font-size:13px;margin:0;padding:8px 12px;border-bottom:1px solid var(--line);background:light-dark(#fff5f5,#2a1616)}
 </style>
 </head>
 <body>
@@ -272,7 +273,7 @@ function mergeAD(L){const R={rows:0,tot:z7(),camps:{},prods:{},place:{},kws:[],d
   for(const a of L){R.rows+=a.rows;add7(R.tot,a.tot);for(const k in a.camps)add7(R.camps[k]||(R.camps[k]=z7()),a.camps[k]);for(const k in a.place)add7(R.place[k]||(R.place[k]=z7()),a.place[k]);
     for(const k in a.prods){const p=R.prods[k]||(R.prods[k]={...z7(),cs:{}});add7(p,a.prods[k]);if(a.prods[k].kw)p.kw=kwMerge([p.kw,a.prods[k].kw]);if(a.prods[k].cm){p.cm=p.cm||{};for(const c in a.prods[k].cm)add7(p.cm[c]||(p.cm[c]=z7()),a.prods[k].cm[c])}const cs=a.prods[k].cs||{};for(const c in cs)p.cs[c]=(p.cs[c]||0)+cs[c]}
     for(const x of a.kws){const o=kw[x.k]||(kw[x.k]={k:x.k,c:0,i:0,k2:0,o1:0,o14:0,a1:0,a14:0});for(const f of['c','i','k2','o1','o14','a1','a14'])o[f]+=n(x[f])}}
-  R.kws=Object.values(kw);return R}
+  R.kws=Object.values(kw);if(L.some(a=>a.kwAll)){const A={};for(const a of L)for(const x of a.kwAll||[]){const o=A[x[0]];if(!o)A[x[0]]=[...x];else for(let i=1;i<8;i++)o[i]+=n(x[i])}R.kwAll=Object.values(A)}return R}
 const daysIn=m=>Object.keys(S.day).filter(d=>d.startsWith(m)).sort();
 function monthEC(m){const M=S.mon[m];if(M&&M.ec)return M.ec;const ds=daysIn(m).filter(d=>S.day[d].ec);if(!ds.length)return null;const r=mergeEC(ds.map(d=>S.day[d].ec));r.from=ds[0];r.to=ds[ds.length-1];return r}
 function monthAD(m){const M=S.mon[m];if(M&&M.ad)return M.ad;const ds=daysIn(m).filter(d=>S.day[d].ad);if(!ds.length)return null;return mergeAD(ds.map(d=>S.day[d].ad))}
@@ -473,9 +474,9 @@ function rDash(){DPL=null;const el=$('#t-dash'),[yy,mm]=cur.split('-'),X=analyze
       const sk=(L,f)=>L.reduce((a,x)=>a+(f(x)||0),0);
       html+=`<div class="grid2"><div class="box"><h3>캠페인별 <small>${camps.length}개</small></h3><div class="scroll">${tb(camps,'캠페인')}</div></div>
        <div class="box"><h3>노출 지면별</h3><div class="scroll">${tb(pl,'지면')}</div><p class="note pad" style="margin:0">키워드 '-'는 비검색·외부 채널처럼 키워드가 없는 노출입니다.</p></div></div>
-       <div class="grid2"><div class="box"><h3>전환 0건 키워드 <small>광고비 많은 순 15개 · 제외 키워드 후보</small></h3><div class="scroll"><table><tr><th>키워드</th><th class="n">광고비</th><th class="n">클릭</th><th class="n">노출</th></tr>${kz.map(k=>`<tr><td class="w">${esc(k.k)}</td><td class="n dn">${W(k.c*v)}</td><td class="n">${W(k.k2)}</td><td class="n">${W(k.i)}</td></tr>`).join('')||'<tr><td colspan="4" class="note">없음</td></tr>'}
+       <div class="grid2"><div class="box"><h3>전환 0건 키워드 <small>광고비 많은 순 15개 · 제외 키워드 후보</small><span style="flex:1"></span><button class="b s p" data-kwx="zero">전체 ${W(z.n)}개 엑셀</button></h3><p class="kwwarn">대표 키워드만 보여줍니다 — 광고비가 커서 <b>당장 대응이 필요한 것</b>만 표시. 전체 ${W(z.n)}개(광고비 ${W(z.c*v)}원)는 <b>'전체 엑셀'</b>로 확인하세요. (자사) 표시는 자사 브랜드·모델 키워드라 제외 대신 입찰가 하향을 권장.</p><div class="scroll"><table><tr><th>키워드</th><th class="n">광고비</th><th class="n">클릭</th><th class="n">노출</th></tr>${kz.map(k=>`<tr><td class="w">${esc(k.k)}${isBrandKw(k.k,(A.kwAll||[]).find(x=>x[0]==k.k)?.[8])?' <span class="chip warn">자사</span>':''}</td><td class="n dn">${W(k.c*v)}</td><td class="n">${W(k.k2)}</td><td class="n">${W(k.i)}</td></tr>`).join('')||'<tr><td colspan="4" class="note">없음</td></tr>'}
          <tr class="st"><td>위 ${kz.length}개 소계</td><td class="n">${W(sk(kz,x=>x.c)*v)}</td><td class="n">${W(sk(kz,x=>x.k2))}</td><td class="n">${W(sk(kz,x=>x.i))}</td></tr><tr class="gt"><td>전환 0건 전체 ${z.approx?'약 ':''}${W(z.n)}개</td><td class="n">${W(z.c*v)}</td><td></td><td></td></tr></table></div></div>
-       <div class="box"><h3>매출 낸 키워드 <small>광고매출 많은 순 15개</small></h3><div class="scroll"><table><tr><th>키워드</th><th class="n">광고비</th><th class="n">광고매출</th><th class="n">ROAS</th><th class="n">판매수량</th></tr>${kg.map(k=>`<tr><td class="w">${esc(k.k)}</td><td class="n">${W(k.c*v)}</td><td class="n">${W(AW(k))}</td><td class="n">${P(k.c?AW(k)/k.c/v*100:null)}</td><td class="n">${W(OW(k))}</td></tr>`).join('')||'<tr><td colspan="5" class="note">없음</td></tr>'}
+       <div class="box"><h3>매출 낸 키워드 <small>광고매출 많은 순 15개</small><span style="flex:1"></span><button class="b s p" data-kwx="all">전체 키워드 엑셀</button></h3><p class="kwwarn">대표 키워드만 보여줍니다. 판매가 난 키워드 전체와 ROAS·연결 상품은 <b>'전체 키워드 엑셀'</b>에서 확인하세요.</p><div class="scroll"><table><tr><th>키워드</th><th class="n">광고비</th><th class="n">광고매출</th><th class="n">ROAS</th><th class="n">판매수량</th></tr>${kg.map(k=>`<tr><td class="w">${esc(k.k)}</td><td class="n">${W(k.c*v)}</td><td class="n">${W(AW(k))}</td><td class="n">${P(k.c?AW(k)/k.c/v*100:null)}</td><td class="n">${W(OW(k))}</td></tr>`).join('')||'<tr><td colspan="5" class="note">없음</td></tr>'}
          <tr class="gt"><td>위 ${kg.length}개 합계</td><td class="n">${W(sk(kg,x=>x.c)*v)}</td><td class="n">${W(sk(kg,AW))}</td><td class="n">${P(sk(kg,x=>x.c)?sk(kg,AW)/sk(kg,x=>x.c)/v*100:null)}</td><td class="n">${W(sk(kg,OW))}</td></tr></table></div></div></div>`}}
   if(hasDays){if(!X){const r=agg(cur),roas=r.c?r.a/r.c*100:null;html+=`<h2>${+mm}월 광고 ROAS ${P(roas)} · 매출 ${W(r.s)}원 · 광고비 ${W(r.c)}원</h2><p class="sub">일자별 입력 기준</p>`}
     html+=`<div class="box"><h3>${yy}년 ${+mm}월 일자별 <small>일자 자료(이카운트·광고 일자 업로드) 또는 직접 입력</small></h3>${legend}<div class="fig"><svg id="cd"></svg></div></div>`}
@@ -1069,7 +1070,7 @@ function parseAD(rows,fname){let hi=rows.findIndex(r=>r.some(c=>cellS(c)=='광�
     const pn=C.prod>=0?cellS(r[C.prod]):cn,po=prods[pn]||(prods[pn]={...z7(),cs:{},cm:{},kwm:{}});add(po,r);po.cs[cn]=(po.cs[cn]||0)+n(r[C.c]);add(po.cm[cn]||(po.cm[cn]=z7()),r);
     if(C.kw>=0){const kk=cellS(r[C.kw])||'-';add(po.kwm[kk]||(po.kwm[kk]=z7()),r)}
     if(C.place>=0){const pl=cellS(r[C.place])||'-';add(place[pl]||(place[pl]=z7()),r)}
-    if(C.kw>=0){const k=cellS(r[C.kw])||'-';add(kw[k]||(kw[k]=z7()),r)}}
+    if(C.kw>=0){const k=cellS(r[C.kw])||'-';const o=kw[k]||(kw[k]={...z7(),pp:{},cc:{}});add(o,r);o.pp[pn]=(o.pp[pn]||0)+n(r[C.c])+n(r[C.a14])/1e4;o.cc[cn]=(o.cc[cn]||0)+n(r[C.c])+n(r[C.a14])/1e4}}
   const list=Object.entries(kw).map(([k,v])=>({k,c:v.c,i:v.i,k2:v.k,o1:v.o1,o14:v.o14,a1:v.a1,a14:v.a14}));
   const zz=f=>{const z=list.filter(x=>x.k!='-'&&x.c>0&&!x[f]);return{n:z.length,c:z.reduce((a,x)=>a+x.c,0)}};
   for(const pn in prods){const po=prods[pn],L=Object.entries(po.kwm).map(([k,v])=>({k,c:v.c,i:v.i,k2:v.k,o1:v.o1,o14:v.o14,a1:v.a1,a14:v.a14}));delete po.kwm;
@@ -1078,7 +1079,8 @@ function parseAD(rows,fname){let hi=rows.findIndex(r=>r.some(c=>cellS(c)=='광�
   const sc=$('#adscope').value,dd=$('#addate').value,rg=String(fname).match(/(20\d{2})(\d{2})(\d{2})\D{1,3}(20\d{2})(\d{2})(\d{2})/);let scope,key,to=null;
   if(sc=='auto'&&rg&&`${rg[1]}${rg[2]}${rg[3]}`!=`${rg[4]}${rg[5]}${rg[6]}`){scope='w';key=`${rg[1]}-${rg[2]}-${rg[3]}`;to=`${rg[4]}-${rg[5]}-${rg[6]}`}
   else if(sc=='day'&&dd){scope='d';key=dd}else if(sc=='month'){scope='m';key=cur}else{const d=guessDay(fname);if(d){scope='d';key=d}else{scope='m';key=guessMonth(fname)||cur}}
-  return{scope,key,to,data:{rows:cnt,tot,camps,prods,place,kws:[...keep],kz:{1:zz('a1'),14:zz('a14')},file:fname,at:TODAY}}}
+  const top=m=>Object.entries(m||{}).sort((a,b)=>b[1]-a[1])[0],kwAll=Object.entries(kw).filter(([k])=>k!='-').map(([k,v])=>{const tp=top(v.pp),tc=top(v.cc);return[k,Math.round(v.c),v.i,v.k,v.o1,v.o14,Math.round(v.a1),Math.round(v.a14),tp?short(tp[0]).t:'',tc?tc[0]:'']});
+  return{scope,key,to,data:{rows:cnt,tot,camps,prods,place,kws:[...keep],kwAll,kz:{1:zz('a1'),14:zz('a14')},file:fname,at:TODAY}}}
 function put(scope,key,kind,data){const B=scope=='d'?S.day:S.mon,o=B[key]||(B[key]={});o[kind]=data;
   if(kind=='ec')data.items.forEach(([c,nm])=>S.names[c]=nm);save([scope+key,'cfg'])}
 function upMsg(html,err){const d=document.createElement('div');d.className='msg'+(err?' err':'');d.innerHTML=html;$('#upmsg').prepend(d)}
@@ -1500,6 +1502,24 @@ async function xWrite(list,fname,btn){const lab=btn&&btn.textContent;if(btn){btn
     const buf=await wb.xlsx.writeBuffer(),a=document.createElement('a');a.href=URL.createObjectURL(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));a.download=xFile(fname);document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},2000)}
   catch(e){if(window.XLSX){const wb=XLSX.utils.book_new(),used=new Set();list.forEach(d=>{const A=d.R.map(r=>Array.from({length:d.W},(_,i)=>r[i]?r[i].v:''));const ws=XLSX.utils.aoa_to_sheet(A);ws['!merges']=d.M;XLSX.utils.book_append_sheet(wb,ws,sheetName(d.title,used))});XLSX.writeFile(wb,xFile(fname))}}
   finally{if(btn){btn.disabled=false;btn.textContent=lab}}}
+const BRW=['라이브박스','livebox','케민','kemin','사운드피츠','soundpeats','한일','일신','온트레일러','아이온','캔스톤','브이스팀','vsteam','퓨어','pure'];
+const isBrandKw=(k,p)=>{const t=norm(k),md=p&&modelOf(p);return BRW.some(b=>t.includes(norm(b)))||!!(md&&t.includes(norm(md)))};
+function xKw(kind,btn){const A=monthAD(cur);if(!A)return;const v=VAT(),win=S.cfg.win==1?1:14,L=(A.kwAll&&A.kwAll.length?A.kwAll:A.kws.filter(k=>k.k!='-').map(k=>[k.k,k.c,k.i,k.k2,k.o1,k.o14,k.a1,k.a14,'','']));
+  const o=x=>win==1?n(x[4]):n(x[5]),a=x=>win==1?n(x[6]):n(x[7]),hd=c=>c.map(t=>({v:t,h:true}));const lists=[];
+  const z=L.filter(x=>n(x[1])>0&&!o(x)&&!a(x)).sort((p,q)=>q[1]-p[1]),zs=z.reduce((s,x)=>s+n(x[1]),0);
+  const act=x=>{const c=n(x[1])*v;if(isBrandKw(x[0],x[8]))return'자사 키워드 · 입찰가 하향(제외 X)';return c>=10000?'제외 등록 (긴급)':c>=3000?'제외 검토':c>=1000?'지켜보기':'소액 · 정리 선택'};
+  const rowZ=(x,i)=>[{v:i+1,z:'#,##0'},{v:x[0],b:i<15},{v:x[8]||''},{v:x[9]||''},{v:Math.round(n(x[1])*v),z:'#,##0',neg:true},{v:n(x[3]),z:'#,##0'},{v:n(x[2]),z:'#,##0'},{v:n(x[2])?n(x[3])/n(x[2]):0,z:'0.0%'},{v:n(x[3])?Math.round(n(x[1])*v/n(x[3])):0,z:'#,##0'},{v:z.length&&zs?n(x[1])/zs:0,z:'0.0%'},{v:act(x),neg:/긴급/.test(act(x))}];
+  if(kind=='zero'||kind=='all'){const R0=[hd(['순위','키워드','연결 상품(광고비 최다)','캠페인','광고비','클릭','노출','CTR','CPC','0건 광고비 중 비중','권장 대응'])];z.forEach((x,i)=>R0.push(rowZ(x,i)));
+    R0.push([{v:'합계'},{v:`${z.length}개`},{v:''},{v:''},{v:Math.round(zs*v),z:'#,##0'},{v:z.reduce((s,x)=>s+n(x[3]),0),z:'#,##0'},{v:z.reduce((s,x)=>s+n(x[2]),0),z:'#,##0'},{v:''},{v:''},{v:1,z:'0%'},{v:''}]);
+    const RC=R0.map((_,i)=>i==R0.length-1?'gt':i>=1&&i<=15?'today':'');lists.push({title:`전환 0건 키워드 전체 ${z.length}개`,note:`${cur} · 광고비 ${W(zs*v)}원 · 노란 줄 = 화면에 보이는 대표 15개 · 전환 ${win}일 기준`,R:R0,M:[],RC,W:11})}
+  if(kind=='all'){const s=L.filter(x=>a(x)>0).sort((p,q)=>a(q)-a(p));const R1=[hd(['순위','키워드','연결 상품','캠페인','광고비','광고매출','ROAS','판매수량','클릭','노출','CPC'])];
+    s.forEach((x,i)=>{const c=n(x[1])*v;R1.push([{v:i+1,z:'#,##0'},{v:x[0],b:i<15},{v:x[8]||''},{v:x[9]||''},{v:Math.round(c),z:'#,##0'},{v:a(x),z:'#,##0'},{v:c?a(x)/c:0,z:'0%'},{v:o(x),z:'#,##0'},{v:n(x[3]),z:'#,##0'},{v:n(x[2]),z:'#,##0'},{v:n(x[3])?Math.round(c/n(x[3])):0,z:'#,##0'}])});
+    const c=s.reduce((t,x)=>t+n(x[1])*v,0),as=s.reduce((t,x)=>t+a(x),0);R1.push([{v:'합계'},{v:`${s.length}개`},{v:''},{v:''},{v:Math.round(c),z:'#,##0'},{v:as,z:'#,##0'},{v:c?as/c:0,z:'0%'},{v:s.reduce((t,x)=>t+o(x),0),z:'#,##0'},{v:''},{v:''},{v:''}]);
+    lists.unshift({title:`매출 낸 키워드 ${s.length}개`,note:`${cur} · 광고매출 많은 순 · 전환 ${win}일 기준`,R:R1,M:[],RC:R1.map((_,i)=>i==R1.length-1?'gt':''),W:11});
+    const all=[...L].sort((p,q)=>q[1]-p[1]),R2=[hd(['키워드','연결 상품','캠페인','광고비','광고매출','ROAS','판매수량','클릭','노출'])];all.forEach(x=>{const c=n(x[1])*v;R2.push([{v:x[0]},{v:x[8]||''},{v:x[9]||''},{v:Math.round(c),z:'#,##0'},{v:a(x),z:'#,##0'},{v:c?a(x)/c:0,z:'0%'},{v:o(x),z:'#,##0'},{v:n(x[3]),z:'#,##0'},{v:n(x[2]),z:'#,##0'}])});
+    lists.push({title:`전체 키워드 ${all.length}개`,note:`${cur} · 광고비 많은 순`,R:R2,M:[],RC:R2.map(()=>''),W:9})}
+  xWrite(lists,kind=='zero'?`${cur}_전환0건키워드_전체`:`${cur}_키워드_전체`,btn)}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-kwx]');if(b){e.stopPropagation();xKw(b.dataset.kwx,b)}},true);
 function xBox(box,btn){const d=boxData(box);xWrite([d],`${TABN[tab]||tab}_${d.title}`,btn)}
 function xTab(btn){const L=[];$$(`#t-${tab} .box`).forEach(b=>{if(b.querySelector('table')&&b.getClientRects().length)L.push(boxData(b))});if(L.length)xWrite(L,`${TABN[tab]||tab}_전체`,btn)}
 /* 주간: 모든 주차를 주차별 시트로 */
@@ -1515,7 +1535,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('.xbtn,[data-xall
   if(b.classList.contains('xbtn'))xBox(b.closest('.box'),b);else if(b.dataset.xall=='weeks')xAllWeeks(b);else xTab(b)},true);
 
 /* 새 버전 알림: 사이트가 업데이트되면 '새로고침' 띠를 띄움 (예전 화면으로 계속 작업하는 일 방지) */
-const BUILD='20261119-094929';
+const BUILD='20261119-095904';
 async function verCheck(){if(!/^https?:/.test(location.protocol)||BUILD.startsWith('__'))return;try{const t=await (await fetch(location.pathname,{cache:'no-store'})).text(),m=t.match(/const BUILD='([^']+)'/);
   if(m&&m[1]!==BUILD&&!$('#newver')){const d=document.createElement('div');d.id='newver';d.innerHTML=`<b>새 버전이 올라왔습니다.</b> 지금 화면은 이전 버전이라 업로드 결과가 다를 수 있어요. <button class="b s p" onclick="location.reload()">새로고침</button>`;document.body.prepend(d)}}catch(e){}}
 addEventListener('focus',verCheck);setInterval(()=>{if(document.visibilityState=='visible')verCheck()},120e3);setTimeout(verCheck,3000);
