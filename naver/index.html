@@ -115,6 +115,7 @@ table.xl th.hl{background:light-dark(#fff59d,#4a4520)!important;color:light-dark
 #newver{position:sticky;top:0;z-index:50;background:#fff3cd;color:#5c4400;border-bottom:2px solid #e0a800;padding:8px 14px;display:flex;gap:10px;align-items:center;justify-content:center;font-size:14px}
 .xbtn{margin-left:6px;flex:none}.xall{display:flex;gap:6px;justify-content:flex-end;margin:0 0 8px}
 .kwwarn{color:var(--red);font-size:13px;margin:0;padding:8px 12px;border-bottom:1px solid var(--line);background:light-dark(#fff5f5,#2a1616)}
+.help{max-width:1100px;margin:0 auto}.help p,.help li{line-height:1.75}.help ul,.help ol{padding-left:20px;margin:6px 0}.help table{margin:4px 0 8px}.help td{vertical-align:top;white-space:normal}.help code{font-size:12px;background:var(--sub);padding:0 4px}.hl-red{color:var(--red);border-left:4px solid var(--red);padding:6px 10px;background:light-dark(#fff5f5,#2a1616)}
 </style>
 </head>
 <body>
@@ -131,6 +132,7 @@ table.xl th.hl{background:light-dark(#fff59d,#4a4520)!important;color:light-dark
     <button data-t="up">업로드</button>
     <button data-t="memo">회의록</button>
     <button data-t="cfg">설정</button>
+    <button data-t="help">사용 방법</button>
   </nav>
   <span id="st">불러오는 중…</span>
 </header>
@@ -182,6 +184,103 @@ table.xl th.hl{background:light-dark(#fff59d,#4a4520)!important;color:light-dark
     </div></div>
   <div class="box"><h3>올린 자료</h3><div class="scroll" id="hist"></div></div>
   <div id="links"></div>
+</section>
+<section id="t-help" hidden>
+<div class="help">
+  <div class="box"><h3>한눈에 보기</h3><div class="pad">
+    <p><b>네이버 광고 장부</b>는 이카운트 매출·이익과 네이버 광고 리포트를 합쳐서, 품목별로 <b>광고비와 배송비까지 뺀 진짜 순이익</b>과 ROAS를 계산하고 무엇을 바꿔야 할지 알려주는 공용 장부입니다.</p>
+    <ol>
+      <li><b>파일 올리기</b>: 업로드 탭에 이카운트·네이버 리포트 엑셀을 끌어다 놓으면 끝. 종류와 기간은 자동으로 알아봅니다.</li>
+      <li><b>확인</b>: 대시보드(이번 달) → 주간(주차별 품목 표) → 주간·월간 분석(판단과 할 일)</li>
+      <li><b>조치</b>: 분석 탭의 '긴급' 항목부터 네이버 광고센터에 반영(목표 ROAS, 제외 키워드, 예산)</li>
+      <li><b>공유</b>: 저장은 자동. 같은 주소(dnd-coupang.pages.dev/ad/)로 들어오는 모든 사람·기기에 같은 자료가 보입니다.</li>
+    </ol>
+    <p class="hl-red">계산 기준: <b>순이익 = 이카운트 매출이익 − 배송비(개당 배송비 × 판매수량) − 광고비</b> · 광고 전환은 네이버 '총 판매수량'(14일, 설정에서 1일로 변경 가능)</p>
+  </div></div>
+
+  <div class="box"><h3>1. 파일 올리기 (업로드 탭)</h3><div class="pad">
+    <table><thead><tr><th>파일</th><th>어디서 받나</th><th>이름 규칙</th><th>들어가는 곳</th></tr></thead><tbody>
+      <tr><td><b>이카운트 품목별 이익현황</b></td><td>이카운트 → 품목별이익현황 조회 → 엑셀</td><td>상관없음 (파일 안의 조회 기간을 읽음)</td><td>하루 → 일자별 · 10일 이하 → 그 주 + 월 · 그 이상 → 월</td></tr>
+      <tr><td><b>네이버 광고 리포트</b></td><td>네이버 광고센터 → 리포트 → 캠페인 보고서(키워드 포함) 다운로드</td><td><code>_20261112_20261118</code>처럼 시작일_끝일 (네이버 다운로드 이름 그대로 OK) · 하루는 <code>20261118</code> · 월은 <code>11월</code></td><td>기간에 맞춰 일자별 / 주간 + 월 / 월</td></tr>
+      <tr><td>주간 광고 시트(직접 관리하던 엑셀)</td><td>기존 주간 엑셀</td><td>상관없음 ('9월01일 - 9월 07일까지' 줄을 읽음)</td><td>주간 탭</td></tr>
+      <tr><td>일별 성과 시트</td><td>'네이버 광고 일별 성과 — 품목명' 양식</td><td>상관없음</td><td>일자별 탭</td></tr>
+      <tr><td>배송비 표</td><td>상품명·배송비 열이 있는 표</td><td>상관없음</td><td>품목·배송비 탭 기준표</td></tr>
+    </tbody></table>
+    <ul>
+      <li><b>여러 파일을 한 번에</b> 올려도 됩니다. 주간 시트 → 광고 리포트 → 이카운트 순서로 알아서 처리합니다.</li>
+      <li><b>주간 순서</b>: 그 주의 네이버 리포트 + 같은 기간 이카운트 파일을 올리면 주간 표의 광고비·전환·매출액·판매수량·매출이익이 모두 채워집니다. 새 주차는 전주 품목 목록을 그대로 이어받습니다.</li>
+      <li><b>월 자료는 덮어쓰지 않고 이어 붙입니다</b>: 11/01~11/11에 11/12~11/18을 올리면 11/01~11/18. 이미 포함된 기간이면 두 번 더하지 않습니다.</li>
+      <li>엑셀 기본 양식(열 순서, 추가 열, 서식)은 상관없습니다. 열 이름으로 찾아 읽습니다.</li>
+      <li>올린 결과 메시지에 어디에 무엇이 들어갔는지 나옵니다. 잘못 들어갔으면 '여기로 옮기기'로 옮기거나, 운영자가 버전 기록으로 되돌립니다.</li>
+    </ul>
+  </div></div>
+
+  <div class="box"><h3>2. 탭별 설명</h3><div class="pad">
+    <table><thead><tr><th>탭</th><th>무엇을 보나</th><th>여기서 하는 일</th></tr></thead><tbody>
+      <tr><td><b>대시보드</b></td><td>선택한 달의 매출·이익·배송비·광고비·실이익, 판단과 할 일, 캠페인·지면·키워드</td><td>이번 달 상태 파악, 대표 키워드 확인, 전체 키워드 엑셀</td></tr>
+      <tr><td><b>주간</b></td><td>주차별 품목 표(엑셀 양식) + 위에 3주 전·2주 전·전주 표</td><td>흰 칸 직접 입력(목표·판매가·매출·이익 등), 주차 바꾸기, 4주 비교</td></tr>
+      <tr><td><b>주간 분석 / 월간 분석</b></td><td>품목별 판단(확대·유지·축소·중단·전략), 손익분기 ROAS, 권장 목표 ROAS, 광고 그룹 조정표, 키워드 할 일</td><td>'긴급' 항목부터 네이버에 반영, 전략 품목 지정·손실 한도 입력</td></tr>
+      <tr><td><b>일자별</b></td><td>품목별 일별 성과 시트(엑셀 양식), 목표 로하스 변경 기간별 합산·일평균, 변경 효과 표</td><td>일별 직접 입력, 목표 ROAS 바꾼 효과 비교</td></tr>
+      <tr><td><b>월별 집계</b></td><td>연간 월별 합계</td><td>달별 추이 확인</td></tr>
+      <tr><td><b>품목·배송비</b></td><td>품목별 개당 배송비, 합산 그룹(탄소매트 등), 광고 그룹 현재 목표 ROAS, 배송비 기준표</td><td>배송비·목표 ROAS 수정 (모든 주·월에 적용)</td></tr>
+      <tr><td><b>회의록</b></td><td>개인 폴더(폴더마다 비밀번호)</td><td>메모, 엑셀처럼 수식 되는 표</td></tr>
+      <tr><td><b>설정</b> (운영자)</td><td>분석 기준, 버전 기록, 백업, 전체 삭제</td><td>운영자 비밀번호로만 열림</td></tr>
+    </tbody></table>
+    <p>오른쪽 위 <b>네이버 광고 장부로 →</b> 를 누르면 같은 구조의 네이버 장부로 이동합니다(자료는 따로 저장).</p>
+  </div></div>
+
+  <div class="box"><h3>3. 분석 읽는 법</h3><div class="pad">
+    <ul>
+      <li><b>손익분기 ROAS</b>: 광고로 판 만큼 이익이 광고비와 같아지는 ROAS. 이보다 낮으면 광고가 손해입니다. (배송비를 뺀 마진으로 계산)</li>
+      <li><b>권장 목표 ROAS</b> = 손익분기 × 1.3 (여유 30%). 네이버 캠페인 목표 ROAS를 이 값 근처로 맞추세요.</li>
+      <li><b>판단</b>: <span class="chip good">확대</span> 손익분기보다 크게 높음 · <span class="chip mute">유지</span> · <span class="chip warn">축소</span> 손익분기 아래 · <span class="chip bad">중단 검토</span> 광고가 적자를 키움 · <span class="chip warn">전략 · 손실 감수</span> 손해 봐도 파는 품목</li>
+      <li><b>광고로 이익 내기 어려운 구조</b>: 배송비 뺀 마진이 너무 작아(예: 3~4%) 손익분기 ROAS가 1,500%를 넘는 품목. 목표 ROAS로는 해결이 안 되니 가격·원가·배송비를 보거나, 꼭 팔아야 하면 <b>전략 품목</b>으로 지정하세요.</li>
+      <li><b>전략 품목</b>: 분석 탭 '전략 품목 · 손실 감수' 표에서 지정하고 <b>월 손실 한도</b>를 넣으면, 한도 안에서 쓸 수 있는 광고비나 줄일 일 예산을 계산해 줍니다.</li>
+      <li><b>키워드</b>: '전환 0건' = 광고비만 쓰고 판매 0. 화면에는 당장 대응할 대표 15개만, 전체는 엑셀. <span class="chip warn">자사</span> 키워드는 제외 말고 입찰가만 낮추세요.</li>
+      <li>'예상 효과' 금액은 지금 효율이 유지된다고 가정한 <b>추정치</b>입니다.</li>
+    </ul>
+  </div></div>
+
+  <div class="box"><h3>4. 직접 입력 · 엑셀 다운로드</h3><div class="pad">
+    <ul>
+      <li><b>흰 칸·노란 칸</b>은 직접 입력, <b>회색 칸</b>은 자동 계산입니다. Enter = 아래 칸.</li>
+      <li>입력값: 매출액·판매수량·매출이익·개당 배송비·광고비·목표 ROAS 등 원자료만 넣으면 ROAS·순이익·개당 값은 수식으로 계산됩니다.</li>
+      <li>마이너스(적자)는 어디서든 <span class="dn">빨간색</span>입니다.</li>
+      <li><b>엑셀 다운로드</b>: 표 제목 오른쪽 버튼 = 그 표만, 탭 맨 위 '이 탭 표 전체 엑셀' = 탭의 모든 표(표마다 시트), 주간 탭 '모든 주차 엑셀' = 주차별 시트. 서식(머리글 색·테두리·합계·음수 빨강·숫자 서식)이 들어간 채로 받아집니다.</li>
+    </ul>
+  </div></div>
+
+  <div class="box"><h3>5. 저장 · 공유 · 권한</h3><div class="pad">
+    <ul>
+      <li><b>저장은 자동</b>입니다. 오른쪽 위 글자가 '저장 중…' → <b>'공용 저장소 · 팀 공유 중'</b>이면 완료. 동기화 버튼은 필요 없습니다.</li>
+      <li>다른 기기는 창을 다시 누르거나 1분이 지나면 새 자료를 가져옵니다. 바로 보려면 새로고침.</li>
+      <li>화면 맨 위에 <b>노란 '새 버전이 올라왔습니다' 띠</b>가 뜨면 꼭 새로고침하세요. 이전 버전 화면으로 올리면 결과가 다를 수 있습니다.</li>
+      <li><b>입력·수정은 누구나</b>, <b>삭제는 운영자만</b> (삭제 버튼을 누르면 운영자 비밀번호를 묻습니다).</li>
+      <li><b>버전 기록</b>(설정 탭, 운영자): 파일 업로드·삭제 직전 상태는 항상, 수정 중에는 10분 간격으로 30일 동안 보관. '이 시점으로 복구'로 되돌리고, 복구도 다시 되돌릴 수 있습니다.</li>
+      <li>칸을 비우거나 0으로 바꾸는 건 '수정'이라 막히지 않습니다. 실수했으면 버전 기록으로 되돌리세요.</li>
+    </ul>
+  </div></div>
+
+  <div class="box"><h3>6. 회의록</h3><div class="pad">
+    <ul>
+      <li>회의록 탭 → '새 회의록 폴더 만들기'(이름 + 비밀번호). 폴더마다 비밀번호가 따로이고, 내용은 이 기기에서 암호화된 뒤 저장되어 <b>운영자도 볼 수 없습니다</b>.</li>
+      <li><b>비밀번호를 잊으면 아무도 되살릴 수 없습니다.</b> 따로 적어 두세요.</li>
+      <li>+ 메모 = 메모장, + 표 = 엑셀처럼 수식(<code>=SUM(B2:B10)</code>, <code>=B2*C2</code>, <code>=ROUND(C2/B2*100,1)</code>, <code>=IF(…)</code>). 수식을 치다가 다른 칸을 누르면 그 칸 주소가 들어가고, Shift+클릭은 범위입니다. 한/영이 한글이어도 됩니다.</li>
+      <li>30분 동안 안 쓰면 자동으로 잠깁니다.</li>
+    </ul>
+  </div></div>
+
+  <div class="box"><h3>7. 자주 묻는 것</h3><div class="pad">
+    <table><thead><tr><th>이럴 때</th><th>이렇게</th></tr></thead><tbody>
+      <tr><td>올렸는데 숫자가 안 바뀜</td><td>Ctrl+Shift+R(강력 새로고침) 후 다시 올리기. 노란 '새 버전' 띠가 떴는지 확인.</td></tr>
+      <tr><td>주간 표에 매출액·판매수량이 비어 있음</td><td>같은 기간(예: 11/12~11/18)으로 조회한 이카운트 파일을 올리기.</td></tr>
+      <tr><td>광고가 엉뚱한 품목에 붙음</td><td>품목·배송비 탭에서 이름 연결·합산 그룹 확인. 계속되면 알려주세요.</td></tr>
+      <tr><td>배송비가 0원으로 계산됨</td><td>품목·배송비 탭에서 개당 배송비 입력(대시보드에 '배송비 미입력' 개수 표시).</td></tr>
+      <tr><td>전환 판매가 주문 건수로 보임</td><td>그 리포트를 다시 올리면 '총 판매수량'으로 바뀝니다.</td></tr>
+      <tr><td>잘못 올리거나 지웠음</td><td>운영자: 설정 → 버전 기록 → '파일 업로드 직전' 시점 복구.</td></tr>
+    </tbody></table>
+  </div></div>
+</div>
 </section>
 <section id="t-memo" hidden><div id="mm"></div></section>
 <section id="t-cfg" hidden>
@@ -1195,7 +1294,7 @@ $('#nav').onclick=e=>{const b=e.target.closest('button');if(b)go(b.dataset.t)};
 const setM=m=>{cur=m;$('#mp').value=m;renderAll()};
 $('#mp').onchange=e=>{if(e.target.value)setM(e.target.value)};$('#pv').onclick=()=>setM(shift(cur,-1));$('#nx').onclick=()=>setM(shift(cur,1));$('#tm').onclick=()=>setM(TODAY.slice(0,7));
 $('#mp').value=cur;
-const TABS=['dash','wk','pw','pm','day','mon','item','up','memo','cfg'],h=location.hash.slice(1);let st=null;try{st=localStorage.getItem(LK('cpad_tab'))}catch(e){}
+const TABS=['dash','wk','pw','pm','day','mon','item','up','memo','cfg','help'],h=location.hash.slice(1);let st=null;try{st=localStorage.getItem(LK('cpad_tab'))}catch(e){}
 tab=TABS.includes(h)?h:(TABS.includes(st)?st:'dash');
 addEventListener('hashchange',()=>{const t=location.hash.slice(1);if(t!=tab&&TABS.includes(t))go(t)});
 /* 마이너스(적자) 숫자는 어디서든 빨간색 */
@@ -1535,7 +1634,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('.xbtn,[data-xall
   if(b.classList.contains('xbtn'))xBox(b.closest('.box'),b);else if(b.dataset.xall=='weeks')xAllWeeks(b);else xTab(b)},true);
 
 /* 새 버전 알림: 사이트가 업데이트되면 '새로고침' 띠를 띄움 (예전 화면으로 계속 작업하는 일 방지) */
-const BUILD='20261119-095904';
+const BUILD='20261119-100152';
 async function verCheck(){if(!/^https?:/.test(location.protocol)||BUILD.startsWith('__'))return;try{const t=await (await fetch(location.pathname,{cache:'no-store'})).text(),m=t.match(/const BUILD='([^']+)'/);
   if(m&&m[1]!==BUILD&&!$('#newver')){const d=document.createElement('div');d.id='newver';d.innerHTML=`<b>새 버전이 올라왔습니다.</b> 지금 화면은 이전 버전이라 업로드 결과가 다를 수 있어요. <button class="b s p" onclick="location.reload()">새로고침</button>`;document.body.prepend(d)}}catch(e){}}
 addEventListener('focus',verCheck);setInterval(()=>{if(document.visibilityState=='visible')verCheck()},120e3);setTimeout(verCheck,3000);
