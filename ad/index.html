@@ -392,7 +392,15 @@ function monthEC(m){const M=S.mon[m];if(M&&M.ec)return M.ec;const ds=daysIn(m).f
 function monthAD(m){const M=S.mon[m];if(M&&M.ad)return M.ad;const ds=daysIn(m).filter(d=>S.day[d].ad);if(!ds.length)return null;return mergeAD(ds.map(d=>S.day[d].ad))}
 const kzOf=ad=>{if(ad.kz&&ad.kz[S.cfg.win==1?1:14])return ad.kz[S.cfg.win==1?1:14];const z=ad.kws.filter(x=>x.k!='-'&&x.c>0&&!AW(x));return{n:z.length,c:z.reduce((a,x)=>a+x.c,0),approx:1}};
 const campOf=x=>{if(!x.cs)return[x.camp||''];const k=Object.keys(x.cs).sort((a,b)=>x.cs[b]-x.cs[a]),p=k.filter(c=>x.cs[c]>0);return p.length?p:k};
-function adCode(nm,auto){const m=S.map[nm];if(m)return m=='-'?null:m;const nn=norm(nm),d=DEF_ADMAP.find(([pre])=>nn.startsWith(norm(pre)));return d?d[1]:auto[nm]||null}
+/* 네이버 등 상품명이 없는 리포트: 광고그룹·캠페인 이름의 낱말로 품목 찾기 (구체적인 것 먼저) */
+const NVR=[[/bm88|마이크\s*암|마이크암|거치대|스탠드|암\s*매체/i,/BM88/i],[/am8|피파인|피핀|fifine|마이크/i,/AM8\s*마이크/i],
+  [/jd35/i,/JD35(?!.*(가방|케이스))/i],[/mk35/i,/MK35/i],[/wd45/i,/WD45/i],[/k25/i,/K25/i],[/s25/i,/S25/i],[/알피쿨|알피콜|alpicool/i,/ALPICOOL|알피쿨/i],
+  [/한일|전기\s*매트|전기\s*장판|탄소\s*매트/i,/탄소매트|전기매트|전기장판/],[/진공\s*포장|진공기|진공\s*압축|진공\s*롤/i,/VP8310B|진공\s*포장기/i],
+  [/커피|에스프레소/i,/커피머신\s*2세대|PE11821W\]\s*휴대용/i],[/드라이기|드라이어/i,/헤어\s*드라이어/],[/가습기/i,/HF500W\].*가습기/i],[/스팀\s*다리미/i,/VS2100/i],[/에어건/i,/에어건/]];
+const ACC=/거치대|파우치|필터|진공롤|롤\(|가방|케이블|어댑터|배터리|컨버터|시거잭|날|보관함/;
+function nvCode(nm,camps){if(CH!='nv')return null;const t=nm+' '+(camps||[]).join(' ');for(const[re,to]of NVR){if(!re.test(t))continue;
+  const E=monthEC(cur),sl={};if(E)E.items.forEach(it=>sl[it[0]]=n(it[3]));const c=catalog().filter(([,n0])=>to.test(n0)&&!(ACC.test(n0)&&!ACC.test(t)));if(c.length){c.sort((a,b)=>(sl[b[0]]||0)-(sl[a[0]]||0));return c[0][0]}}return null}
+function adCode(nm,auto,camps){const m=S.map[nm];if(m)return m=='-'?null:m;const nv=nvCode(nm,camps);if(nv)return nv;const nn=norm(nm),d=DEF_ADMAP.find(([pre])=>nn.startsWith(norm(pre)));return d?d[1]:auto[nm]||null}
 
 /* ---------- 분석 핵심: 품목(그룹)별 매출·이익·배송비·광고비 ---------- */
 function feeName(nm){const SL=shipList(),m=matchAll([nm],SL.map((x,i)=>[String(i),x[0],0,0,0]))[nm];return m!=null?n(SL[+m][1]):null}
@@ -403,7 +411,7 @@ function build(items,ad,ov){const v=VAT(),FE=fees(),rows={},un=[];
   if(ad){const names=Object.keys(ad.prods).filter(nm=>ad.prods[nm].c>0||AW(ad.prods[nm])>0),cat=catalog();
     const sales={};for(const it of items)sales[it[0]]=it[3];cat.forEach(c=>c[3]=sales[c[0]]||0);
     const auto=cat.length?matchAll(names,cat):{};
-    for(const nm of names){const x=ad.prods[nm],code=adCode(nm,auto),o={c:x.c*v,a:AW(x),o:OW(x),k:n(x.k),i:n(x.i)};
+    for(const nm of names){const x=ad.prods[nm],code=adCode(nm,auto,campOf(x)),o={c:x.c*v,a:AW(x),o:OW(x),k:n(x.k),i:n(x.i)};
       if(code){const r=row(code);for(const f in o)r[f]+=o[f];r.ads++;(r.adNames||(r.adNames=[])).push(nm);if(x.cm){r.cm=r.cm||{};for(const c in x.cm){const y=x.cm[c],t=r.cm[c]||(r.cm[c]={imp:0,clk:0,c:0,conv:0,as:0});t.imp+=n(y.i);t.clk+=n(y.k);t.c+=n(y.c)*v;t.conv+=OW(y);t.as+=AW(y)}}campOf(x).forEach(c=>r.camps.add(c))}else un.push({nm,camp:campOf(x).join(', '),...o})}}
   if(ov)for(const k in ov){const o=ov[k];let r=rows[k];if(!r){if(!o.name)continue;r=rows[k]={key:k,code:'직접 입력',name:o.name,grp:false,mem:new Set(),q:0,s:0,p:0,sh:0,nofee:0,c:0,a:0,o:0,k:0,i:0,camps:new Set(),ads:0,man:1}}
     const unit=r.q>0&&r.sh?r.sh/r.q:feeName(r.name);r.ov={};
@@ -1192,12 +1200,13 @@ function parseEC(rows,fname){const hi=rows.findIndex(r=>r.some(c=>cellS(c)=='품
 function parseAD(rows,fname){let hi=rows.findIndex(r=>r.some(c=>cellS(c)=='광고비'));if(hi<0)hi=rows.findIndex((r,i)=>i<10&&r.some(c=>/^캠페인(명)?(\(|$)/.test(cellS(c)))&&r.some(c=>/총비용|광고비/.test(cellS(c))));const h=rows[hi].map(cellS);
   const ex=s=>h.indexOf(s),rx=re=>h.findIndex(x=>re.test(x)),or=(...a)=>a.find(x=>x>=0)??-1;
   const C={camp:or(ex('캠페인명'),rx(/^캠페인(명)?(\(|$)/)),prod:or(ex('광고집행 상품명'),rx(/^상품명|소재명/),rx(/^광고그룹(명)?(\(|$)/)),place:rx(/노출\s*지면|^매체|광고유형|캠페인\s*유형/),kw:or(ex('키워드'),rx(/^키워드|검색어/)),i:rx(/^노출수/),k:rx(/^클릭수/),c:or(ex('광고비'),rx(/^총비용|^광고비/)),
-    o1:or(rx(/^총\s*판매수량\s*\(1일\)/),rx(/^총\s*주문수\s*\(1일\)/),rx(/^(총\s*)?전환수/)),o14:or(rx(/^총\s*판매수량\s*\(14일\)/),rx(/^총\s*주문수\s*\(14일\)/),rx(/^(총\s*)?전환수/)),a1:or(rx(/^총\s*전환매출액\s*\(1일\)/),rx(/^(총\s*)?전환매출액/)),a14:or(rx(/^총\s*전환매출액\s*\(14일\)/),rx(/^(총\s*)?전환매출액/))};
+    o1:or(rx(/^총\s*판매수량\s*\(1일\)/),rx(/^총\s*주문수\s*\(1일\)/),rx(/^(총\s*)?전환수/),rx(/구매완료\s*전환수/),rx(/전환수/)),o14:or(rx(/^총\s*판매수량\s*\(14일\)/),rx(/^총\s*주문수\s*\(14일\)/),rx(/^(총\s*)?전환수/),rx(/구매완료\s*전환수/),rx(/전환수/)),a1:or(rx(/^총\s*전환매출액\s*\(1일\)/),rx(/^(총\s*)?전환매출액/),rx(/구매완료\s*전환매출액/),rx(/전환매출액/)),a14:or(rx(/^총\s*전환매출액\s*\(14일\)/),rx(/^(총\s*)?전환매출액/),rx(/구매완료\s*전환매출액/),rx(/전환매출액/))};
+  const byGroup=C.prod>=0&&/^광고그룹/.test(h[C.prod])&&C.camp>=0;/* 네이버: 광고그룹 이름이 캠페인마다 겹치므로 캠페인까지 붙여 구분 */
   const tot=z7(),camps={},prods={},place={},kw={};let cnt=0;
   const add=(o,r)=>{for(const f of F7)if(C[f]>=0)o[f]+=n(r[C[f]])};
   for(const r of rows.slice(hi+1)){if(!r||r[C.c]===''||r[C.c]==null)continue;const cn=cellS(r[C.camp]);if(/^(합계|총계|total)$/i.test(cn))continue;cnt++;
     add(tot,r);add(camps[cn]||(camps[cn]=z7()),r);
-    const pn=C.prod>=0?cellS(r[C.prod]):cn,po=prods[pn]||(prods[pn]={...z7(),cs:{},cm:{},kwm:{}});add(po,r);po.cs[cn]=(po.cs[cn]||0)+n(r[C.c]);add(po.cm[cn]||(po.cm[cn]=z7()),r);
+    const pn=C.prod>=0?(byGroup?`${cellS(r[C.prod])} · ${cn}`:cellS(r[C.prod])):cn,po=prods[pn]||(prods[pn]={...z7(),cs:{},cm:{},kwm:{}});add(po,r);po.cs[cn]=(po.cs[cn]||0)+n(r[C.c]);add(po.cm[cn]||(po.cm[cn]=z7()),r);
     if(C.kw>=0){const kk=cellS(r[C.kw])||'-';add(po.kwm[kk]||(po.kwm[kk]=z7()),r)}
     if(C.place>=0){const pl=cellS(r[C.place])||'-';add(place[pl]||(place[pl]=z7()),r)}
     if(C.kw>=0){const k=cellS(r[C.kw])||'-';const o=kw[k]||(kw[k]={...z7(),pp:{},cc:{}});add(o,r);o.pp[pn]=(o.pp[pn]||0)+n(r[C.c])+n(r[C.a14])/1e4;o.cc[cn]=(o.cc[cn]||0)+n(r[C.c])+n(r[C.a14])/1e4}}
@@ -1667,7 +1676,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('.xbtn,[data-xall
   if(b.classList.contains('xbtn'))xBox(b.closest('.box'),b);else if(b.dataset.xall=='weeks')xAllWeeks(b);else xTab(b)},true);
 
 /* 새 버전 알림: 사이트가 업데이트되면 '새로고침' 띠를 띄움 (예전 화면으로 계속 작업하는 일 방지) */
-const BUILD='20261119-135227';
+const BUILD='20261119-135637';
 async function verCheck(){if(!/^https?:/.test(location.protocol)||BUILD.startsWith('__'))return;try{const t=await (await fetch(location.pathname,{cache:'no-store'})).text(),m=t.match(/const BUILD='([^']+)'/);
   if(m&&m[1]!==BUILD&&!$('#newver')){const d=document.createElement('div');d.id='newver';d.innerHTML=`<b>새 버전이 올라왔습니다.</b> 지금 화면은 이전 버전이라 업로드 결과가 다를 수 있어요. <button class="b s p" onclick="location.reload()">새로고침</button>`;document.body.prepend(d)}}catch(e){}}
 addEventListener('focus',verCheck);setInterval(()=>{if(document.visibilityState=='visible')verCheck()},120e3);setTimeout(verCheck,3000);
