@@ -3,7 +3,18 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>네이버 광고 ROAS 장부</title>
+<title>네이버 광고 ROAS 장부 · 디앤디컴</title>
+<meta name="description" content="디앤디컴(주) 사내 업무용 네이버 광고 장부 — 광고비·배송비를 뺀 품목별 순이익, 주간·월간 광고 분석">
+<meta name="robots" content="noindex,nofollow">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="디앤디컴 광고 장부">
+<meta property="og:title" content="네이버 광고 ROAS 장부 · 디앤디컴">
+<meta property="og:description" content="광고비·배송비를 뺀 품목별 순이익과 주간·월간 광고 분석 (사내 업무용)">
+<meta property="og:image" content="https://dnd-coupang.pages.dev/og-nv.jpg">
+<meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
+<meta property="og:url" content="https://dnd-coupang.pages.dev/naver/">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230b6b3a'/%3E%3Crect x='12' y='34' width='8' height='18' fill='%237fa6ff'/%3E%3Crect x='24' y='24' width='8' height='28' fill='%237fa6ff'/%3E%3Crect x='36' y='40' width='8' height='12' fill='%23ff6b6b'/%3E%3Crect x='48' y='14' width='8' height='38' fill='%237fa6ff'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
 <style>
 /* VOICE: ERP 장부처럼 건조하고 빽빽하게 — 숫자가 주인공
@@ -1634,7 +1645,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('.xbtn,[data-xall
   if(b.classList.contains('xbtn'))xBox(b.closest('.box'),b);else if(b.dataset.xall=='weeks')xAllWeeks(b);else xTab(b)},true);
 
 /* 새 버전 알림: 사이트가 업데이트되면 '새로고침' 띠를 띄움 (예전 화면으로 계속 작업하는 일 방지) */
-const BUILD='20261119-100152';
+const BUILD='20261119-100339';
 async function verCheck(){if(!/^https?:/.test(location.protocol)||BUILD.startsWith('__'))return;try{const t=await (await fetch(location.pathname,{cache:'no-store'})).text(),m=t.match(/const BUILD='([^']+)'/);
   if(m&&m[1]!==BUILD&&!$('#newver')){const d=document.createElement('div');d.id='newver';d.innerHTML=`<b>새 버전이 올라왔습니다.</b> 지금 화면은 이전 버전이라 업로드 결과가 다를 수 있어요. <button class="b s p" onclick="location.reload()">새로고침</button>`;document.body.prepend(d)}}catch(e){}}
 addEventListener('focus',verCheck);setInterval(()=>{if(document.visibilityState=='visible')verCheck()},120e3);setTimeout(verCheck,3000);
