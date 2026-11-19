@@ -18,15 +18,15 @@ const units = (k, v) => {
   return null;
 };
 const shrinks = (k, cur, v) => { const a = units(k, cur), b = units(k, v); return !!(a && b && (b.a < a.a || b.b < a.b)); };
-async function snap(env, ch, k, cur, force) {
+async function snap(env, ch, k, cur, force, why) {
   const ix = (await env.DB.get('histidx:' + ch, 'json')) || {}, now = Date.now();
   if (!force && ix[k] && now - ix[k] < GAP) return;
-  await env.DB.put('hist:' + ch + String(now).padStart(14, '0') + ':' + k, JSON.stringify(cur === null ? { __none: 1 } : cur), { expirationTtl: KEEP, metadata: { k, ts: now } });
+  await env.DB.put('hist:' + ch + String(now).padStart(14, '0') + ':' + k, JSON.stringify(cur === null ? { __none: 1 } : cur), { expirationTtl: KEEP, metadata: { k, ts: now, why: why || 'auto' } });
   ix[k] = now; await env.DB.put('histidx:' + ch, JSON.stringify(ix));
 }
 async function histList(env, ch) {
   const out = []; let cursor;
-  do { const l = await env.DB.list({ prefix: 'hist:' + ch, cursor }); l.keys.forEach(x => { const m = x.name.slice(('hist:' + ch).length).match(/^(\d{14}):(.+)$/); if (m) out.push({ name: x.name, ts: +m[1], k: m[2] }); }); cursor = l.list_complete ? null : l.cursor; } while (cursor);
+  do { const l = await env.DB.list({ prefix: 'hist:' + ch, cursor }); l.keys.forEach(x => { const m = x.name.slice(('hist:' + ch).length).match(/^(\d{14}):(.+)$/); if (m) out.push({ name: x.name, ts: +m[1], k: m[2], why: (x.metadata && x.metadata.why) || 'auto' }); }); cursor = l.list_complete ? null : l.cursor; } while (cursor);
   return out.sort((a, b) => a.ts - b.ts);
 }
 const adminOk = async (env, pw) => { const a = await env.DB.get(ADM, 'json'); return !!(a && pw && await sha(a.salt + pw) === a.h); };
@@ -62,14 +62,14 @@ export async function onRequest({ request, env }) {
   if (hq) {
     if (!await adminOk(env, decode(request.headers.get('x-admin-key')))) return json({ error: 'admin' }, 403);
     const L = await histList(env, ch);
-    if (hq === 'list') return json({ items: L.map(x => ({ ts: x.ts, k: x.k })) });
+    if (hq === 'list') return json({ items: L.map(x => ({ ts: x.ts, k: x.k, why: x.why })) });
     if (hq === 'restore' && request.method === 'POST') {
       const b = await body(request) || {}, T = +b.ts; if (!T) return json({ error: 'bad' }, 400);
       const pick = {}; for (const x of L) if (x.ts >= T && !pick[x.k]) pick[x.k] = x; // 그 시점 이후 첫 기록 = 그 시점의 내용
       let n = 0;
       for (const [k, x] of Object.entries(pick)) {
         const v = await env.DB.get(x.name, 'json'), cur = await env.DB.get(ch + 'doc:' + k, 'json');
-        await snap(env, ch, k, cur, true); // 복구 직전 상태도 남김 → 복구 취소 가능
+        await snap(env, ch, k, cur, true, 'restore'); // 복구 직전 상태도 남김 → 복구 취소 가능
         if (!v || v.__none) await env.DB.delete(ch + 'doc:' + k); else await env.DB.put(ch + 'doc:' + k, JSON.stringify(v));
         n++;
       }
@@ -134,7 +134,7 @@ export async function onRequest({ request, env }) {
     for (const k of ks) {
       const v = docs[k], cur = curs[k];
       if (v === null && cur == null) continue;
-      await snap(env, ch, k, cur, v === null || isDel); // 10분에 한 번, 삭제는 항상 기록
+      await snap(env, ch, k, cur, v === null || isDel || !!b.snap, isDel || v === null ? 'del' : b.snap ? 'up' : 'auto'); // 10분에 한 번 · 삭제·파일 업로드 직전은 항상 기록
       if (v === null) await env.DB.delete(P + k);
       else await env.DB.put(P + k, JSON.stringify(v));
     }
