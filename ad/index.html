@@ -278,6 +278,7 @@ table.xl th.hl{background:light-dark(#fff59d,#4a4520)!important;color:light-dark
     <ul>
       <li>회의록 탭 → '새 회의록 폴더 만들기'(이름 + 비밀번호). 폴더마다 비밀번호가 따로이고, 내용은 이 기기에서 암호화된 뒤 저장되어 <b>운영자도 볼 수 없습니다</b>.</li>
       <li><b>비밀번호를 잊으면 아무도 되살릴 수 없습니다.</b> 따로 적어 두세요.</li>
+      <li>대표 운영자는 누구의 회의록 폴더든 <b>삭제(초기화)</b>할 수 있습니다. 단, 내용은 암호화되어 있어 운영자도 열어 볼 수는 없습니다. 비밀번호를 잊었다면 대표 운영자 김영환에게 폴더 삭제를 요청한 뒤 새로 만드세요.</li>
       <li>+ 메모 = 메모장, + 표 = 엑셀처럼 수식(<code>=SUM(B2:B10)</code>, <code>=B2*C2</code>, <code>=ROUND(C2/B2*100,1)</code>, <code>=IF(…)</code>). 수식을 치다가 다른 칸을 누르면 그 칸 주소가 들어가고, Shift+클릭은 범위입니다. 한/영이 한글이어도 됩니다.</li>
       <li>30분 동안 안 쓰면 자동으로 잠깁니다.</li>
     </ul>
@@ -1397,7 +1398,7 @@ async function mDec(v,pw){const key=await mKey(pw,v.salt),pt=await crypto.subtle
 const mLocal=()=>{try{return JSON.parse(localStorage.getItem('cpad_memo')||'{}')}catch(e){return{}}};
 async function mLoad(){try{const r=await fetch(MAPI,{headers:{'x-team-key':KEY()},cache:'no-store'});if(r.ok&&(r.headers.get('content-type')||'').includes('json')){MM.srv=true;return(await r.json()).docs||{}}}catch(e){}MM.srv=false;return mLocal()}
 async function mPut(id,doc,pw){
-  if(MM.srv){const r=await fetch(MAPI,{method:'PUT',headers:{'content-type':'application/json','x-team-key':KEY(),'x-vault-key':encodeURIComponent(pw||'')},body:JSON.stringify({id,doc})});
+  if(MM.srv){const r=await fetch(MAPI,{method:'PUT',headers:{'content-type':'application/json','x-team-key':KEY(),'x-vault-key':encodeURIComponent(pw||''),'x-admin-key':encodeURIComponent(ADM.pw||'')},body:JSON.stringify({id,doc})});
     if(r.status==403)throw{code:'vault'};if(!r.ok)throw{code:'net'};return}
   const L=mLocal();if(doc===null)delete L[id];else L[id]={...doc,ts:Date.now()};localStorage.setItem('cpad_memo',JSON.stringify(L))}
 const mid=p=>p+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
@@ -1483,7 +1484,7 @@ function rMemo(){const el=$('#mm');if(!el)return;MM.drawn=MM.ver;
     const ids=Object.keys(MM.list).sort((a,b)=>(MM.list[b].ts||0)-(MM.list[a].ts||0));
     el.innerHTML=`<div class="grid2"><div class="box"><h3>회의록 폴더 <small>폴더마다 따로 비밀번호 · 내용은 이 기기에서 암호화된 뒤 저장되어 운영자도 비밀번호 없이는 볼 수 없습니다</small></h3><div class="pad" style="display:grid;gap:8px">
       ${ids.map(id=>{const v=MM.list[id];return MM.pick==id?`<div class="mmv on"><b>${esc(v.name||'이름 없음')}</b><div class="row" style="gap:6px;margin-top:8px"><input class="t" type="password" id="mmpw" placeholder="비밀번호" autocomplete="current-password" style="flex:1"><button class="b p" id="mmgo">열기</button><button class="b" data-mvx>취소</button></div>${MM.msg?`<div class="dn" style="margin-top:6px">${esc(MM.msg)}</div>`:''}</div>`
-        :`<button class="mmv" data-mv="${id}"><b>${esc(v.name||'이름 없음')}</b><span class="note">잠김 · 마지막 수정 ${mTime(v.ts)}</span></button>`}).join('')||'<p class="note" style="margin:0">아직 회의록 폴더가 없습니다. 오른쪽에서 만드세요.</p>'}
+        :`<div class="row" style="gap:6px;flex-wrap:nowrap"><button class="mmv" data-mv="${id}" style="flex:1"><b>${esc(v.name||'이름 없음')}</b><span class="note">잠김 · 마지막 수정 ${mTime(v.ts)}</span></button><button class="b s r" data-mvadm="${id}" title="운영자만 · 비밀번호 없이 폴더를 지움(내용은 볼 수 없음)">운영자 삭제</button></div>`}).join('')||'<p class="note" style="margin:0">아직 회의록 폴더가 없습니다. 오른쪽에서 만드세요.</p>'}
       ${!MM.pick&&MM.msg?`<div class="msg">${esc(MM.msg)}</div>`:''}
       <p class="note" style="margin:0">${MM.srv?'모든 기기에서 같은 폴더가 보이고, 비밀번호를 아는 사람만 열 수 있습니다.':'지금은 서버에 연결되지 않아 이 브라우저에만 저장됩니다.'}</p></div></div>
     <div class="box"><h3>새 회의록 폴더 만들기</h3><div class="pad" style="display:grid;gap:10px">
@@ -1522,6 +1523,8 @@ async function mOpen(id,pw){const L=await mLoad();MM.list=L;const v=L[id];if(!v)
 document.addEventListener('click',async e=>{const t=e.target.closest('button');if(!t||!t.closest('#t-memo'))return;const o=MM.open;
   if(t.dataset.mv){MM.pick=t.dataset.mv;MM.msg='';mRe()}
   if(t.hasAttribute('data-mvx')){MM.pick=null;MM.msg='';mRe()}
+  if(t.dataset.mvadm){const id=t.dataset.mvadm,nm=(MM.list[id]||{}).name||'';admAsk(async()=>{if(!t.dataset.a){t.dataset.a=1;t.textContent=`'${nm}' 정말 삭제? 한 번 더`;return}
+    try{await mPut(id,null,'');MM.list=null;MM.msg=`'${nm}' 폴더를 운영자 권한으로 삭제했습니다.`;mRe()}catch(x){t.textContent='삭제 실패';}});return}
   if(t.id=='mmgo'){const pw=$('#mmpw').value;if(!pw)return;t.disabled=true;t.textContent='여는 중…';await mOpen(MM.pick,pw)}
   if(t.id=='mmmk'){const nm=$('#mmn').value.trim(),a=$('#mmn1').value,b=$('#mmn2').value,m=$('#mmnm');
     if(!nm){m.innerHTML='<span class="dn">폴더 이름을 적어 주세요.</span>';return}if(a.length<4){m.innerHTML='<span class="dn">비밀번호는 4자 이상으로 정해 주세요.</span>';return}if(a!==b){m.innerHTML='<span class="dn">두 비밀번호가 다릅니다.</span>';return}
@@ -1647,7 +1650,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('.xbtn,[data-xall
   if(b.classList.contains('xbtn'))xBox(b.closest('.box'),b);else if(b.dataset.xall=='weeks')xAllWeeks(b);else xTab(b)},true);
 
 /* 새 버전 알림: 사이트가 업데이트되면 '새로고침' 띠를 띄움 (예전 화면으로 계속 작업하는 일 방지) */
-const BUILD='20261119-102158';
+const BUILD='20261119-102322';
 async function verCheck(){if(!/^https?:/.test(location.protocol)||BUILD.startsWith('__'))return;try{const t=await (await fetch(location.pathname,{cache:'no-store'})).text(),m=t.match(/const BUILD='([^']+)'/);
   if(m&&m[1]!==BUILD&&!$('#newver')){const d=document.createElement('div');d.id='newver';d.innerHTML=`<b>새 버전이 올라왔습니다.</b> 지금 화면은 이전 버전이라 업로드 결과가 다를 수 있어요. <button class="b s p" onclick="location.reload()">새로고침</button>`;document.body.prepend(d)}}catch(e){}}
 addEventListener('focus',verCheck);setInterval(()=>{if(document.visibilityState=='visible')verCheck()},120e3);setTimeout(verCheck,3000);

@@ -97,7 +97,9 @@ export async function onRequest({ request, env }) {
       const cur = await env.DB.get(P + b.id, 'json');
       if (cur) {
         const key = decode(request.headers.get('x-vault-key'));
-        if (await sha('vh:' + cur.salt + key) !== cur.vh) return json({ error: 'vault' }, 403);
+        // 폴더 비밀번호가 맞거나, 운영자가 폴더를 지우는 경우(내용은 암호라 운영자도 못 읽음)
+        const adminDel = b.doc === null && await adminOk(env, decode(request.headers.get('x-admin-key')));
+        if (!adminDel && await sha('vh:' + cur.salt + key) !== cur.vh) return json({ error: 'vault' }, 403);
       }
       if (b.doc === null) { await env.DB.delete(P + b.id); return json({ ok: true }); }
       const d = b.doc || {};
