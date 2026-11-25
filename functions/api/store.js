@@ -1,6 +1,7 @@
 // 쿠팡 광고 장부 공용 저장소 (Cloudflare Pages Functions + KV)
 // 필요한 설정: KV 바인딩 이름 DB. (선택) 환경변수 TEAM_PASSWORD를 넣으면 비밀번호로 잠김, 없으면 누구나 공용
 // ?admin=status|set|check  관리자 비밀번호 (설정 탭·전체 삭제 보호)
+// ?ns=erp                  ERP 자료 (보기 누구나, 쓰기 관리자)
 // ?ns=memo                 회의록 폴더 (브라우저에서 암호화된 내용만 저장, 수정·삭제는 그 폴더 비밀번호 필요)
 const json = (o, s = 200) => new Response(JSON.stringify(o), { status: s, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
 const ok = k => /^(cfg|wk|dl|y\d{4}|m\d{4}-\d{2}|d\d{4}-\d{2}-\d{2})$/.test(k);
@@ -76,6 +77,40 @@ export async function onRequest({ request, env }) {
       return json({ ok: true, docs: n });
     }
     return json({ error: 'bad' }, 400);
+  }
+
+  /* ERP (이카운트 자료: 매출·재고) — 보기는 누구나, 올리기·고치기·지우기는 관리자만 */
+  if (qp.get('ns') === 'erp') {
+    const P = 'erp:doc:', okE = k => /^(cfg|s\d{4}-\d{2}|p\d{4}-\d{2}|t\d{4}-\d{2}-\d{2})$/.test(k);
+    if (request.method === 'GET') {
+      let names = []; let cursor;
+      do { const l = await env.DB.list({ prefix: P, cursor }); l.keys.forEach(x => names.push(x.name.slice(P.length))); cursor = l.list_complete ? null : l.cursor; } while (cursor);
+      // 처음 한 번: 배포에 들어 있는 기본 자료(erp/seed.json)를 넣어 둠
+      if (!names.length && !(await env.DB.get('erp:seeded')) && env.ASSETS) {
+        try {
+          const r = await env.ASSETS.fetch(new URL('/erp/seed.json', url.origin));
+          if (r.ok) { const S = await r.json(); for (const [k, v] of Object.entries(S.docs || {})) if (okE(k)) { await env.DB.put(P + k, JSON.stringify(v)); names.push(k); } }
+        } catch (e) { }
+        await env.DB.put('erp:seeded', '1');
+      }
+      const want = qp.get('k');
+      if (!want) return json({ keys: names.sort(), at: Date.now() });
+      const docs = {};
+      await Promise.all(want.split(',').filter(okE).map(async k => { docs[k] = await env.DB.get(P + k, 'json'); }));
+      return json({ docs, at: Date.now() });
+    }
+    if (request.method === 'PUT') {
+      if (!await adminOk(env, decode(request.headers.get('x-admin-key')))) return json({ error: 'admin', msg: 'ERP 자료는 관리자만 올리거나 고칠 수 있습니다' }, 403);
+      const b = await body(request); if (!b) return json({ error: 'bad_json' }, 400);
+      for (const [k, v] of Object.entries(b.docs || {})) {
+        if (!okE(k)) continue;
+        const cur = await env.DB.get(P + k, 'json');
+        if (cur) await env.DB.put('hist:erp:' + String(Date.now()).padStart(14, '0') + ':' + k, JSON.stringify(cur), { expirationTtl: KEEP, metadata: { k, ts: Date.now(), why: v === null ? 'del' : 'up' } });
+        if (v === null) await env.DB.delete(P + k); else await env.DB.put(P + k, JSON.stringify(v));
+      }
+      return json({ ok: true, at: Date.now() });
+    }
+    return json({ error: 'method' }, 405);
   }
 
   /* 회의록 (암호문만 저장) */
