@@ -756,7 +756,8 @@ function monAdd(m,kind,seg){const M=S.mon[m]||(S.mon[m]={}),key=kind=='ec'?'ecs'
   /* 기간이 적혀 있지 않은 예전 월 자료는 기간을 알 수 없어 새 기간 자료로 바꿈 */
   let L=M[key]||(M[kind]&&M[kind].from&&M[kind].to?[{...M[kind]}]:[]);
   const inside=L.find(x=>x.from<=seg.from&&x.to>=seg.to&&!(x.from==seg.from&&x.to==seg.to));if(inside)return{skip:inside};
-  const drop=L.filter(x=>!(x.to<seg.from||x.from>seg.to)),part=drop.filter(x=>!(x.from>=seg.from&&x.to<=seg.to));
+  /* 새 기간 안에 완전히 들어가는 예전 조각만 바꾸고, 하루라도 겹치기만 하는 조각은 남김(겹친 날은 아래 안내) */
+  const drop=L.filter(x=>x.from>=seg.from&&x.to<=seg.to),part=L.filter(x=>!drop.includes(x)&&!(x.to<seg.from||x.from>seg.to));
   L=L.filter(x=>!drop.includes(x));L.push(seg);L.sort((a,b)=>a.from<b.from?-1:1);M[key]=L;
   const f=L[0].from,t=L.reduce((a,x)=>x.to>a?x.to:a,'');
   if(kind=='ec'){const r=L.length==1?{...L[0]}:mergeEC(L);r.from=f;r.to=t;r.file=L.map(x=>x.file).join(' + ');M.ec=r;r.items.forEach(([c,nm])=>S.names[c]=nm)}
@@ -1236,6 +1237,7 @@ function parseAD(rows,fname){let hi=rows.findIndex(r=>r.some(c=>cellS(c)=='광�
   const keep=new Set([...list.slice().sort((a,b)=>b.c-a.c).slice(0,200),...list.slice().sort((a,b)=>b.a14-a.a14).slice(0,60),...list.slice().sort((a,b)=>b.a1-a.a1).slice(0,30)]);
   const sc=$('#adscope').value,dd=$('#addate').value,rg=String(fname).match(/(20\d{2})[.\-]?(\d{2})[.\-]?(\d{2})\.?[^0-9]{1,5}(20\d{2})[.\-]?(\d{2})[.\-]?(\d{2})/);/* 20261101_20261118 · 20261101 - 2026-1118 · 2026.11.01~2026.11.18 */let scope,key,to=null;
   if(sc=='auto'&&rg&&`${rg[1]}${rg[2]}${rg[3]}`!=`${rg[4]}${rg[5]}${rg[6]}`){scope='w';key=`${rg[1]}-${rg[2]}-${rg[3]}`;to=`${rg[4]}-${rg[5]}-${rg[6]}`}
+  else if(sc=='auto'&&!rg&&!guessDay(fname)&&BATCH_RANGE){scope='w';key=BATCH_RANGE.from;to=BATCH_RANGE.to}/* 파일 이름에 기간이 없으면 같이 올린 이카운트 기간 */
   else if(sc=='day'&&dd){scope='d';key=dd}else if(sc=='month'){scope='m';key=cur}else{const d=guessDay(fname);if(d){scope='d';key=d}else{scope='m';key=guessMonth(fname)||cur}}
   const top=m=>Object.entries(m||{}).sort((a,b)=>b[1]-a[1])[0],kwAll=Object.entries(kw).filter(([k])=>k!='-').map(([k,v])=>{const tp=top(v.pp),tc=top(v.cc);return[v.kk||k,Math.round(v.c),v.i,v.k,v.o1,v.o14,Math.round(v.a1),Math.round(v.a14),tp?short(tp[0]).t:'',tc?tc[0]:'',v.g||'']});
   return{scope,key,to,data:{rows:cnt,tot,camps,prods,place,kws:[...keep],kwAll,kz:{1:zz('a1'),14:zz('a14')},file:fname,at:TODAY}}}
@@ -1251,12 +1253,12 @@ function loadRows(rows,name){snapNext=true;/* 파일 업로드 직전 상태는 
     if(scope=='m'&&data.from&&data.to&&data.from.slice(0,7)==data.to.slice(0,7)){const dn=dayDiff(data.from,data.to),m=data.from.slice(0,7),L=[];
       if(dn<=10){const r=mergeWkEc(data.from,data.to,data);L.push(`→ <b>주간 ${wlab(S.wk[r.id])}</b> 품목 ${r.upd}개에 매출액·판매수량·매출이익 입력${r.other.length?` (광고 품목이 아닌 ${r.other.length}개 · 매출 ${W(r.other.reduce((a,i)=>a+n(i[3]),0))}원은 주간 표에 없음)`:''}`)}
       const mr=monAdd(m,'ec',{...data});
-      L.push(mr.skip?`→ ${m} 월 자료는 이미 ${mr.skip.from.slice(5)}~${mr.skip.to.slice(5)} 기간을 포함하고 있어 그대로 둠`:`→ <b>${m} 월 자료</b>에 합침: 이제 ${mr.f.slice(5)}~${mr.t.slice(5)} (${mr.L.length}개 기간) · 매출 ${W(S.mon[m].ec.tot.s)}원${mr.part.length?` <span class="dn">· 겹치는 이전 자료 ${mr.part.map(x=>x.from.slice(5)+'~'+x.to.slice(5)).join(', ')}는 빼고 이번 파일로 대체</span>`:''}`);
+      L.push(mr.skip?`→ ${m} 월 자료는 이미 ${mr.skip.from.slice(5)}~${mr.skip.to.slice(5)} 기간을 포함하고 있어 그대로 둠`:`→ <b>${m} 월 자료</b>에 합침: 이제 ${mr.f.slice(5)}~${mr.t.slice(5)} (${mr.L.length}개 기간) · 매출 ${W(S.mon[m].ec.tot.s)}원${mr.part.length?` <span class="dn">· 이전 자료(${mr.part.map(x=>x.from.slice(5)+'~'+x.to.slice(5)).join(', ')})와 날짜가 하루 이상 겹쳐 그 날은 두 번 더해졌을 수 있어요 — 겹치지 않게 조회해 올리면 정확합니다</span>`:''}`);
       cur=m;$('#mp').value=cur;upMsg(`<span>${head}<br>${L.join('<br>')}</span><button class="b s p" data-go="wk">주간 보기</button><button class="b s p" data-go="dash">대시보드</button>`);renderAll();return}
     put(scope,key,'ec',data);cur=key.slice(0,7);$('#mp').value=cur;
     upMsg(`<span>${head} → ${where(scope,key)}</span>${moveCtl('ec',scope,key)}`);renderAll();return}
   if(kind=='ad'){const{scope,key,to,data}=parseAD(rows,name);
-    if(scope=='w'&&key.slice(0,7)==to.slice(0,7)){const mr=monAdd(key.slice(0,7),'ad',{...data,from:key,to});data._mon=mr.skip?`${key.slice(0,7)} 월 광고 자료는 이미 ${mr.skip.from.slice(5)}~${mr.skip.to.slice(5)} 기간을 포함해 그대로 둠`:`<b>${key.slice(0,7)} 월 광고 자료</b>에 합침: 이제 ${mr.f.slice(5)}~${mr.t.slice(5)} · 광고비 ${W(S.mon[key.slice(0,7)].ad.tot.c)}원${mr.part.length?` <span class="dn">· 겹치는 이전 자료 ${mr.part.map(x=>x.from.slice(5)+'~'+x.to.slice(5)).join(', ')}는 빼고 대체</span>`:''}`}
+    if(scope=='w'&&key.slice(0,7)==to.slice(0,7)){const mr=monAdd(key.slice(0,7),'ad',{...data,from:key,to});data._mon=mr.skip?`${key.slice(0,7)} 월 광고 자료는 이미 ${mr.skip.from.slice(5)}~${mr.skip.to.slice(5)} 기간을 포함해 그대로 둠`:`<b>${key.slice(0,7)} 월 광고 자료</b>에 합침: 이제 ${mr.f.slice(5)}~${mr.t.slice(5)} · 광고비 ${W(S.mon[key.slice(0,7)].ad.tot.c)}원${mr.part.length?` <span class="dn">· 이전 자료(${mr.part.map(x=>x.from.slice(5)+'~'+x.to.slice(5)).join(', ')})와 날짜가 겹쳐 그 날은 두 번 더해졌을 수 있어요</span>`:''}`}
     if(scope=='w'&&dayDiff(key,to)>10){cur=key.slice(0,7);$('#mp').value=cur;upMsg(`<span><b>쿠팡 광고 리포트(${key.slice(5)}~${to.slice(5)}, ${dayDiff(key,to)}일)</b> · ${esc(name)}<br>${W(data.rows)}행 · 광고비 ${W(data.tot.c)}원 → ${data._mon||'월 자료'}<br><span class="note">10일이 넘는 기간이라 주간 표에는 넣지 않았습니다.</span></span><button class="b s p" data-go="dash">대시보드</button>`);renderAll();return}
     if(scope=='w'){const r=mergeWkAd(key,to,data);cur=key.slice(0,7);$('#mp').value=cur;
       upMsg(`<span><b>쿠팡 광고 리포트(주간 ${wlab({from:key,to})})</b> · ${esc(name)}<br>${W(data.rows)}행 · 광고비 ${W(data.tot.c)}원 · 전환매출(${S.cfg.win==1?'1일':'14일'}) ${W(AW(data.tot))}원 → <b>주간 ${wlab(S.wk[r.id])}</b> 품목 ${r.upd}개 갱신${r.add?` · ${r.add}개 추가`:''}${r.miss.length?` · 리포트에 없는 품목: ${r.miss.map(x=>esc(short(x).t)).join(', ')}`:''}${data._mon?'<br>→ '+data._mon:''}<br><span class="note">노출·클릭·광고비·전환 판매수량·전환매출을 리포트 값으로 바꿨습니다. 매출액·판매수량·매출이익은 같은 기간 이카운트 파일을 올리면 채워집니다.</span></span><button class="b s p" data-go="wk">주간 보기</button><button class="b s p" data-go="dash">대시보드</button>`);renderAll();return}
@@ -1288,7 +1290,16 @@ async function readFile(f){try{
     const wb=XLSX.read(await f.arrayBuffer(),{type:'array',cellDates:true});const ws=wb.Sheets[wb.SheetNames[0]];loadRows(XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:''}),f.name)}
   else{const buf=await f.arrayBuffer();let t=new TextDecoder('utf-8').decode(buf);if(t.includes(String.fromCharCode(65533)))t=new TextDecoder('euc-kr').decode(buf);loadRows(parseCSV(t),f.name)}
  }catch(e){upMsg(`${esc(f.name)}: 파일을 읽지 못했습니다 — ${esc(e.message)}`,1)}}
-async function readFiles(fs){const pr=f=>/주간/.test(f.name)?0:/품목|이익|ecount|이카운트/i.test(f.name)?2:1;fs.sort((a,b)=>pr(a)-pr(b));/* 주간 시트 → 광고 리포트 → 이카운트 순: 주간 틀이 먼저 있어야 이카운트 매출이 그 줄에 들어감 */for(const f of fs)await readFile(f)}
+async function readRows(f){if(/\.(xlsx|xls)$/i.test(f.name)){for(let i=0;i<50&&!window.XLSX;i++)await new Promise(r=>setTimeout(r,100));if(!window.XLSX)throw new Error('엑셀 읽기 도구를 불러오지 못했습니다. 인터넷 연결을 확인하거나 CSV로 저장해 올려 주세요.');
+    const wb=XLSX.read(await f.arrayBuffer(),{type:'array',cellDates:true});return XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:true,defval:''})}
+  const buf=await f.arrayBuffer();let t=new TextDecoder('utf-8').decode(buf);if(t.includes(String.fromCharCode(65533)))t=new TextDecoder('euc-kr').decode(buf);return parseCSV(t)}
+/* 여러 파일을 한 번에 올릴 때: 이카운트 파일의 기간(예: 11/19~11/24)을 날짜가 없는 광고 리포트에도 적용 → 같은 주로 들어감 */
+let BATCH_RANGE=null;
+async function readFiles(fs){const L=[];for(const f of fs){try{const rows=(await readRows(f)).filter(r=>r&&r.some(c=>c!==''&&c!=null));L.push({f,rows,kind:rows.length?detect(rows):null})}catch(e){upMsg(`${esc(f.name)}: 파일을 읽지 못했습니다 — ${esc(e.message)}`,1)}}
+  const ecR=L.filter(x=>x.kind=='ec').map(x=>{try{const d=parseEC(x.rows,x.f.name).data;return d.from&&d.to&&d.from!=d.to&&dayDiff(d.from,d.to)<=10?{from:d.from,to:d.to}:null}catch(e){return null}}).filter(Boolean);
+  BATCH_RANGE=ecR.length&&ecR.every(r=>r.from==ecR[0].from&&r.to==ecR[0].to)?ecR[0]:null;
+  const pr=x=>['wk','nvwk','dl','ship'].includes(x.kind)?0:x.kind=='ec'?2:1;L.sort((a,b)=>pr(a)-pr(b));/* 주간 시트 → 광고 리포트 → 이카운트 순 */
+  try{for(const x of L)loadRows(x.rows,x.f.name)}finally{BATCH_RANGE=null}}
 function apply(){const sel={};$$('#map select').forEach(s=>{if(s.value!=='')sel[s.dataset.f]=+s.value});
   if(sel.d==null){upMsg('날짜 열을 골라 주세요.',1);return}
   const add=$('input[name=mode]:checked').value=='add',fs=FIELDS.map(x=>x[0]).filter(f=>sel[f]!=null),byD={};let skip=0;
@@ -1745,7 +1756,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('.xbtn,[data-xall
   if(b.classList.contains('xbtn'))xBox(b.closest('.box'),b);else if(b.dataset.xall=='weeks')xAllWeeks(b);else xTab(b)},true);
 
 /* 새 버전 알림: 사이트가 업데이트되면 '새로고침' 띠를 띄움 (예전 화면으로 계속 작업하는 일 방지) */
-const BUILD='20261120-172057';
+const BUILD='20261125-151730';
 async function verCheck(){if(!/^https?:/.test(location.protocol)||BUILD.startsWith('__'))return;try{const t=await (await fetch(location.pathname,{cache:'no-store'})).text(),m=t.match(/const BUILD='([^']+)'/);
   if(m&&m[1]!==BUILD&&!$('#newver')){const d=document.createElement('div');d.id='newver';d.innerHTML=`<b>새 버전이 올라왔습니다.</b> 지금 화면은 이전 버전이라 업로드 결과가 다를 수 있어요. <button class="b s p" onclick="location.reload()">새로고침</button>`;document.body.prepend(d)}}catch(e){}}
 addEventListener('focus',verCheck);setInterval(()=>{if(document.visibilityState=='visible')verCheck()},120e3);setTimeout(verCheck,3000);
