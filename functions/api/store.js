@@ -3,6 +3,7 @@
 // ?admin=status|set|check  관리자 비밀번호 (설정 탭·전체 삭제 보호)
 // ?ns=erp                  ERP 자료 (보기 누구나, 쓰기 관리자)
 // ?ns=memo                 회의록 폴더 (브라우저에서 암호화된 내용만 저장, 수정·삭제는 그 폴더 비밀번호 필요)
+import '../../scripts/erp_ecp.js'; // globalThis.ECP (이카운트 자료 합치기, 화면과 같은 코드)
 const json = (o, s = 200) => new Response(JSON.stringify(o), { status: s, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
 const ok = k => /^(cfg|wk|dl|y\d{4}|m\d{4}-\d{2}|d\d{4}-\d{2}-\d{2})$/.test(k);
 const okMemo = k => /^v[a-z0-9]{4,32}$/.test(k);
@@ -92,6 +93,25 @@ export async function onRequest({ request, env }) {
           if (r.ok) { const S = await r.json(); for (const [k, v] of Object.entries(S.docs || {})) if (okE(k)) { await env.DB.put(P + k, JSON.stringify(v)); names.push(k); } }
         } catch (e) { }
         await env.DB.put('erp:seeded', '1');
+      }
+      // 받은 파일을 직접 반영해야 할 때: 배포에 넣은 erp/apply.json(읽은 결과)을 id마다 한 번만 합침
+      if (!qp.get('k') && env.ASSETS && globalThis.ECP) {
+        try {
+          const r = await env.ASSETS.fetch(new URL('/erp/apply.json', url.origin));
+          const A = r.ok ? await r.json() : null;
+          if (A && A.id && !(await env.DB.get('erp:applied:' + A.id))) {
+            await env.DB.put('erp:applied:' + A.id, 'running');
+            const need = names.filter(k => k[0] === 's' || k[0] === 't'), docs = {};
+            for (const k of need) docs[k] = await env.DB.get(P + k, 'json');
+            const log = [], out = globalThis.ECP.apply(A.res, docs, log);
+            for (const [k, v] of Object.entries(out)) {
+              if (!okE(k)) continue;
+              if (docs[k]) await env.DB.put('hist:erp:' + String(Date.now()).padStart(14, '0') + ':' + k, JSON.stringify(docs[k]), { expirationTtl: KEEP, metadata: { k, ts: Date.now(), why: 'up' } });
+              await env.DB.put(P + k, JSON.stringify(v)); if (!names.includes(k)) names.push(k);
+            }
+            await env.DB.put('erp:applied:' + A.id, JSON.stringify({ at: Date.now(), log }));
+          }
+        } catch (e) { }
       }
       const want = qp.get('k');
       if (!want) return json({ keys: names.sort(), at: Date.now() });

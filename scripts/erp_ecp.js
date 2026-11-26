@@ -64,7 +64,7 @@ const ECP = {
     Object.keys(docs).sort().forEach(k => { const v = docs[k]; if (!v) return;
       if (k[0] == 's') { Object.entries(v.I || {}).forEach(([c, n]) => n2c[nkey(n)] = c); (v.L || []).forEach(l => { if (l[4] > 0 && l[7] > 0) uc[l[3]] = l[7] }) }
       if (k[0] == 't') Object.values(v.W || {}).forEach(rs => rs.forEach(r => { n2c[nkey(r[1])] = n2c[nkey(r[1])] || r[0]; if (!uc[r[0]] && r[3] > 0) uc[r[0]] = r[3] })) });
-    for (const x of res) {
+    for (let xi = 0; xi < res.length; xi++) { const x = res[xi];
       if (x.kind == 'sale') { const byM = {}; let est = 0, noCode = 0;
         x.L.forEach(l => { if (!l[3]) { l[3] = n2c[nkey(l[4])] || l[4]; if (!n2c[nkey(l[4])]) noCode++ }
           if (l[8] == null) { const u = uc[l[3]] || 0; l[8] = u; l[9] = u * l[5]; est++ } else if (l[9] == null) l[9] = l[8] * l[5];
@@ -81,9 +81,16 @@ const ECP = {
           log.push(`매출 ${m.slice(5)}/${f}~${m.slice(5)}/${t} · ${nn.toLocaleString()}줄 ${Math.round(amt).toLocaleString()}원 반영${keep.length ? ` (같은 달 다른 날 ${keep.length.toLocaleString()}줄은 그대로)` : ''}`) }
         if (est) log.push(`원가 열이 없는 자료라 ${est}줄은 최근 원가단가(이전 매출·재고)로 원가를 채웠습니다. 정확한 원가는 일별이익현황으로 올리면 바뀝니다.`);
         if (noCode) log.push(`품목코드가 없어 이름으로도 못 찾은 ${noCode}줄은 품목명을 코드 자리에 넣었습니다.`) }
-      if (x.kind == 'item') { if (!x.from) { log.push('품목별 자료: 기간을 못 찾아 건너뜀 (엑셀 맨 위 회사명 줄에 기간이 있어야 합니다)'); continue }
-        const m = x.from.slice(0, 7); if (x.to && x.to.slice(0, 7) != m) { log.push('품목별 자료: 두 달에 걸친 기간이라 월 합계로 쓰지 않음 (월별로 뽑아 주세요)'); continue }
-        out['p' + m] = { m, from: x.from, to: x.to || x.from, R: x.R, at: Date.now() }; log.push(`품목별 이익 ${x.from}~${x.to} · ${x.R.length}품목 반영 (일별 자료가 없는 달의 월 합계로 사용)`) }
+      if (x.kind == 'item') { if (!x.from) { log.push('✗ 품목별 자료: 기간을 못 찾아 건너뜀 (엑셀 맨 위 회사명 줄에 기간이 있어야 합니다)'); continue }
+        const m = x.from.slice(0, 7), to = x.to || x.from; if (to.slice(0, 7) != m) { log.push('✗ 품목별 자료: 두 달에 걸친 기간이라 건너뜀 (월별로 뽑아 주세요)'); continue }
+        const sd = out['s' + m] || docs['s' + m], f1 = +x.from.slice(8), t1 = +to.slice(8);
+        if (res.some(y => y.kind == 'sale' && !y.viaItem && y.from <= x.from && y.to >= to)) { log.push(`품목별 이익 ${x.from}~${to}: 같은 기간 일별이익현황을 같이 올려서 그쪽을 씀`); continue }
+        if (x.from != to && sd && sd.R.some(r => r[0] <= f1 && r[1] >= t1)) { log.push(`품목별 이익 ${x.from}~${to}: 이 기간 일별 매출이 이미 있어 건너뜀 (하루치 품목별 파일이나 일별이익현황은 바로 반영됩니다)`); continue }
+        if (!sd && f1 == 1) { out['p' + m] = { m, from: x.from, to, R: x.R, at: Date.now() }; log.push(`품목별 이익 ${x.from}~${to} · ${x.R.length}품목 → ${m} 월 합계로 반영`); continue }
+        // 일별 매출에 그 기간을 품목별 줄로 넣음 (하루치면 그날 매출과 같음)
+        const day = to, L = x.R.map(r => [day, 0, '(품목별이익현황)', r[0], r[1], r[2], r[2] ? r[3] / 1.1 / r[2] : 0, r[3], r[2] ? r[4] / r[2] : 0, r[4]]);
+        res.push({ kind: 'sale', from: x.from, to, L, viaItem: 1 });
+        log.push(`품목별 이익 ${x.from.slice(5).replace('-', '/')}~${to.slice(5).replace('-', '/')} · ${x.R.length}품목을 매출에 넣음${x.from != to ? ` (여러 날 합계라 ${to.slice(5).replace('-', '/')} 하루에 모아 넣음 — 날짜·거래처별로 보려면 일별이익현황으로 올려 주세요)` : ' (거래처는 일별이익현황을 올리면 채워짐)'}`) }
       if (x.kind == 'stock') { const d = x.date || TODAY, k = 't' + d, doc = out[k] || docs[k] || { d, W: {} }; const Wn = { ...doc.W };
         Object.entries(x.W).forEach(([w, rows]) => { Wn[w] = rows; log.push(`재고 ${d} ${w} · ${rows.length}품목 ${rows.reduce((s, r) => s + r[2], 0).toLocaleString()}개 반영${x.date ? '' : ' (기준일을 못 찾아 오늘 날짜로)'}`) });
         out[k] = { d, W: Wn, at: Date.now() } } }
