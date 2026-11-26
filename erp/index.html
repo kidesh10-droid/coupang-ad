@@ -193,7 +193,7 @@ tr.ret td{color:var(--red)}
 </main>
 <div id="dlg"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" async></script>
-<script src="/erp/ecp.js?v=20261126-154432"></script>
+<script src="/erp/ecp.js?v=20261126-154745"></script>
 <script>
 'use strict';
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
@@ -234,6 +234,11 @@ const stockDates=()=>D.keys.filter(k=>k[0]=='t').map(k=>k.slice(1)).sort();
 const ROWS=new Map();
 function rowsOf(m){if(ROWS.has(m))return ROWS.get(m);const S=D.s[m];if(!S)return[];
   const o=S.L.filter(l=>l[3]||l[4]||l[6]).map(l=>{const q=l[4],a=l[6],ca=l[8];return{d:`${m}-${p2(l[0])}`,no:l[1],c:S.C[l[2]]||'',code:l[3],nm:S.I[l[3]]||'',q,pr:l[5],a,uc:l[7],ca,pf:a-ca,mg:a?(a-ca)/a:null}});ROWS.set(m,o);return o}
+/* 거래처별로 묶을 때: 거래처를 모르는 날(품목별 파일만 있는 날)은 그날 거래처 합계(CD)로 대신 */
+const NOC='(거래처 미확인)';
+function custRows(R,f,t){const days=new Set();for(const m of Object.keys(D.s)){const CD=D.s[m].CD;if(!CD)continue;for(const d of Object.keys(CD)){const ds=`${m}-${p2(d)}`;if((!f||ds>=f)&&(!t||ds<=t))days.add(ds)}}
+  if(!days.size)return R;const out=R.filter(r=>!(days.has(r.d)&&r.c==NOC));
+  for(const ds of days){const CD=D.s[ds.slice(0,7)].CD[+ds.slice(8)];CD.forEach(([c,q,a,ca])=>out.push({d:ds,no:null,c,code:'',nm:'(품목 미확인)',q,pr:q?a/q:0,a,uc:q?ca/q:0,ca,pf:a-ca,mg:a?(a-ca)/a:null}))}return out}
 function rowsIn(f,t){const out=[];for(const m of Object.keys(D.s).sort()){if(m<f.slice(0,7)||m>t.slice(0,7))continue;for(const r of rowsOf(m))if(r.d>=f&&r.d<=t)out.push(r)}return out}
 const lastSaleDay=()=>{let z=null;for(const m of Object.keys(D.s)){const S=D.s[m];S.R.forEach(r=>{const d=`${m}-${p2(r[1])}`;if(!z||d>z)z=d})}return z};
 const firstSaleDay=()=>{let z=null;for(const m of Object.keys(D.s)){const S=D.s[m];S.R.forEach(r=>{const d=`${m}-${p2(r[0])}`;if(!z||d<z)z=d})}return z};
@@ -334,7 +339,7 @@ function rDash(){const m=UI.m,sec=$('#t-dash');if(!m&&!stockDates().length){sec.
   if(neg.length)AL.push(`<b class="dn">역마진 ${neg.length}품목</b> — 이 달 판매에서 이익이 마이너스입니다 (원가 관리 탭).`);
   if(cnt('무판매').length)AL.push(`<b>무판매 재고 ${W(amt(cnt('무판매')))}원</b> — 최근 ${D.cfg.win||30}일 판매가 없는 ${cnt('무판매').length}품목.`);
   if(cnt('과다').length)AL.push(`<b>과다 재고 ${W(amt(cnt('과다')))}원</b> — ${D.cfg.over||90}일 넘게 팔 수 있는 ${cnt('과다').length}품목.`);
-  const G=R.length?group(R,r=>r.code,r=>({nm:r.nm,code:r.code})).sort((a,b)=>b.a-a.a):[],GC=R.length?group(R,r=>r.c,r=>({c:r.c})).sort((a,b)=>b.a-a.a):[];
+  const G=R.length?group(R,r=>r.code,r=>({nm:r.nm,code:r.code})).sort((a,b)=>b.a-a.a):[],GC=R.length?group(custRows(R,m+'-01',m+'-31'),r=>r.c,r=>({c:r.c})).sort((a,b)=>b.a-a.a):[];
   const whs=SK?SK.wh.map(w=>{let q=0,a=0;D.t[sd].W[w].forEach(r=>{q+=r[2];a+=r[4]});return{w,q,a,n:D.t[sd].W[w].length}}):[];const whT=whs.reduce((o,x)=>({q:o.q+x.q,a:o.a+x.a,n:o.n+x.n}),{q:0,a:0,n:0});
   sec.innerHTML=`<h2>${m?`${m.slice(0,4)}년 ${+m.slice(5)}월`:'재고'} 현황</h2><p class="sub">${m?`매출 자료 ${esc(rangeTxt(m))}`:''}${sd?` · 재고 기준일 ${sd}`:''} · 판매금액은 부가세 뺀 공급가 · 원가는 이카운트 재고단가</p>
   ${S?`<div class="kpi"><div class="hl"><span>판매금액</span><b>${W(S.a)}원</b>${dv(S.a,PS&&PS.a)}</div><div><span>원가</span><b>${W(S.ca)}원</b></div><div class="hl"><span>이익</span><b>${W(S.pf)}원</b>${dv(S.pf,PS&&PS.pf)}</div><div><span>이익율</span><b>${P(S.mg)}</b>${PS&&PS.mg!=null?`<i class="note">전월 ${P(PS.mg)}</i>`:''}</div><div><span>판매수량</span><b>${W(S.q)}개</b></div>${S.ra!=null?`<div><span>반품</span><b class="${S.ra<0?'dn':''}">${W(S.ra)}원</b><i class="note">${W(-S.rq)}개</i></div>`:''}${SK?`<div><span>재고금액 (${sd.slice(5).replace('-','/')})</span><b>${W(whT.a)}원</b><i class="note">${W(whT.q)}개</i></div>`:''}</div>`:''}
@@ -358,6 +363,7 @@ function rSale(){const sec=$('#t-sale');if(!Object.keys(D.s).length){sec.innerHT
   if(F.q){const q=F.q.toLowerCase().split(/\s+/).filter(Boolean);R=R.filter(r=>{const s=(r.code+' '+r.nm).toLowerCase();return q.every(w=>s.includes(w))})}
   if(F.ret=='ret')R=R.filter(r=>r.q<0||r.a<0);else if(F.ret=='sale')R=R.filter(r=>r.q>=0&&r.a>=0);
   const lastAt=Math.max(0,...Object.values(D.s).map(S=>S.at||0)),atT=lastAt?new Date(lastAt).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}):'';
+  const noc=R.some(r=>r.c==NOC)?`<div class="msg">${[...new Set(R.filter(r=>r.c==NOC).map(r=>r.d.slice(5).replace('-','/')))].join(', ')}은 이카운트 <b>품목별</b>·<b>거래처별</b> 합계만 받아서, 전표 화면에는 거래처가 '${NOC}'으로 나옵니다. <b>거래처별</b> 구분에서는 그날 거래처 합계가 정확히 나옵니다. 그날 일별이익현황을 올리면 거래처·품목이 함께 채워집니다.</div>`:'';
   const out=!R.length&&F.t<=ld?`<div class="msg">이 조건에 맞는 매출 줄이 없습니다. 매출 자료를 마지막으로 올린 때: <b>${atT}</b> — 그 뒤에 올린 파일이 반영되지 않았다면 업로드 탭의 결과(빨간 글씨)를 확인해 주세요.</div>`:F.t>ld?`<div class="msg">${ld.slice(5).replace('-','/')} 다음 날짜의 매출은 아직 올라오지 않았습니다. 올라온 마지막 날짜: <b>${ld}</b></div>`:'';const sub=`${F.f} ~ ${F.t}${F.c?' · '+F.c:''}${F.q?' · 품목 "'+F.q+'"':''}${F.ret=='ret'?' · 반품만':F.ret=='sale'?' · 반품 제외':''}`;
   let html='';const nmC={h:'품목명[규격]',k:'nm',t:'s',cls:'t'},cdC={h:'품목코드',k:'code',t:'s'},ctC={h:'거래처명',k:'c',t:'s',cls:'t'};
   if(F.mode=='line'){const T=tot(R,{d:'합계'});
@@ -366,7 +372,7 @@ function rSale(){const sec=$('#t-sale');if(!Object.keys(D.s).length){sec.innerHT
     html=tbl('s-day','판매현황 · 일자별',sub,[{h:'일자',k:r=>r.d=='합계'?'합계':`${r.d} (${wd(r.d)})`,t:'s'},{h:'건수',k:'n',t:'n'},C.q,C.a,C.ca,C.pf,C.mg],G,totG(G,{d:'합계'}),{rc:r=>{const g=new Date(r.d+'T00:00:00').getDay();return g==0?'sun':g==6?'sat':''}})}
   else if(F.mode=='item'){const G=group(R,r=>r.code,r=>({code:r.code,nm:r.nm})).sort((a,b)=>b.a-a.a);
     html=tbl('s-item','판매현황 · 품목별',sub,[cdC,nmC,C.q,C.ap,C.a,C.uc,C.ca,C.pf,C.mg,{h:'반품수량',k:'rq',t:'n'}],G,totG(G,{code:'합계',nm:`${G.length}품목`,rq:G.reduce((s,g)=>s+g.rq,0)}))}
-  else if(F.mode=='cust'){const G=group(R,r=>r.c,r=>({c:r.c})).sort((a,b)=>b.a-a.a),T=totG(G,{c:'합계'});
+  else if(F.mode=='cust'){const G=group(F.q?R:custRows(R.filter(r=>!F.c||r.c==F.c),F.f,F.t).filter(r=>!F.c||r.c==F.c),r=>r.c,r=>({c:r.c})).sort((a,b)=>b.a-a.a),T=totG(G,{c:'합계'});
     html=tbl('s-cust','판매현황 · 거래처별',sub,[ctC,{h:'건수',k:'n',t:'n'},C.q,C.a,C.ca,C.pf,C.mg,{h:'매출 비중',k:r=>T.a?r.a/T.a:null,t:'p'}],G,T)}
   else if(F.mode=='ic'){const G=group(R,r=>r.code+'\t'+r.c,r=>({code:r.code,nm:r.nm,c:r.c})).sort((a,b)=>a.code<b.code?-1:a.code>b.code?1:b.a-a.a);
     html=tbl('s-ic','판매현황 · 품목별 거래처별',sub,[cdC,nmC,ctC,C.q,C.ap,C.a,C.ca,C.pf,C.mg],G,totG(G,{code:'합계'}))}
@@ -383,7 +389,7 @@ function rSale(){const sec=$('#t-sale');if(!Object.keys(D.s).length){sec.innerHT
     <button class="b p" id="sgo" type="button" style="min-width:90px">조회 (Enter)</button>
   </div>
   <div class="f" style="padding-top:0"><span class="note">구분</span><span class="seg" role="group" aria-label="구분">${MODES.map(([k,l])=>`<button type="button" data-md="${k}" aria-pressed="${F.mode==k}">${l}</button>`).join('')}</span></div></div>
-  ${out}<datalist id="itl">${Object.entries(names()).slice(0,800).map(([c,n])=>`<option value="${esc(c)}">${esc(n)}</option>`).join('')}</datalist>
+  ${out}${noc}<datalist id="itl">${Object.entries(names()).slice(0,800).map(([c,n])=>`<option value="${esc(c)}">${esc(n)}</option>`).join('')}</datalist>
   ${html}`;
   const go=()=>{F.f=$('#sf').value||F.f;F.t=$('#stt').value||F.t;if(F.f>F.t)[F.f,F.t]=[F.t,F.f];F.c=$('#sc').value;F.ret=$('#sr').value;rSale()};
   const go2=()=>{F.q=$('#sq').value.trim();go()};$('#sgo').onclick=go2;
@@ -400,9 +406,9 @@ function rMon(){const sec=$('#t-mon'),ms=months();if(!ms.length){sec.innerHTML=e
   const T=totG(rows,{m:'합계'});T.ra=rows.reduce((s,r)=>s+(r.ra||0),0);
   const v=UI.monV,VL={a:'판매금액',pf:'이익금액',q:'수량'}[v],fmt=v=='q'?'n':'w';
   const R=ms.filter(m=>D.s[m]).flatMap(m=>rowsOf(m));
-  const piv=(keyf,lab,top)=>{const M=new Map();R.forEach(r=>{const k=keyf(r);let o=M.get(k);if(!o){o={...lab(r),_t:0};M.set(k,o)}const mm=r.d.slice(0,7);o[mm]=(o[mm]||0)+r[v];o._t+=r[v]});return[...M.values()].sort((a,b)=>b._t-a._t).slice(0,top||9999)};
+  const pivR=(RR,keyf,lab,top)=>{const M=new Map();RR.forEach(r=>{const k=keyf(r);let o=M.get(k);if(!o){o={...lab(r),_t:0};M.set(k,o)}const mm=r.d.slice(0,7);o[mm]=(o[mm]||0)+r[v];o._t+=r[v]});return[...M.values()].sort((a,b)=>b._t-a._t).slice(0,top||9999)},piv=(k,l,t)=>pivR(R,k,l,t);
   const msS=ms.filter(m=>D.s[m]),mc=msS.map(m=>({h:`${m.slice(2,4)}.${m.slice(5)}`,k:r=>r[m]||0,t:fmt}));
-  const CP=piv(r=>r.c,r=>({c:r.c})),IP=piv(r=>r.code,r=>({code:r.code,nm:r.nm}));
+  const CP=pivR(custRows(R),r=>r.c,r=>({c:r.c})),IP=piv(r=>r.code,r=>({code:r.code,nm:r.nm}));
   const pT=(L,ex)=>{const o={...ex,_t:0};msS.forEach(m=>{o[m]=L.reduce((s,x)=>s+(x[m]||0),0)});o._t=L.reduce((s,x)=>s+x._t,0);return o};
   sec.innerHTML=`<h2>월별 매출</h2><p class="sub">일별이익현황을 올린 달은 일별 자료로, 품목별이익현황만 있는 달은 그 합계로 셉니다. 월 중간에 올린 자료는 그 기간만 바뀌고 나머지 날은 그대로 남습니다.</p>
   ${tbl('m-sum','월별 합계','',[{h:'월',k:'m',t:'s'},{h:'자료 기간',k:'rg',t:'s'},C.q,C.a,C.ca,C.pf,C.mg,{h:'반품금액',k:'ra',t:'w'},{h:'거래처 수',k:'cc',t:'n',noT:1}],rows,T)}
@@ -486,7 +492,7 @@ function rCost(){const sec=$('#t-cost'),m=UI.m;if(!m||!D.s[m]){sec.innerHTML=m&&
     return{...g,mn,mx,su,lu,fl:fl.join(' · '),bad:L.length?R.filter(r=>r.code==g.code&&r.q>0&&r.pf<0).length:0}});
   const flt=UI.costF,L=flt?G.filter(g=>g.fl.includes(flt)):G;L.sort((a,b)=>flt?a.mg-b.mg:b.a-a.a);
   const cnt=k=>G.filter(g=>g.fl.includes(k)).length;
-  const NL=R.filter(r=>r.q>0&&r.pf<0).sort((a,b)=>a.pf-b.pf),GC=group(R,r=>r.c,r=>({c:r.c})).sort((a,b)=>b.a-a.a);
+  const NL=R.filter(r=>r.q>0&&r.pf<0).sort((a,b)=>a.pf-b.pf),GC=group(custRows(R,m+'-01',m+'-31'),r=>r.c,r=>({c:r.c})).sort((a,b)=>b.a-a.a);
   sec.innerHTML=`<h2>${+m.slice(5)}월 원가 관리</h2><p class="sub">판매 ${esc(rangeTxt(m))} · 원가는 이카운트가 판매 시점에 잡은 재고단가 · 판매금액·판매단가는 부가세 뺀 공급가 · 이익율 = 이익 ÷ 판매금액(이카운트와 같음)</p>
   <div class="kpi">${[['','전체'],['역마진','역마진'],['저마진','저마진 (10% 미만)'],['원가 변동','원가 변동'],['재고단가 차이','재고단가 차이']].map(([k,l])=>`<div${flt==k?' class="hl"':''}><span>${l}</span><b>${k?cnt(k):G.length}품목</b></div>`).join('')}</div>
   <div class="f" style="padding:0 0 10px"><span class="seg" role="group">${[['','전체'],['역마진','역마진'],['저마진','저마진'],['원가 변동','원가 변동'],['재고단가 차이','재고단가 차이']].map(([k,l])=>`<button type="button" data-cf="${k}" aria-pressed="${flt==k}">${l}</button>`).join('')}</span></div>

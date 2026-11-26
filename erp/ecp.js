@@ -78,7 +78,8 @@ const ECP = {
           (byM[m] || []).forEach(l => { I[l[3]] = l[4] || I[l[3]] || ''; L2.push([+l[0].slice(8), l[1], cix(l[2]), l[3], l[5], Math.round(l[6]), l[7], Math.round(l[8]), Math.round(l[9])]) });
           L2.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
           const R = [...doc.R, [f, t]].sort((a, b) => a[0] - b[0]), R2 = []; R.forEach(r => { const z = R2[R2.length - 1]; if (z && r[0] <= z[1] + 1) z[1] = Math.max(z[1], r[1]); else R2.push([...r]) });
-          out[k] = { m, R: R2, C, I, L: L2, at: Date.now() };
+          const CD = { ...(doc.CD || {}) }; if (!x.viaItem) for (let d = f; d <= t; d++) delete CD[d]; // 거래처가 있는 일별 자료가 오면 거래처 합계(임시)는 지움
+          out[k] = { m, R: R2, C, I, L: L2, at: Date.now() }; if (Object.keys(CD).length) out[k].CD = CD;
           const nn = (byM[m] || []).length, amt = (byM[m] || []).reduce((s, l) => s + l[7], 0);
           log.push(`매출 ${m.slice(5)}/${f}~${m.slice(5)}/${t} · ${nn.toLocaleString()}줄 ${Math.round(amt).toLocaleString()}원 반영${keep.length ? ` (같은 달 다른 날 ${keep.length.toLocaleString()}줄은 그대로)` : ''}`) }
         if (est) log.push(`원가 열이 없는 자료라 ${est}줄은 최근 원가단가(이전 매출·재고)로 원가를 채웠습니다. 정확한 원가는 일별이익현황으로 올리면 바뀝니다.`);
@@ -93,6 +94,8 @@ const ECP = {
         const day = to, L = x.R.map(r => [day, 0, '(품목별이익현황)', r[0], r[1], r[2], r[2] ? r[3] / r[2] : 0, r[3], r[2] ? r[4] / r[2] : 0, r[4]]);
         res.push({ kind: 'sale', from: x.from, to, L, viaItem: 1 });
         log.push(`품목별 이익 ${x.from.slice(5).replace('-', '/')}~${to.slice(5).replace('-', '/')} · ${x.R.length}품목을 매출에 넣음${x.from != to ? ` (여러 날 합계라 ${to.slice(5).replace('-', '/')} 하루에 모아 넣음 — 날짜·거래처별로 보려면 일별이익현황으로 올려 주세요)` : ' (거래처는 일별이익현황을 올리면 채워짐)'}`) }
+      if (x.kind == 'custday') { const m = x.date.slice(0, 7), k = 's' + m, doc = out[k] || docs[k]; if (!doc) { log.push('거래처 합계: 그 달 매출이 없어 건너뜀'); continue }
+        out[k] = { ...doc, CD: { ...(doc.CD || {}), [+x.date.slice(8)]: x.R }, at: Date.now() }; log.push(`${x.date} 거래처별 합계 ${x.R.length}곳 반영 (품목은 따로)`); continue }
       if (x.kind == 'stock') { const d = x.date || TODAY, k = 't' + d, doc = out[k] || docs[k] || { d, W: {} }; const Wn = { ...doc.W };
         Object.entries(x.W).forEach(([w, rows]) => { Wn[w] = rows; log.push(`재고 ${d} ${w} · ${rows.length}품목 ${rows.reduce((s, r) => s + r[2], 0).toLocaleString()}개 반영${x.date ? '' : ' (기준일을 못 찾아 오늘 날짜로)'}`) });
         out[k] = { d, W: Wn, at: Date.now() } } }
