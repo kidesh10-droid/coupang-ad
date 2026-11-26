@@ -1320,7 +1320,15 @@ async function readFiles(fs){const L=[];for(const f of fs){try{const rows=(await
   const ecR=L.filter(x=>x.kind=='ec').map(x=>{try{const d=parseEC(x.rows,x.f.name).data;return d.from&&d.to&&d.from!=d.to&&dayDiff(d.from,d.to)<=10?{from:d.from,to:d.to}:null}catch(e){return null}}).filter(Boolean);
   BATCH_RANGE=ecR.length&&ecR.every(r=>r.from==ecR[0].from&&r.to==ecR[0].to)?ecR[0]:null;
   const pr=x=>['wk','nvwk','dl','ship'].includes(x.kind)?0:x.kind=='ec'?1:2;L.sort((a,b)=>pr(a)-pr(b));/* 주간 시트 → 이카운트 → 광고 리포트 순: 이카운트 기간이 먼저 잡혀야 광고 리포트 기간도 맞춤 */
-  try{for(const x of L)loadRows(x.rows,x.f.name)}finally{BATCH_RANGE=null}}
+  try{for(const x of L)loadRows(x.rows,x.f.name)}finally{BATCH_RANGE=null}
+  erpFwd(fs)}
+/* 이카운트 일별이익현황·재고현황·판매현황은 ERP에도 같이 반영 (관리자일 때만 — ERP 자료는 관리자만 바꿈) */
+let ECPP=null;const loadECP=()=>ECPP||(ECPP=new Promise((ok,no)=>{if(window.ECP)return ok();const sc=document.createElement('script');sc.src='/erp/ecp.js?v='+BUILD;sc.onload=ok;sc.onerror=()=>{ECPP=null;no()};document.head.appendChild(sc)}));
+async function erpFwd(fs){if(CH=='nv'||!fs||!fs.length)return;
+  if(!ADM.pw)return;
+  try{await loadECP();
+    const r=await ECP.ingest([...fs],{pw:ADM.pw,key:KEY(),quiet:true});if(r.n)upMsg(`<b>ERP에도 반영:</b> ${r.log.map(esc).join(' · ')} <a href="/erp/#sale">ERP에서 보기</a>`)}
+  catch(e){upMsg(`ERP 반영 실패: ${esc(e.message)}`,1)}}
 function apply(){const sel={};$$('#map select').forEach(s=>{if(s.value!=='')sel[s.dataset.f]=+s.value});
   if(sel.d==null){upMsg('날짜 열을 골라 주세요.',1);return}
   const add=$('input[name=mode]:checked').value=='add',fs=FIELDS.map(x=>x[0]).filter(f=>sel[f]!=null),byD={};let skip=0;
@@ -1777,7 +1785,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('.xbtn,[data-xall
   if(b.classList.contains('xbtn'))xBox(b.closest('.box'),b);else if(b.dataset.xall=='weeks')xAllWeeks(b);else xTab(b)},true);
 
 /* 새 버전 알림: 사이트가 업데이트되면 '새로고침' 띠를 띄움 (예전 화면으로 계속 작업하는 일 방지) */
-const BUILD='20261126-080034';
+const BUILD='20261126-153304';
 async function verCheck(){if(!/^https?:/.test(location.protocol)||BUILD.startsWith('__'))return;try{const t=await (await fetch(location.pathname,{cache:'no-store'})).text(),m=t.match(/const BUILD='([^']+)'/);
   if(m&&m[1]!==BUILD&&!$('#newver')){const d=document.createElement('div');d.id='newver';d.innerHTML=`<b>새 버전이 올라왔습니다.</b> 지금 화면은 이전 버전이라 업로드 결과가 다를 수 있어요. <button class="b s p" onclick="location.reload()">새로고침</button>`;document.body.prepend(d)}}catch(e){}}
 addEventListener('focus',verCheck);setInterval(()=>{if(document.visibilityState=='visible')verCheck()},120e3);setTimeout(verCheck,3000);

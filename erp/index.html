@@ -155,6 +155,7 @@ td.t{max-width:340px;overflow:hidden;text-overflow:ellipsis}
 td.in input{min-width:70px}
 tr.ret td{color:var(--red)}
 .wh{font-size:12px;color:var(--mute)}
+.msg.err{border-left-color:var(--red);background:light-dark(#fff5f5,#2a1616)}
 </style>
 </head>
 <body>
@@ -192,6 +193,7 @@ tr.ret td{color:var(--red)}
 </main>
 <div id="dlg"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" async></script>
+<script src="/erp/ecp.js?v=20261126-153304"></script>
 <script>
 'use strict';
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
@@ -207,70 +209,7 @@ const dDiff=(a,b)=>Math.round((new Date(b+'T00:00:00')-new Date(a+'T00:00:00'))/
 const API='/api/store?ns=erp';
 const KEY=()=>{try{return localStorage.getItem('cpad_key')||''}catch(e){return''}};
 
-/*@@PARSE@@*/
-/* ===== 이카운트 엑셀 읽기 (업로드·초기 자료 공용) ===== */
-const ECP={
-  dates(t){const o=[];String(t||'').replace(/(\d{4})[\/.-](\d{1,2})[\/.-](\d{1,2})/g,(_,y,m,d)=>{o.push(`${y}-${p2(m)}-${p2(d)}`)});return o},
-  txt(v){return v==null?'':String(v).replace(/\s+/g,' ').trim()},
-  num(v){if(typeof v=='number')return v;const s=String(v??'').replace(/[,\s원]/g,'');if(s===''||s=='-')return 0;const n=+s;return isFinite(n)?n:0},
-  /* 시트 하나 → {kind:'sale'|'item'|'stock', ...} 또는 null */
-  sheet(A,fname,sname){
-    A=(A||[]).map(r=>(r||[]).map(v=>v instanceof Date?iso(v):v));
-    const T=ECP.txt,hi=A.findIndex(r=>r.some(v=>/^품목코드$/.test(T(v))));if(hi<0)return null;
-    const H=A[hi].map(T),H2=(A[hi+1]||[]).map(T),title=A.slice(0,hi).map(r=>r.map(T).filter(Boolean).join(' ')).join(' ');
-    const sub=/^(수량|단가|금액)$/.test(H2.find(Boolean)||'')||H2.filter(x=>/^(수량|단가|금액)$/.test(x)).length>=2;
-    // 열 이름: 위 줄(묶음)+아래 줄
-    let g='';const C=H.map((h,i)=>{if(h)g=h;const s=sub?H2[i]:'';return sub&&s?(g+'.'+s):(h||g)});
-    const col=(...re)=>{for(const r of re){const i=C.findIndex(c=>r.test(c));if(i>=0)return i}return -1};
-    const fdates=ECP.dates(title),body=A.slice(hi+(sub?2:1));
-    const isDay=H.some(h=>/^일자/.test(h));
-    if(C.some(c=>/재고수량|^재고$|기말|현재고/.test(c))&&!isDay){
-      const ic=col(/^품목코드$/),inm=col(/^품목명/),iq=col(/재고수량|^재고$|기말.*수량|현재고/),iu=col(/재고단가|^단가$/),ia=col(/재고금액|^금액$/),iw=col(/^창고/);
-      const parts=title.split('/').map(s=>s.trim()).filter(Boolean),dt=fdates[fdates.length-1]||null;
-      let wh=parts.find(p=>!/회사명|\d{4}[\/.-]\d{1,2}/.test(p))||sname||'창고';wh=wh.replace(/^온비즈\s*/,'').trim()||wh;
-      const by={};
-      for(const r of body){const code=T(r[ic]);if(!code||/^(합계|소계|총계)$/.test(code)||/^\d{4}\/\d{2}\/\d{2}\s/.test(code))continue;
-        const w=iw>=0?(T(r[iw]).replace(/^온비즈\s*/,'')||wh):wh,q=ECP.num(r[iq]),a=ia>=0?ECP.num(r[ia]):0,u=iu>=0?ECP.num(r[iu]):(q?a/q:0);
-        (by[w]=by[w]||[]).push([code,T(r[inm]),q,Math.round(u),Math.round(a||u*q)])}
-      return Object.keys(by).length?{kind:'stock',date:dt,W:by}:null}
-    const ic=col(/^품목코드$/),inm=col(/^품목명/),
-      iq=col(/^판매\.수량$/,/^수량$/),ip=col(/^판매\.단가$/,/^단가$/),ia=col(/^판매\.금액$/,/^합계(금액)?$/,/^금액$/,/^공급가액$/),
-      iuc=col(/^원가\.단가$/,/^원가단가$/),ica=col(/^원가\.금액$/,/^원가금액$/,/^원가$/);
-    if(iq<0||ia<0)return null;
-    const from=fdates[0]||null,to=fdates[1]||fdates[0]||null;
-    if(isDay){const id=H.findIndex(h=>/^일자/.test(h)),icu=col(/^거래처명?$/),L=[];
-      const fy=from?+from.slice(0,4):new Date().getFullYear(),fm=from?+from.slice(5,7):1,ty=to?+to.slice(0,4):fy;
-      for(const r of body){const s=T(r[id]);let m=s.match(/^(\d{1,2})\/(\d{1,2})-(\d+)/),y,mo,d,no;
-        if(m){mo=+m[1];d=+m[2];no=+m[3];y=mo>=fm?fy:ty}else if((m=s.match(/^(\d{4})[\/.-](\d{1,2})[\/.-](\d{1,2})(?:-(\d+))?/))){y=+m[1];mo=+m[2];d=+m[3];no=+(m[4]||0)}else continue;
-        const q=ECP.num(r[iq]),a=ECP.num(r[ia]),ca=ica>=0?ECP.num(r[ica]):0;
-        L.push([`${y}-${p2(mo)}-${p2(d)}`,no,T(r[icu]),T(r[ic]),T(r[inm]),q,ip>=0?ECP.num(r[ip]):0,a,iuc>=0?ECP.num(r[iuc]):(q?ca/q:0),ca])}
-      if(!L.length)return null;const ds=L.map(x=>x[0]).sort();
-      return{kind:'sale',from:from||ds[0],to:to||ds[ds.length-1],L,noCost:ica<0}}
-    const R=[];for(const r of body){const code=T(r[ic]);if(!code||/^(합계|소계|총계)$/.test(code)||/^\d{4}\/\d{2}\/\d{2}\s/.test(code))continue;
-      R.push([code,T(r[inm]),ECP.num(r[iq]),ECP.num(r[ia]),ica>=0?ECP.num(r[ica]):0])}
-    return R.length?{kind:'item',from,to,R}:null},
-  /* 읽은 결과를 저장 문서에 합치기 → 바뀐 문서 {key:doc} */
-  apply(res,docs,log){const out={};
-    for(const x of res){
-      if(x.kind=='sale'){const byM={};x.L.forEach(l=>{(byM[l[0].slice(0,7)]=byM[l[0].slice(0,7)]||[]).push(l)});
-        const months=new Set(Object.keys(byM));if(x.from&&x.to){let m=x.from.slice(0,7);while(m<=x.to.slice(0,7)){months.add(m);const[y,mm]=m.split('-').map(Number);m=mm==12?`${y+1}-01`:`${y}-${p2(mm+1)}`}}
-        for(const m of [...months].sort()){const k='s'+m,doc=out[k]||docs[k]||{m,R:[],C:[],I:{},L:[]},f=Math.max(1,x.from&&x.from.slice(0,7)==m?+x.from.slice(8):1),t=Math.min(mEnd(m),x.to&&x.to.slice(0,7)==m?+x.to.slice(8):31);
-          const keep=doc.L.filter(l=>l[0]<f||l[0]>t),C=[],ci={},I={...doc.I};const cix=n=>ci[n]??(ci[n]=C.push(n)-1);
-          const L2=keep.map(l=>[l[0],l[1],cix(doc.C[l[2]]||''),...l.slice(3)]);
-          (byM[m]||[]).forEach(l=>{I[l[3]]=l[4]||I[l[3]]||'';L2.push([+l[0].slice(8),l[1],cix(l[2]),l[3],l[5],l[6],l[7],Math.round(l[8]),l[9]])});
-          L2.sort((a,b)=>a[0]-b[0]||a[1]-b[1]);
-          const R=[...doc.R,[f,t]].sort((a,b)=>a[0]-b[0]),R2=[];R.forEach(r=>{const z=R2[R2.length-1];if(z&&r[0]<=z[1]+1)z[1]=Math.max(z[1],r[1]);else R2.push([...r])});
-          out[k]={m,R:R2,C,I,L:L2,at:Date.now()};
-          log.push(`일별 매출 ${m} ${p2(f)}일~${p2(t)}일 · ${(byM[m]||[]).length.toLocaleString()}줄 반영${keep.length?` (그 밖의 날짜 ${keep.length.toLocaleString()}줄은 그대로)`:''}${x.noCost?' · 원가 열이 없어 원가 0으로 들어감':''}`)}}
-      if(x.kind=='item'){if(!x.from){log.push('품목별 자료: 기간을 못 찾아 건너뜀 (엑셀 맨 위 회사명 줄에 기간이 있어야 합니다)');continue}
-        const m=x.from.slice(0,7);if(x.to&&x.to.slice(0,7)!=m){log.push('품목별 자료: 두 달 이상에 걸친 기간이라 월 합계로 쓰지 않음 (월별로 뽑아 주세요)');continue}
-        out['p'+m]={m,from:x.from,to:x.to||x.from,R:x.R,at:Date.now()};log.push(`품목별 이익 ${x.from}~${x.to} · ${x.R.length}품목 반영 (일별 자료가 없는 달의 월 합계로 사용)`)}
-      if(x.kind=='stock'){const d=x.date||TODAY,k='t'+d,doc=out[k]||docs[k]||{d,W:{}};const Wn={...doc.W};
-        Object.entries(x.W).forEach(([w,rows])=>{Wn[w]=rows;log.push(`재고 ${d} ${w} · ${rows.length}품목 ${rows.reduce((s,r)=>s+r[2],0).toLocaleString()}개 반영${x.date?'':' (기준일을 못 찾아 오늘 날짜로)'}`)});
-        out[k]={d,W:Wn,at:Date.now()}}}
-    return out}
-};
-/*@@END@@*/
+
 
 /* ===== 상태 ===== */
 const D={keys:[],cfg:{},s:{},p:{},t:{}},UI={tab:'dash',m:null,sale:null,stockD:null,stWh:'',stQ:'',invWh:null,invF:'',costF:'',monV:'a',q:''};
@@ -418,7 +357,7 @@ function rSale(){const sec=$('#t-sale');if(!Object.keys(D.s).length){sec.innerHT
   if(F.c)R=R.filter(r=>r.c==F.c);
   if(F.q){const q=F.q.toLowerCase().split(/\s+/).filter(Boolean);R=R.filter(r=>{const s=(r.code+' '+r.nm).toLowerCase();return q.every(w=>s.includes(w))})}
   if(F.ret=='ret')R=R.filter(r=>r.q<0||r.a<0);else if(F.ret=='sale')R=R.filter(r=>r.q>=0&&r.a>=0);
-  const sub=`${F.f} ~ ${F.t}${F.c?' · '+F.c:''}${F.q?' · 품목 "'+F.q+'"':''}${F.ret=='ret'?' · 반품만':F.ret=='sale'?' · 반품 제외':''}`;
+  const out=F.t>ld?`<div class="msg">${ld.slice(5).replace('-','/')} 다음 날짜의 매출은 아직 올라오지 않았습니다. 올라온 마지막 날짜: <b>${ld}</b></div>`:'';const sub=`${F.f} ~ ${F.t}${F.c?' · '+F.c:''}${F.q?' · 품목 "'+F.q+'"':''}${F.ret=='ret'?' · 반품만':F.ret=='sale'?' · 반품 제외':''}`;
   let html='';const nmC={h:'품목명[규격]',k:'nm',t:'s',cls:'t'},cdC={h:'품목코드',k:'code',t:'s'},ctC={h:'거래처명',k:'c',t:'s',cls:'t'};
   if(F.mode=='line'){const T=tot(R,{d:'합계'});
     html=tbl('s-line','판매현황 · 전표별',sub,[{h:'일자-No.',k:r=>r.d?(r.no!=null?`${r.d.slice(5).replace('-','/')}-${r.no}`:r.d):'',t:'s'},ctC,cdC,nmC,C.q,{h:'단가',k:'pr',t:'w',noT:1},C.a,{h:'원가단가',k:'uc',t:'w',noT:1},C.ca,C.pf,C.mg],R,{...T,no:null,d:'합계'},{rc:r=>r.q<0||r.a<0?'ret':''})}
@@ -434,20 +373,22 @@ function rSale(){const sec=$('#t-sale');if(!Object.keys(D.s).length){sec.innerHT
     html=tbl('s-mon','판매현황 · 월별',sub,[{h:'월',k:'m',t:'s'},{h:'건수',k:'n',t:'n'},C.q,C.a,C.ca,C.pf,C.mg],G,totG(G,{m:'합계'}))}
   sec.innerHTML=`<div class="box"><h3>검색 조건 <small>자료가 있는 기간 ${fd} ~ ${ld}</small></h3>
   <div class="f">
-    <label>기준일자 시작<input class="t" type="date" id="sf" value="${F.f}" min="${fd}" max="${ld}"></label>
-    <label>끝<input class="t" type="date" id="stt" value="${F.t}" min="${fd}" max="${ld}"></label>
+    <label>기준일자 시작<input class="t" type="date" id="sf" value="${F.f}"></label>
+    <label>끝<input class="t" type="date" id="stt" value="${F.t}"></label>
     <span class="seg" role="group" aria-label="빠른 기간">${[['m','이번 달'],['pm','지난달'],['7','최근 7일'],['30','최근 30일'],['all','전체']].map(([k,l])=>`<button type="button" data-qr="${k}">${l}</button>`).join('')}</span>
     <label>거래처<select id="sc"><option value="">전체</option>${custs.map(c=>`<option${c==F.c?' selected':''}>${esc(c)}</option>`).join('')}</select></label>
     <label>품목 (코드·이름)<input class="t" id="sq" value="${esc(F.q)}" placeholder="예: 피핀 / D4-114" list="itl"></label>
     <label>반품<select id="sr"><option value="">전체</option><option value="sale"${F.ret=='sale'?' selected':''}>반품 제외</option><option value="ret"${F.ret=='ret'?' selected':''}>반품만</option></select></label>
+    <button class="b p" id="sgo" type="button" style="min-width:90px">조회 (Enter)</button>
   </div>
   <div class="f" style="padding-top:0"><span class="note">구분</span><span class="seg" role="group" aria-label="구분">${MODES.map(([k,l])=>`<button type="button" data-md="${k}" aria-pressed="${F.mode==k}">${l}</button>`).join('')}</span></div></div>
-  <datalist id="itl">${Object.entries(names()).slice(0,800).map(([c,n])=>`<option value="${esc(c)}">${esc(n)}</option>`).join('')}</datalist>
+  ${out}<datalist id="itl">${Object.entries(names()).slice(0,800).map(([c,n])=>`<option value="${esc(c)}">${esc(n)}</option>`).join('')}</datalist>
   ${html}`;
   const go=()=>{F.f=$('#sf').value||F.f;F.t=$('#stt').value||F.t;if(F.f>F.t)[F.f,F.t]=[F.t,F.f];F.c=$('#sc').value;F.ret=$('#sr').value;rSale()};
-  ['#sf','#stt','#sc','#sr'].forEach(s=>$(s).onchange=go);
-  let tm;$('#sq').oninput=e=>{clearTimeout(tm);tm=setTimeout(()=>{F.q=e.target.value.trim();rSale();const i=$('#sq');i.focus();i.setSelectionRange(i.value.length,i.value.length)},300)};
-  sec.querySelectorAll('[data-md]').forEach(b=>b.onclick=()=>{F.mode=b.dataset.md;rSale()});
+  const go2=()=>{F.q=$('#sq').value.trim();go()};$('#sgo').onclick=go2;
+  ['#sc','#sr'].forEach(s=>$(s).onchange=go2);
+  sec.querySelectorAll('.f input').forEach(i=>i.onkeydown=e=>{if(e.key=='Enter'){e.preventDefault();go2()}});
+  sec.querySelectorAll('[data-md]').forEach(b=>b.onclick=()=>{F.f=$('#sf').value||F.f;F.t=$('#stt').value||F.t;F.q=$('#sq').value.trim();F.mode=b.dataset.md;rSale()});
   sec.querySelectorAll('[data-qr]').forEach(b=>b.onclick=()=>{const k=b.dataset.qr;
     if(k=='m'){F.f=ld.slice(0,8)+'01';F.t=ld}else if(k=='pm'){const[y,mm]=ld.split('-').map(Number),p=mm==1?`${y-1}-12`:`${y}-${p2(mm-1)}`;F.f=p+'-01';F.t=`${p}-${p2(mEnd(p))}`}
     else if(k=='all'){F.f=fd;F.t=ld}else{F.t=ld;F.f=addD(ld,-(+k)+1)}rSale()})}
@@ -573,24 +514,16 @@ function rUp(){const sec=$('#t-up'),adm=!!ADM.pw;const ms=months(),ds=stockDates
       <ul><li>엑셀 맨 위 <code>회사명 : 디앤디컴(주) / … / 2026/11/01 ~ 2026/11/26</code> 줄의 <b>기간·기준일</b>을 읽습니다. 지우지 말고 그대로 올리세요.</li>
       <li>재고현황은 그 줄의 <b>창고 이름</b>(예: 온비즈 용산창고)으로 창고를 나눕니다. 같은 기준일에 창고를 따로 올려도 합쳐집니다.</li>
       <li>매출은 올린 <b>기간만</b> 바뀌고 같은 달 다른 날은 그대로 남습니다. 주간으로 이어 올려도 됩니다.</li></ul></div>
-    ${UP.log.length?`<div class="msg" style="margin-top:12px;display:block"><b>방금 반영한 내용</b><ul id="log" style="margin:4px 0 0;padding-left:18px">${UP.log.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>`:''}</div></div>${have}`;
+    ${UP.log.length?`<div class="msg${UP.ok===false||UP.log.some(x=>x[0]=="✗")?" err":""}" style="margin-top:12px;display:block"><b>방금 올린 결과</b><ul id="log" style="margin:4px 0 0;padding-left:18px">${UP.log.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>`:''}</div></div>${have}`;
   const dr=$('#drop'),fi=$('#fi');fi.onchange=()=>upFiles([...fi.files]);
   dr.ondragover=e=>{e.preventDefault();dr.classList.add('on')};dr.ondragleave=()=>dr.classList.remove('on');dr.ondrop=e=>{e.preventDefault();dr.classList.remove('on');upFiles([...e.dataTransfer.files])};
   sec.querySelectorAll('[data-del]').forEach(a=>a.onclick=async e=>{e.preventDefault();const k=a.dataset.del;if(!a.dataset.a){a.dataset.a=1;a.textContent='한 번 더 누르면 삭제';return}
     try{await put({[k]:null});UP.log=[`${k.slice(1)} ${k[0]=='t'?'재고':'매출'} 자료를 지웠습니다.`];fixMonth();render()}catch(x){alertMsg(x)}})}
 const alertMsg=x=>{UP.log=[x.status==403?'관리자 비밀번호가 맞지 않아 저장하지 못했습니다. 관리자 버튼으로 다시 여세요.':'저장하지 못했습니다: '+x.message];rUp()};
-async function upFiles(files){if(!files.length||UP.busy)return;UP.busy=true;rUp();const res=[],log=[];
-  try{for(let i=0;i<50&&!window.XLSX;i++)await new Promise(r=>setTimeout(r,200));
-    for(const f of files){const wb=XLSX.read(await f.arrayBuffer(),{type:'array',cellDates:true});let n=0;
-      for(const sn of wb.SheetNames){const A=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:true,defval:null});const x=ECP.sheet(A,f.name,sn);if(x){res.push(x);n++}}
-      if(!n)log.push(`${f.name}: 이카운트 일별이익현황·품목별이익현황·재고현황 양식을 찾지 못했습니다.`)}
-    // 필요한 기존 문서 불러오기
-    const need=new Set();res.forEach(x=>{if(x.kind=='sale')x.L.forEach(l=>need.add('s'+l[0].slice(0,7)));if(x.kind=='stock')need.add('t'+(x.date||TODAY))});
-    for(const k of need)if(k[0]=='t'&&D.keys.includes(k))await loadT(k.slice(1));
-    const docs={};D.keys.forEach(k=>{if(k[0]=='s')docs[k]=D.s[k.slice(1)];if(k[0]=='t'&&D.t[k.slice(1)])docs[k]=D.t[k.slice(1)]});
-    const out=ECP.apply(res,docs,log);if(Object.keys(out).length){await put(out);const sm=Object.keys(out).filter(k=>k[0]=='s').map(k=>k.slice(1)).sort();if(sm.length)UI.m=sm[sm.length-1];const tk=Object.keys(out).filter(k=>k[0]=='t').sort();if(tk.length)UI.stockD=tk[tk.length-1].slice(1);UI.sale=null}
-    UP.log=log.length?log:['반영할 내용이 없었습니다.']}
-  catch(x){UP.log=[x.status==403?'관리자 비밀번호가 맞지 않아 저장하지 못했습니다.':'읽거나 저장하지 못했습니다: '+x.message]}
+async function upFiles(files){if(!files.length||UP.busy)return;UP.busy=true;rUp();
+  try{const r=await ECP.ingest(files,{pw:ADM.pw,key:KEY()});UP.log=r.log.length?r.log:['반영할 내용이 없었습니다.'];UP.ok=r.n>0;
+    if(r.n){await load();const sm=Object.keys(r.out).filter(k=>k[0]=='s').sort();if(sm.length){UI.m=sm[sm.length-1].slice(1);const ld=lastSaleDay();UI.sale={f:ld.slice(0,8)+'01',t:ld,c:'',q:'',mode:'line',ret:''}}const tk=Object.keys(r.out).filter(k=>k[0]=='t').sort();if(tk.length)UI.stockD=tk[tk.length-1].slice(1)}}
+  catch(x){UP.ok=false;UP.log=[x.status==403?'관리자 비밀번호가 맞지 않아 저장하지 못했습니다. 관리자 버튼으로 다시 여세요.':'읽거나 저장하지 못했습니다: '+x.message]}
   UP.busy=false;fixMonth();render()}
 
 /* ===== 관리자 ===== */
