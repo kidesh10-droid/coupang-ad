@@ -193,7 +193,7 @@ tr.ret td{color:var(--red)}
 </main>
 <div id="dlg"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" async></script>
-<script src="/erp/ecp.js?v=20261126-153719"></script>
+<script src="/erp/ecp.js?v=20261126-154432"></script>
 <script>
 'use strict';
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
@@ -312,7 +312,7 @@ async function xWrite(list,fname,btn){const lab=btn&&btn.textContent;if(btn){btn
 
 
 /* ===== 공통 열 ===== */
-const C={q:{h:'수량',k:'q',t:'n'},a:{h:'판매금액',k:'a',t:'w'},ca:{h:'원가금액',k:'ca',t:'w'},pf:{h:'이익금액',k:'pf',t:'w'},mg:{h:'이익율',k:'mg',t:'p'},
+const C={q:{h:'수량',k:'q',t:'n'},a:{h:'판매금액(공급가)',k:'a',t:'w'},ca:{h:'원가금액',k:'ca',t:'w'},pf:{h:'이익금액',k:'pf',t:'w'},mg:{h:'이익율',k:'mg',t:'p'},
   ap:{h:'평균 판매단가',k:'ap',t:'w',noT:1},uc:{h:'평균 원가단가',k:'uc',t:'w',noT:1}};
 const tot=(R,extra)=>{const o=sumRows(R.map(r=>({q:r.q,a:r.a,ca:r.ca,pf:r.pf,pr:r.q?(r.sup??r.pr*r.q)/r.q:0})));return{...o,...extra}};
 const totG=(G,extra)=>{const o={q:0,a:0,ca:0,pf:0,n:0};G.forEach(g=>{o.q+=g.q;o.a+=g.a;o.ca+=g.ca;o.pf+=g.pf;o.n+=g.n||0});o.mg=o.a?o.pf/o.a:null;return{...o,...extra}};
@@ -336,7 +336,7 @@ function rDash(){const m=UI.m,sec=$('#t-dash');if(!m&&!stockDates().length){sec.
   if(cnt('과다').length)AL.push(`<b>과다 재고 ${W(amt(cnt('과다')))}원</b> — ${D.cfg.over||90}일 넘게 팔 수 있는 ${cnt('과다').length}품목.`);
   const G=R.length?group(R,r=>r.code,r=>({nm:r.nm,code:r.code})).sort((a,b)=>b.a-a.a):[],GC=R.length?group(R,r=>r.c,r=>({c:r.c})).sort((a,b)=>b.a-a.a):[];
   const whs=SK?SK.wh.map(w=>{let q=0,a=0;D.t[sd].W[w].forEach(r=>{q+=r[2];a+=r[4]});return{w,q,a,n:D.t[sd].W[w].length}}):[];const whT=whs.reduce((o,x)=>({q:o.q+x.q,a:o.a+x.a,n:o.n+x.n}),{q:0,a:0,n:0});
-  sec.innerHTML=`<h2>${m?`${m.slice(0,4)}년 ${+m.slice(5)}월`:'재고'} 현황</h2><p class="sub">${m?`매출 자료 ${esc(rangeTxt(m))}`:''}${sd?` · 재고 기준일 ${sd}`:''} · 금액은 이카운트 이익현황 기준(판매금액은 부가세 포함, 원가는 재고단가)</p>
+  sec.innerHTML=`<h2>${m?`${m.slice(0,4)}년 ${+m.slice(5)}월`:'재고'} 현황</h2><p class="sub">${m?`매출 자료 ${esc(rangeTxt(m))}`:''}${sd?` · 재고 기준일 ${sd}`:''} · 판매금액은 부가세 뺀 공급가 · 원가는 이카운트 재고단가</p>
   ${S?`<div class="kpi"><div class="hl"><span>판매금액</span><b>${W(S.a)}원</b>${dv(S.a,PS&&PS.a)}</div><div><span>원가</span><b>${W(S.ca)}원</b></div><div class="hl"><span>이익</span><b>${W(S.pf)}원</b>${dv(S.pf,PS&&PS.pf)}</div><div><span>이익율</span><b>${P(S.mg)}</b>${PS&&PS.mg!=null?`<i class="note">전월 ${P(PS.mg)}</i>`:''}</div><div><span>판매수량</span><b>${W(S.q)}개</b></div>${S.ra!=null?`<div><span>반품</span><b class="${S.ra<0?'dn':''}">${W(S.ra)}원</b><i class="note">${W(-S.rq)}개</i></div>`:''}${SK?`<div><span>재고금액 (${sd.slice(5).replace('-','/')})</span><b>${W(whT.a)}원</b><i class="note">${W(whT.q)}개</i></div>`:''}</div>`:''}
   ${AL.length?`<div class="alerts">${AL.map(x=>`<div class="msg">${x}</div>`).join('')}</div>`:''}
   ${R.length?`<div class="box"><h3>일별 판매금액·이익 <small>연한 막대 = 판매금액, 진한 막대 = 이익 · 막대에 올리면 금액</small></h3><div class="pad">${svgDaily(R,m)}</div></div>`:''}
@@ -487,7 +487,7 @@ function rCost(){const sec=$('#t-cost'),m=UI.m;if(!m||!D.s[m]){sec.innerHTML=m&&
   const flt=UI.costF,L=flt?G.filter(g=>g.fl.includes(flt)):G;L.sort((a,b)=>flt?a.mg-b.mg:b.a-a.a);
   const cnt=k=>G.filter(g=>g.fl.includes(k)).length;
   const NL=R.filter(r=>r.q>0&&r.pf<0).sort((a,b)=>a.pf-b.pf),GC=group(R,r=>r.c,r=>({c:r.c})).sort((a,b)=>b.a-a.a);
-  sec.innerHTML=`<h2>${+m.slice(5)}월 원가 관리</h2><p class="sub">판매 ${esc(rangeTxt(m))} · 원가는 이카운트가 판매 시점에 잡은 재고단가 · 평균 판매단가는 부가세 뺀 공급가 · 이익율 = 이익 ÷ 판매금액(이카운트와 같음)</p>
+  sec.innerHTML=`<h2>${+m.slice(5)}월 원가 관리</h2><p class="sub">판매 ${esc(rangeTxt(m))} · 원가는 이카운트가 판매 시점에 잡은 재고단가 · 판매금액·판매단가는 부가세 뺀 공급가 · 이익율 = 이익 ÷ 판매금액(이카운트와 같음)</p>
   <div class="kpi">${[['','전체'],['역마진','역마진'],['저마진','저마진 (10% 미만)'],['원가 변동','원가 변동'],['재고단가 차이','재고단가 차이']].map(([k,l])=>`<div${flt==k?' class="hl"':''}><span>${l}</span><b>${k?cnt(k):G.length}품목</b></div>`).join('')}</div>
   <div class="f" style="padding:0 0 10px"><span class="seg" role="group">${[['','전체'],['역마진','역마진'],['저마진','저마진'],['원가 변동','원가 변동'],['재고단가 차이','재고단가 차이']].map(([k,l])=>`<button type="button" data-cf="${k}" aria-pressed="${flt==k}">${l}</button>`).join('')}</span></div>
   ${tbl('c-item','품목별 원가·마진',flt?`${flt} ${L.length}품목 · 이익율 낮은 순`:`${L.length}품목 · 판매금액 순`,[{h:'품목코드',k:'code',t:'s'},{h:'품목명',k:'nm',t:'s',cls:'t'},C.q,{h:'평균 판매단가(공급가)',k:'ap',t:'w',noT:1},{h:'평균 원가단가',k:'uc',t:'w',noT:1},{h:'개당 이익(공급가 기준)',k:r=>r.ap!=null&&r.uc!=null?r.ap-r.uc:null,t:'w',noT:1},C.a,C.ca,C.pf,C.mg,

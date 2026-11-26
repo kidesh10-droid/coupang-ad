@@ -103,10 +103,14 @@ export async function onRequest({ request, env }) {
             await env.DB.put('erp:applied:' + A.id, 'running');
             const need = names.filter(k => k[0] === 's' || k[0] === 't'), docs = {};
             for (const k of need) docs[k] = await env.DB.get(P + k, 'json');
-            const log = [], out = globalThis.ECP.apply(A.res, docs, log);
+            const log = [], pre = {}, orig = {}; for (const k of need) if (docs[k]) orig[k] = JSON.stringify(docs[k]);
+            if (A.supply) for (const k of need) if (k[0] === 's' && docs[k]) { const n = globalThis.ECP.toSupply(docs[k]); if (n) { pre[k] = docs[k]; log.push(k + ' 공급가로 ' + n + '줄') } }
+            const out = Object.assign(pre, globalThis.ECP.apply(A.res || [], docs, log));
+            for (const k of (A.del || [])) if (names.includes(k)) out[k] = null;
             for (const [k, v] of Object.entries(out)) {
               if (!okE(k)) continue;
-              if (docs[k]) await env.DB.put('hist:erp:' + String(Date.now()).padStart(14, '0') + ':' + k, JSON.stringify(docs[k]), { expirationTtl: KEEP, metadata: { k, ts: Date.now(), why: 'up' } });
+              if (orig[k]) await env.DB.put('hist:erp:' + String(Date.now()).padStart(14, '0') + ':' + k, orig[k], { expirationTtl: KEEP, metadata: { k, ts: Date.now(), why: 'up' } });
+              if (v === null) { await env.DB.delete(P + k); names = names.filter(x => x !== k); continue }
               await env.DB.put(P + k, JSON.stringify(v)); if (!names.includes(k)) names.push(k);
             }
             await env.DB.put('erp:applied:' + A.id, JSON.stringify({ at: Date.now(), log }));

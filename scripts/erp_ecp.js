@@ -17,7 +17,7 @@ const ECP = {
   sheet(A, fname, sname) {
     A = (A || []).map(r => (r || []).map(v => v instanceof Date ? iso(v) : v));
     const hi = A.findIndex(r => { const h = r.map(T); return h.some(x => /^품목(코드|명)/.test(x)) && h.some(x => /수량|재고|판매|금액|공급가액/.test(x)) });
-    if (hi < 0) return { kind: null, why: '품목코드·품목명 열이 있는 제목 줄을 못 찾음' };
+    if (hi < 0) return { kind: null, why: A.some(r => (r || []).some(v => /^거래처(코드|명)$/.test(T(v)))) ? '거래처별 합계 자료라 품목을 알 수 없음 — 거래처·품목이 함께 있는 일별이익현황으로 올려 주세요' : '품목코드·품목명 열이 있는 제목 줄을 못 찾음' };
     const H = A[hi].map(T), H2 = (A[hi + 1] || []).map(T), title = A.slice(0, hi).map(r => r.map(T).filter(Boolean).join(' ')).join(' ');
     const sub = H2.filter(x => /^(수량|단가|금액)$/.test(x)).length >= 2;
     let g = ''; const C = H.map((h, i) => { if (h) g = h; const s = sub ? H2[i] : ''; return sub && s ? (g + '.' + s) : (h || (sub ? '' : g)) });
@@ -39,7 +39,7 @@ const ECP = {
       ia = col(/^판매\.금액$/, /^합계(금액)?$/, /^금액$/),
       iuc = col(/^원가\.단가$/, /^원가단가$/), ica = col(/^원가\.금액$/, /^원가금액$/, /^원가$/);
     if (iq < 0 || (ia < 0 && isup < 0)) return { kind: null, why: '수량·금액 열을 못 찾음 (열: ' + C.filter(Boolean).join(', ') + ')' };
-    const amt = r => ia >= 0 ? num(r[ia]) : num(r[isup]) + (ivat >= 0 ? num(r[ivat]) : 0);
+    const amt = r => isup >= 0 ? num(r[isup]) : num(r[ia]);
     const per = dates(title), from = per[0] || null, to = per[1] || per[0] || null;
     if (isDay) { const icu = col(/^거래처명?$/), L = [];
       const fy = from ? +from.slice(0, 4) : new Date().getFullYear(), fm = from ? +from.slice(5, 7) : 1, ty = to ? +to.slice(0, 4) : fy;
@@ -49,14 +49,16 @@ const ECP = {
         if (m) { y = +m[1]; mo = +m[2]; d = +m[3]; no = +(m[4] || 0) }
         else if ((m = s.match(/^(\d{1,2})[\/.-](\d{1,2})(?:\s*-\s*(\d+))?/))) { mo = +m[1]; d = +m[2]; no = +(m[3] || 0); y = mo >= fm ? fy : ty }
         else continue;
-        const q = num(r[iq]), a = amt(r), ca = ica >= 0 ? num(r[ica]) : null;
-        L.push([`${y}-${p2(mo)}-${p2(d)}`, no, T(r[icu]), code, nm, q, ip >= 0 ? num(r[ip]) : (q ? a / 1.1 / q : 0), a, iuc >= 0 ? num(r[iuc]) : (ca != null && q ? ca / q : null), ca]) }
+        const q = num(r[iq]), pr0 = ip >= 0 ? num(r[ip]) : 0; let a = amt(r); if (isup < 0 && pr0 && q && Math.abs(a - pr0 * q * 1.1) <= Math.max(2, Math.abs(a) * .002)) a = Math.round(a / 1.1); const ca = ica >= 0 ? num(r[ica]) : null;
+        L.push([`${y}-${p2(mo)}-${p2(d)}`, no, T(r[icu]), code, nm, q, ip >= 0 ? num(r[ip]) : (q ? a / q : 0), a, iuc >= 0 ? num(r[iuc]) : (ca != null && q ? ca / q : null), ca]) }
       if (!L.length) return { kind: null, why: '판매 줄이 없음' }; const ds = L.map(x => x[0]).sort();
       return { kind: 'sale', from: from || ds[0], to: to || ds[ds.length - 1], L, noCost: ica < 0 && iuc < 0 } }
     const R = []; for (const r of body) { const code = T(r[ic >= 0 ? ic : inm]); if (!code || SKIP.test(code)) continue;
       R.push([code, T(r[inm]), num(r[iq]), amt(r), ica >= 0 ? num(r[ica]) : 0]) }
     return R.length ? { kind: 'item', from, to, R } : { kind: null, why: '품목 줄이 없음' } },
 
+  /* 저장된 매출 줄 중 부가세 포함 금액(금액 = 단가×수량×1.1)을 공급가로 바꿈 → 바뀐 줄 수 */
+  toSupply(doc) { let n = 0; (doc.L || []).forEach(l => { const q = l[4], pr = l[5], a = l[6]; if (pr && q && Math.abs(a - pr * q * 1.1) <= Math.max(2, Math.abs(a) * .002)) { l[6] = Math.round(a / 1.1); n++ } }); return n },
   /* 읽은 결과를 저장 문서에 합치기 → 바뀐 문서 {key:doc} */
   apply(res, docs, log) { const out = {};
     // 품목코드 없는 자료(판매현황)용: 이름 → 코드, 최근 원가단가
@@ -88,7 +90,7 @@ const ECP = {
         if (x.from != to && sd && sd.R.some(r => r[0] <= f1 && r[1] >= t1)) { log.push(`품목별 이익 ${x.from}~${to}: 이 기간 일별 매출이 이미 있어 건너뜀 (하루치 품목별 파일이나 일별이익현황은 바로 반영됩니다)`); continue }
         if (!sd && f1 == 1) { out['p' + m] = { m, from: x.from, to, R: x.R, at: Date.now() }; log.push(`품목별 이익 ${x.from}~${to} · ${x.R.length}품목 → ${m} 월 합계로 반영`); continue }
         // 일별 매출에 그 기간을 품목별 줄로 넣음 (하루치면 그날 매출과 같음)
-        const day = to, L = x.R.map(r => [day, 0, '(품목별이익현황)', r[0], r[1], r[2], r[2] ? r[3] / 1.1 / r[2] : 0, r[3], r[2] ? r[4] / r[2] : 0, r[4]]);
+        const day = to, L = x.R.map(r => [day, 0, '(품목별이익현황)', r[0], r[1], r[2], r[2] ? r[3] / r[2] : 0, r[3], r[2] ? r[4] / r[2] : 0, r[4]]);
         res.push({ kind: 'sale', from: x.from, to, L, viaItem: 1 });
         log.push(`품목별 이익 ${x.from.slice(5).replace('-', '/')}~${to.slice(5).replace('-', '/')} · ${x.R.length}품목을 매출에 넣음${x.from != to ? ` (여러 날 합계라 ${to.slice(5).replace('-', '/')} 하루에 모아 넣음 — 날짜·거래처별로 보려면 일별이익현황으로 올려 주세요)` : ' (거래처는 일별이익현황을 올리면 채워짐)'}`) }
       if (x.kind == 'stock') { const d = x.date || TODAY, k = 't' + d, doc = out[k] || docs[k] || { d, W: {} }; const Wn = { ...doc.W };
