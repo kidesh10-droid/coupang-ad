@@ -175,7 +175,7 @@ tr.click{cursor:pointer}tr.click:hover td{background:var(--sub)}
     <button data-t="img">행사 이미지</button>
   </nav>
   <span id="st">불러오는 중…</span>
-  <button class="hl" id="bulkbtn" type="button">⬆ 행사 엑셀 일괄등록</button>
+  <button class="hl" id="bulkbtn" type="button">⬆ 행사 일괄등록</button>
   <button class="hl" id="upbtn" type="button" style="background:#f2c94c;color:#1b2330;border-color:#f2c94c;font-weight:600">⬆ 이미지 업로드</button>
   <button class="hl" id="admbtn" type="button">관리자</button>
   <a class="hl" href="/erp/">ERP</a>
@@ -230,7 +230,7 @@ function rCal(){const sec=$('#t-cal'),[y,mm]=UI.m.split('-').map(Number),first=n
   const inMonth=evs.filter(e=>e.from&&e.from<=`${UI.m}-31`&&(e.to||e.from)>=`${UI.m}-01`).sort((a,b)=>a.from<b.from?-1:1);
   sec.innerHTML=`<div class="bar" style="margin:-14px max(-2vw,-12px) 14px;padding:10px max(2vw,12px)">
     <button class="b" id="cp" aria-label="이전 달">◀</button><b style="font-size:18px;min-width:120px;text-align:center">${y}년 ${mm}월</b><button class="b" id="cn" aria-label="다음 달">▶</button><button class="b" id="ct">이번 달</button>
-    ${filt()}<span class="sp"></span><button class="b" id="bulk1" type="button">⬆ 엑셀 일괄등록</button><button class="b p" id="new1" type="button">+ 행사 등록</button></div>
+    ${filt()}<span class="sp"></span><button class="b" id="bulk1" type="button">⬆ 일괄등록</button><button class="b p" id="new1" type="button">+ 행사 등록</button></div>
   <div class="cal">${'일월화수목금토'.split('').map(x=>`<div class="dh">${x}</div>`).join('')}${cells}</div>
   <p class="note">날짜 칸을 누르면 그날로 새 행사를 등록하고, 행사 막대를 누르면 내용·이미지를 봅니다.</p>
   ${listTable('c-m',`${mm}월 행사`,inMonth)}`;
@@ -258,7 +258,7 @@ function listTable(id,title,L){const R=L.map(e=>{const A=erpAct(e);return{e,A,q:
   ${L.length?`<tr class="gt"><td>합계</td><td>${L.length}건</td><td></td><td></td><td></td><td></td><td></td><td class="n">${W(T.tq)}</td><td class="n">${W(T.q)}</td><td class="n">${W(T.a)}</td><td class="n${T.pf<0?' neg':''}">${W(T.pf)}</td><td class="n">${T.a?P(T.pf/T.a):'–'}</td><td></td><td class="n">${L.reduce((s,e)=>s+(e.imgs||[]).length,0)}</td></tr>`:''}</tbody></table></div></div>`}
 function bindRows(sec){sec.querySelectorAll('[data-ev]').forEach(r=>r.onclick=e=>{e.stopPropagation();view(r.dataset.ev)})}
 function rList(){const sec=$('#t-list'),L=filtered().sort((a,b)=>(b.from||'')<(a.from||'')?-1:1);
-  sec.innerHTML=`<div class="box"><div class="f">${filt()}<span style="flex:1"></span><button class="b" id="bulk2" type="button">⬆ 엑셀 일괄등록</button><button class="b p" id="new2" type="button">+ 행사 등록</button></div></div>${listTable('l-all','행사 목록',L)}`;
+  sec.innerHTML=`<div class="box"><div class="f">${filt()}<span style="flex:1"></span><button class="b" id="bulk2" type="button">⬆ 일괄등록</button><button class="b p" id="new2" type="button">+ 행사 등록</button></div></div>${listTable('l-all','행사 목록',L)}`;
   bindFilt(rList);$('#new2').onclick=()=>edit(null,TODAY);$('#bulk2').onclick=bulkDlg;bindRows(sec)}
 document.addEventListener('click',e=>{const b=e.target.closest('[data-x]');if(!b)return;const t=TB[b.dataset.x];if(!t)return;
   const H=['상태','행사명','채널','거래처','시작일','종료일','품목','행사가','목표 수량','실판매 수량','매출(공급가)','이익','이익율','담당','메모','이미지 수'];
@@ -403,50 +403,153 @@ async function xWrite(list,fname,btn){const lab=btn&&btn.textContent;if(btn){btn
   finally{if(btn){btn.disabled=false;btn.textContent=lab}}}
 
 
-/* ===== 행사 엑셀 일괄 등록 ===== */
-const BH={name:/^(행사(명|이름)?|제목|이벤트)$/,from:/^(시작(일|일자)?|일자|날짜|오픈(일)?|행사\s*시작)$/,to:/^(종료(일|일자)?|마감(일)?|끝|행사\s*종료)$/,per:/^(기간|행사\s*기간|진행\s*기간|일정)$/,
-  ch:/^(채널|종류|행사\s*종류|구분|유형|플랫폼|몰)$/,cust:/^(거래처(명)?|업체(명)?|판매처|파트너)$/,items:/^(품목(명)?|상품(명)?|품목코드|제품(명)?)$/,price:/^(행사가|조건|행사\s*조건|판매가|가격|혜택)$/,
+/* ===== 행사 일괄 등록: 양식 없이 인식 (달력 모양 → 표 → 날짜+행사명 목록 순서로 시도) ===== */
+const BH={name:/^(행사(명|이름)?|제목|이벤트(명)?|행사\s*구좌(명)?|구좌(명)?|기획전(명)?|프로모션(명)?|행사\s*내역)$/,from:/^(시작(일|일자)?|일자|날짜|오픈(일)?|행사\s*시작(일)?)$/,to:/^(종료(일|일자)?|마감(일)?|끝|행사\s*종료(일)?)$/,per:/^(기간|행사\s*기간|진행\s*기간|일정)$/,
+  ch:/^(채널|종류|행사\s*종류|구분|유형|플랫폼|몰|사이트|쇼핑몰|판매\s*채널|마켓)$/,cust:/^(거래처(명)?|업체(명)?|판매처|파트너|벤더)$/,items:/^(품목(명)?|상품(명)?|품목코드|제품(명)?|물품|모델(명)?)$/,price:/^(행사가|조건|행사\s*조건|판매가|가격|혜택|공급가)$/,
   tq:/^(목표(\s*수량)?|예상\s*수량|수량)$/,aq:/^(실판매(\s*수량)?|판매\s*수량|실적\s*수량)$/,aa:/^(매출|실적(\s*금액)?|판매\s*금액)$/,owner:/^(담당(자)?|진행자)$/,memo:/^(메모|비고|내용|노출|설명|참고)$/};
-function bDate(v,yr){if(v==null||v==='')return'';if(v instanceof Date)return iso(v);if(typeof v=='number'&&v>20000&&v<80000){const d=new Date(Math.round((v-25569)*864e5));return iso(new Date(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate()))}
-  const t=String(v).trim();let m=t.match(/(\d{4})\s*[.\/\-년]\s*(\d{1,2})\s*[.\/\-월]\s*(\d{1,2})/);if(m)return`${m[1]}-${p2(m[2])}-${p2(m[3])}`;
-  m=t.match(/(\d{2})(\d{2})(\d{2})/);if(m&&t.replace(/\D/g,'').length==6)return`20${m[1]}-${m[2]}-${m[3]}`;
-  m=t.match(/(\d{1,2})\s*[.\/\-월]\s*(\d{1,2})/);if(m)return`${yr}-${p2(m[1])}-${p2(m[2])}`;return''}
-function bPer(v,yr){if(v instanceof Date||typeof v=='number')return[bDate(v,yr),''];const t=String(v||'');const parts=t.split(/\s*(?:~|–|—|-(?=\s*\d{1,4}\s*[.\/월])|부터|까지)\s*/).filter(x=>/\d/.test(x));
+const BK={from:['시작','오픈'],to:['종료','마감'],per:['기간','일정','날짜','일자'],price:['행사가','가격','조건','혜택','판매가','공급가'],name:['행사명','행사','구좌','이벤트','기획전','프로모션','제목','내역'],
+  ch:['채널','사이트','쇼핑몰','플랫폼','구분','종류','마켓'],cust:['거래처','업체','판매처','파트너','벤더'],items:['품목','상품','제품','물품','모델'],tq:['목표','예상'],aq:['실판매','판매수량','실적수량'],aa:['매출','실적금액','판매금액'],owner:['담당','진행자'],memo:['메모','비고','내용','참고','설명']};
+const CHS=['소노아임레디몰','알리익스프레스','스마트스토어','CJ온스타일','롯데홈쇼핑','현대홈쇼핑','GS홈쇼핑','신세계몰','오늘의집','스토어팜','지그재그','베네피아','비즈마켓','공구마켓','11번가','지마켓','G마켓','롯데온','이지웰','기아샵','현대샵','떠리몰','홈앤쇼핑','카카오','네이버','쿠팡','옥션','위메프','티몬','토스','캠핏','소노몰','SSG','컬리','무신사','올웨이즈'];
+const bT=v=>String(v??'').replace(/\s+/g,' ').trim();
+const okYMD=(y,m,d)=>m>=1&&m<=12&&d>=1&&d<=31?`${y}-${p2(m)}-${p2(d)}`:'';
+function bDate(v,yr){if(v==null||v==='')return'';if(v instanceof Date)return isNaN(v)?'':iso(v);if(typeof v=='number'&&v>20000&&v<80000){const d=new Date(Math.round((v-25569)*864e5));return iso(new Date(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate()))}
+  const t=String(v).trim();let m=t.match(/(\d{4})\s*[.\/\-년]\s*(\d{1,2})\s*[.\/\-월]\s*(\d{1,2})/);if(m)return okYMD(m[1],+m[2],+m[3]);
+  m=t.match(/^(\d{2})\s*[.\/\-]\s*(\d{1,2})\s*[.\/\-]\s*(\d{1,2})(?!\d)/);if(m)return okYMD('20'+m[1],+m[2],+m[3]);
+  m=t.match(/^(\d{2})(\d{2})(\d{2})$/);if(m)return okYMD('20'+m[1],+m[2],+m[3]);
+  m=t.match(/(\d{1,2})\s*[.\/\-월]\s*(\d{1,2})/);if(m)return okYMD(yr,+m[1],+m[2]);return''}
+function bPer(v,yr){if(v instanceof Date||typeof v=='number')return[bDate(v,yr),''];const t=String(v||'');const parts=t.split(/\s*(?:~|∼|–|—|-(?=\s*\d{1,4}\s*[.\/월])|부터|까지)\s*/).filter(x=>/\d/.test(x));
   const a=bDate(parts[0]||'',yr);let b=parts[1]?bDate(parts[1],a?a.slice(0,4):yr):'';if(!b&&parts[1]&&/^\s*\d{1,2}\s*일?\s*$/.test(parts[1])&&a)b=a.slice(0,8)+p2(parts[1].replace(/\D/g,''));if(a&&b&&b<a&&b.slice(5)<a.slice(5))b=(+a.slice(0,4)+1)+b.slice(4);return[a,b]}
-function bParse(A){A=A.map(r=>(r||[]).map(v=>v instanceof Date?v:v==null?'':v));const T=v=>String(v??'').replace(/\s+/g,' ').trim();
-  const hi=A.findIndex(r=>r.some(v=>BH.name.test(T(v))));if(hi<0)return{err:'"행사명" 열을 찾지 못했습니다. 첫 줄에 행사명·시작일·종료일 같은 제목을 넣어 주세요.'};
-  const H=A[hi].map(T),col={};Object.entries(BH).forEach(([k,re])=>{const i=H.findIndex(h=>re.test(h));if(i>=0)col[k]=i});
-  const IT=erpItems(),yr=TODAY.slice(0,4),out=[],bad=[];
-  A.slice(hi+1).forEach((r,ri)=>{const g=k=>col[k]!=null?r[col[k]]:'';const name=T(g('name'));if(!name)return;
-    let from=bDate(g('from'),yr),to=bDate(g('to'),from?from.slice(0,4):yr);if(!from&&col.per!=null){[from,to]=bPer(g('per'),yr)}if(!from&&col.per==null&&col.from!=null&&/~|부터/.test(T(g('from'))))[from,to]=bPer(g('from'),yr);
-    if(!from){bad.push(`${hi+ri+2}행 "${name}": 시작일을 못 읽음`);return}if(!to)to=from;if(to<from)[from,to]=[to,from];
-    const items=T(g('items')).split(/[,\n/·]+/).map(x=>x.trim()).filter(Boolean).map(v=>{const code=IT[v]?v:Object.keys(IT).find(c=>IT[c]==v)||Object.keys(IT).find(c=>IT[c].includes(v));return code?{code,nm:IT[code]}:{code:v,nm:v}});
-    const n=x=>{const s=T(x).replace(/[,원개\s]/g,'');return s&&isFinite(+s)?String(+s):''};
-    const old=EV.find(e=>!e.lib&&e.name==name&&e.from==from);
-    out.push({id:old?old.id:uid()+ri.toString(36),name,from,to,ch:T(g('ch')),cust:T(g('cust')),items,price:T(g('price')),tq:n(g('tq')),aq:n(g('aq')),aa:n(g('aa')),owner:T(g('owner')),memo:T(g('memo')),upd:!!old})});
-  return{out,bad,cols:Object.keys(col)}}
+/* 글 안의 날짜·기간 찾기: "11/26~11/30 쿠팡 와우데이" → 기간 + 나머지 글 */
+const DTS='(?:(?:\\d{4}|\\d{2})\\s*[.\\/\\-년]\\s*)?\\d{1,2}\\s*[.\\/\\-월]\\s*\\d{1,2}\\s*일?(?:\\s*\\(\\s*[월화수목금토일]\\s*\\))?';
+const RE_PER=new RegExp(`(${DTS})(?:\\s*(?:~|∼|–|—|-|부터)\\s*(${DTS}|\\d{1,2}\\s*일?(?![\\d.\\/월])))?(?:\\s*까지)?`);
+function bSplit(t,yr){const m=String(t).match(RE_PER);if(!m)return null;const clean=s=>s.replace(/\([월화수목금토일]\)/g,'');const a=bDate(clean(m[1]),yr);if(!a)return null;let b='';
+  if(m[2]){b=/^\d{1,2}\s*일?$/.test(m[2].trim())?a.slice(0,8)+p2(m[2].replace(/\D/g,'')):bDate(clean(m[2]),a.slice(0,4));if(b&&b<a&&b.slice(5)<a.slice(5))b=(+a.slice(0,4)+1)+b.slice(4)}
+  return{from:a,to:b||a,rest:bT(String(t).replace(m[0],' ').replace(/^[\s\-–~:|,·]+|[\s\-–~:|,·]+$/g,''))}}
+/* 엑셀 시트 → 2차원 배열 (날짜 서식 칸은 날짜로, 날짜 서식인 1~31은 "일" 숫자로, 병합된 글자 칸은 펼침) */
+function sheetArr(ws){if(!ws||!ws['!ref'])return[];const U=XLSX.utils,R=U.decode_range(ws['!ref']),er=Math.min(R.e.r,4000),ec=Math.min(R.e.c,120);
+  (ws['!merges']||[]).forEach(m=>{const tl=ws[U.encode_cell(m.s)];if(!tl||tl.t!='s')return;for(let r=m.s.r;r<=Math.min(m.e.r,er);r++)for(let c=m.s.c;c<=Math.min(m.e.c,ec);c++){const a=U.encode_cell({r,c});if(!ws[a])ws[a]={t:'s',v:tl.v}}});
+  const A=[];for(let r=0;r<=er;r++){const row=[];for(let c=0;c<=ec;c++){const x=ws[U.encode_cell({r,c})];let v='';
+    if(x){if(x.t=='n'){v=x.v;if(x.z&&XLSX.SSF.is_date(x.z)){if(v<1)v='';else if(v<32)v=Math.floor(v);else{const d=new Date(Math.round((v-25569)*864e5));v=new Date(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate())}}}
+      else if(x.t=='d')v=x.v;else if(x.t=='s')v=x.v}
+    row.push(v)}A.push(row)}
+  while(A.length&&A[A.length-1].every(v=>v===''))A.pop();return A}
+/* 행사 하나 만들기 (이름에서 사이트·품목 뽑기, 같은 이름·시작일은 고침) */
+function bMake(o,ri){const IT=erpItems(),name=bT(o.name);let ch=bT(o.ch),items=o.items||[];
+  if(!ch){const us=name.split(/\s*_\s*/);if(us.length>=3&&us[0]){ch=us[0];if(!items.length)items=us.slice(2).join(',')}
+    else{const m=name.match(/^\[([^\]]+)\]/);if(m)ch=m[1].trim().split(/\s+/)[0];
+      else{const known=[...new Set([...EV.map(e=>e.ch).filter(Boolean),...CHS])].sort((a,b)=>b.length-a.length);let best=null,bi=1e9;known.forEach(k=>{const i=name.indexOf(k);if(i>=0&&i<bi){bi=i;best=k}});if(best&&bi<=3)ch=best}}}
+  if(typeof items=='string')items=items.split(/[,\n/·]+/).map(x=>x.trim()).filter(Boolean).map(v=>{const code=IT[v]?v:Object.keys(IT).find(c=>IT[c]==v)||Object.keys(IT).find(c=>IT[c].includes(v));return code?{code,nm:IT[code]}:{code:v,nm:v}});
+  const old=EV.find(e=>!e.lib&&e.name==name&&e.from==o.from);
+  return{id:old?old.id:uid()+ri.toString(36),name,from:o.from,to:o.to||o.from,ch,cust:bT(o.cust),items,price:bT(o.price),tq:o.tq||'',aq:o.aq||'',aa:o.aa||'',owner:bT(o.owner),memo:bT(o.memo),upd:!!old}}
+
+/* ① 달력 모양: 날짜 숫자 줄(일~토) 아래 칸에 행사명이 적힌 시트 */
+const WDAY=/^[일월화수목금토](요일)?$|^(sun|mon|tue|wed|thu|fri|sat)/i;
+function dn(v){if(v instanceof Date&&!isNaN(v))return v.getDate();if(typeof v=='number')return Number.isInteger(v)&&v>=1&&v<=31?v:null;if(typeof v=='string'){const m=v.match(/^\s*(\d{1,2})\s*일?\s*(?:\n|$)/);if(m&&+m[1]>=1&&+m[1]<=31)return+m[1]}return null}
+function findYM(A,r0,r1,c0,c1){let y=null,m=null;for(let r=r1;r>=r0&&r>=0;r--){const row=A[r]||[];let ry=null,rm=null,nm=null;
+    for(let c=Math.max(0,c0);c<=c1&&c<row.length;c++){const v=row[c];
+      if(v instanceof Date&&!isNaN(v)&&v.getFullYear()>1900){ry=ry||v.getFullYear();rm=rm||v.getMonth()+1;continue}
+      if(typeof v=='number'){if(v>=2000&&v<=2100)ry=v;else if(Number.isInteger(v)&&v>=1&&v<=12)nm=v;continue}
+      const t=bT(v);let k=t.match(/(\d{4})\s*[년.\-\/]\s*(\d{1,2})\s*월?(?!\d)/);if(k&&t.length<=20){ry=+k[1];rm=+k[2];continue}
+      k=t.match(/^(\d{4})\s*년$/);if(k)ry=+k[1];k=t.match(/^(\d{1,2})\s*월$/);if(k)rm=+k[1]}
+    if(!rm&&nm&&ry)rm=nm;if(m==null&&rm>=1&&rm<=12){m=rm;if(ry)y=ry}else if(m!=null&&y==null&&ry)y=ry;if(m!=null&&y!=null)break}
+  return{y,m}}
+function calParse(A,sn){const H=A.length,Wd=Math.max(0,...A.map(r=>r.length)),strong=[];
+  for(let r=0;r<H;r++){const row=A[r];for(let c=0;c+6<Wd;c++){if(dn(row[c])==null)continue;let k=0,fit=0,prev=null;
+      for(let j=0;j<7;j++){const d=dn(row[c+j]);if(d!=null){k++;if(prev!=null&&(d==prev+1||(d==1&&prev>=28)))fit++;prev=d}else prev=null}
+      if(k>=5&&fit>=4){strong.push({r,c});c+=6}}}
+  const cnt={};strong.forEach(s=>cnt[s.c]=(cnt[s.c]||0)+1);const blocks=Object.keys(cnt).map(Number).filter(c=>cnt[c]>=2).sort((a,b)=>a-b);
+  if(!blocks.length)return null;
+  const occ=new Map(),bad=[],months=new Set(),yr=+TODAY.slice(0,4);let warnYM=false;
+  for(const c of blocks){const sr=strong.filter(s=>s.c==c).map(s=>s.r);const gaps=sr.slice(1).map((r,i)=>r-sr[i]).filter(g=>g>1).sort((a,b)=>a-b);const gap=gaps.length?gaps[Math.floor(gaps.length/2)]:8;
+    /* 첫 주·마지막 주처럼 빈칸 있는 날짜 줄도 같은 간격이면 포함 */
+    const isDayRow=r=>{const cells=A[r].slice(c,c+7);let k=0,prev=null,ok=true;cells.forEach(v=>{if(v===''||v==null){prev=null;return}const d=dn(v);if(d==null){if(!WDAY.test(bT(v)))ok=false;return}k++;if(prev!=null&&!(d==prev+1||(d==1&&prev>=28)))ok=false;prev=d});return ok&&k>=1};
+    const rows=new Set(sr);sr.forEach(s=>{for(const r of[s-gap,s+gap])if(r>=0&&r<H&&!rows.has(r)&&isDayRow(r)&&!sr.some(x=>Math.abs(x-r)<gap&&x!=s))rows.add(r)});
+    const R=[...rows].sort((a,b)=>a-b);const runs=[];R.forEach(r=>{const last=runs[runs.length-1];if(last&&r-last[last.length-1]<=gap*1.5)last.push(r);else runs.push([r])});
+    let prevEnd=-1;
+    for(const run of runs){let{y,m}=findYM(A,prevEnd+1,run[0]-1,c-1,c+8);
+      if(m==null){const k=String(sn).match(/(?:(\d{4})\D{0,3})?(\d{1,2})\s*월/);if(k){m=+k[2];if(k[1])y=+k[1]}}
+      if(m==null){m=+TODAY.slice(5,7);warnYM=true}if(y==null)y=yr;
+      const first=run.map(r=>A[r].slice(c,c+7).map(dn).find(d=>d!=null)).find(d=>d!=null);
+      let cur=new Date(y,m-1-(first>=22?1:0),1),prev=null;const dateAt={};
+      for(const r of run){dateAt[r]=[];for(let j=0;j<7;j++){const v=A[r][c+j],d=dn(v);let ds=null;
+          if(d!=null){if(v instanceof Date){cur=new Date(v.getFullYear(),v.getMonth(),1);ds=iso(v);prev=d}
+            else if(prev==null||d==prev+1||(d>prev&&d<=prev+3)){ds=iso(new Date(cur.getFullYear(),cur.getMonth(),d));prev=d}
+            else if(d==1&&prev>=28){cur=new Date(cur.getFullYear(),cur.getMonth()+1,1);ds=iso(cur);prev=1}}
+          dateAt[r][j]=ds}}
+      run.forEach((r,ri)=>{const end=ri+1<run.length?run[ri+1]:Math.min(H,r+gap);
+        for(let j=0;j<7;j++){const ds=dateAt[r][j],put=t=>{t=bT(t);if(!t||t.length<2||dn(t)!=null||WDAY.test(t))return;if(!ds){bad.push(`${sn} ${XLSX.utils.encode_cell({r,c:c+j})} 근처 "${t}": 날짜 숫자가 이상해서 건너뜀`);return}if(!occ.has(t))occ.set(t,new Set());occ.get(t).add(ds);months.add(ds.slice(0,7))};
+          const head=A[r][c+j];if(typeof head=='string'&&head.includes('\n'))head.split('\n').slice(1).forEach(put);
+          for(let rr=r+1;rr<end;rr++){const v=A[rr]&&A[rr][c+j];if(typeof v=='string')put(v.replace(/\n/g,' '))}}});
+      prevEnd=run[run.length-1]+gap-1}}
+  const out=[];let i=0;
+  occ.forEach((set,name)=>{const ds=[...set].sort();let s=ds[0],p=ds[0];for(let k=1;k<=ds.length;k++){const d=ds[k];if(d&&d==addD(p,1)){p=d;continue}out.push(bMake({name,from:s,to:p},i++));s=d;p=d}});
+  out.sort((a,b)=>a.from<b.from?-1:a.from>b.from?1:a.name<b.name?-1:1);
+  const ms=[...months].sort().map(x=>`${+x.slice(0,4)}년 ${+x.slice(5)}월`);
+  if(warnYM)bad.unshift(`${sn}: 달력의 연·월을 못 찾아 이번 달(${TODAY.slice(0,7)})로 읽었습니다. 달력 위에 "2026년 11월"처럼 적어 두면 정확합니다.`);
+  return{out,bad,info:`달력 모양으로 읽음 (${ms.length>4?ms[0]+' ~ '+ms[ms.length-1]:ms.join(', ')})`}}
+
+/* ② 표: 제목 줄(행사명·기간·사이트 등) + 한 줄에 행사 하나 */
+function tableParse(A,sn){const yr=TODAY.slice(0,4);let best=null;
+  for(let r=0;r<Math.min(A.length,40);r++){const H=A[r].map(v=>typeof v=='string'?bT(v):''),col={},used=new Set();
+    Object.entries(BH).forEach(([k,re])=>{const i=H.findIndex((h,i)=>h&&!used.has(i)&&re.test(h));if(i>=0){col[k]=i;used.add(i)}});
+    Object.entries(BK).forEach(([k,ws])=>{if(col[k]!=null)return;const i=H.findIndex((h,i)=>h&&h.length<=15&&!used.has(i)&&ws.some(w=>h.includes(w)));if(i>=0){col[k]=i;used.add(i)}});
+    const dateOk=col.from!=null||col.per!=null,nameOk=col.name!=null||col.ch!=null||col.items!=null,sc=Object.keys(col).length;
+    if(dateOk&&nameOk&&sc>=2&&(!best||sc>best.sc))best={r,col,sc}}
+  if(!best)return null;const{r:hi,col}=best,out=[],bad=[];
+  A.slice(hi+1).forEach((r,ri)=>{const g=k=>col[k]!=null?r[col[k]]:'';let name=bT(g('name'));if(!name)name=[g('ch'),g('items')].map(bT).filter(Boolean).join(' ');if(!name)return;
+    let from=bDate(g('from'),yr),to=bDate(g('to'),from?from.slice(0,4):yr);if(!from&&col.per!=null){[from,to]=bPer(g('per'),yr)}if(!from&&col.from!=null&&/~|부터/.test(bT(g('from'))))[from,to]=bPer(g('from'),yr);
+    if(!from){const s=bSplit(name,yr);if(s){from=s.from;to=s.to}}
+    if(!from){bad.push(`${sn} ${hi+ri+2}행 "${name}": 날짜를 못 읽음`);return}if(!to)to=from;if(to<from)[from,to]=[to,from];
+    const n=x=>{const s=bT(x).replace(/[,원개\s]/g,'');return s&&isFinite(+s)?String(+s):''};
+    out.push(bMake({name,from,to,ch:g('ch'),cust:g('cust'),items:bT(g('items')),price:g('price'),tq:n(g('tq')),aq:n(g('aq')),aa:n(g('aa')),owner:g('owner'),memo:g('memo')},ri))});
+  return{out,bad,info:`표로 읽음 (${hi+1}행 제목: ${Object.keys(col).map(k=>({name:'행사명',from:'시작',to:'종료',per:'기간',ch:'채널',cust:'거래처',items:'품목',price:'행사가',tq:'목표',aq:'실판매',aa:'매출',owner:'담당',memo:'메모'})[k]).join('·')})`}}
+
+/* ③ 제목 없이 날짜와 행사명만 있는 목록 / 붙여넣은 메모 */
+function looseParse(A,sn){const yr=TODAY.slice(0,4),out=[],bad=[];
+  A.forEach((row,ri)=>{let from='',to='',texts=[];
+    row.forEach(v=>{if(v===''||v==null)return;if(v instanceof Date){if(!from)from=iso(v);else if(!to)to=iso(v);return}if(typeof v!='string')return;
+      const t=bT(v);if(!t)return;if(!from){const s=bSplit(t,yr);if(s){from=s.from;to=s.to;if(s.rest&&s.rest.length>=2)texts.push(s.rest);return}}texts.push(t)});
+    texts=texts.filter(t=>t.length>=2&&!/^[\d\s,.:원개()~\-]+$/.test(t));if(!from||!texts.length)return;if(!to)to=from;if(to<from)[from,to]=[to,from];
+    texts.sort((a,b)=>b.length-a.length);out.push(bMake({name:texts[0],from,to,memo:texts.slice(1).join(' / ')},ri))});
+  return out.length?{out,bad,info:'날짜+행사명 목록으로 읽음'}:null}
+
+function bParseAny(A,sn){A=A.map(r=>(r||[]).map(v=>v==null?'':v));
+  for(const f of[calParse,tableParse,looseParse]){const r=f(A,sn);if(r&&r.out.length)return r}
+  return{out:[],bad:[],err:`${sn}: 행사를 찾지 못했습니다`}}
 function bulkDlg(){let parsed=null;
-  dlg(`<h3>행사 엑셀 일괄 등록<span style="flex:1"></span><button class="b s" id="btpl" type="button">양식 받기</button><button class="b s" data-close type="button">닫기</button></h3><div class="pad">
-   <label class="drop" id="bdrop"><input type="file" id="bfi" accept=".xlsx,.xls,.csv" hidden><span class="b p" style="display:inline-flex;font-size:15px;padding:6px 18px;border-radius:3px;margin-bottom:6px">⬆ 행사 엑셀 파일 올리기</span><br>엑셀·CSV를 끌어 놓아도 됩니다 · 여러 시트도 읽습니다</label>
-   <div class="upguide" style="margin-top:10px">열 이름은 아래 중 아무거나 쓰면 알아서 맞춥니다. <b>행사명</b>과 <b>시작일</b>(또는 <b>기간</b>)만 있으면 됩니다.
-    <ul><li>행사명 · 시작일 · 종료일 (또는 기간: <code>11/26~11/30</code>, <code>5월 20일 - 6월 20일</code>)</li><li>채널(종류) · 거래처 · 품목(여러 개는 쉼표) · 행사가(조건) · 목표 수량 · 담당 · 메모 · 실판매 수량 · 매출</li>
-    <li>같은 행사명·같은 시작일이 이미 있으면 새로 만들지 않고 내용을 고칩니다 (이미지는 그대로).</li></ul></div>
+  dlg(`<h3>행사 일괄 등록<span style="flex:1"></span><button class="b s" id="btpl" type="button">표 양식 받기</button><button class="b s" data-close type="button">닫기</button></h3><div class="pad">
+   <label class="drop" id="bdrop"><input type="file" id="bfi" accept=".xlsx,.xls,.xlsm,.csv" hidden><span class="b p" style="display:inline-flex;font-size:15px;padding:6px 18px;border-radius:3px;margin-bottom:6px">⬆ 행사 엑셀 파일 올리기</span><br>엑셀·CSV를 끌어 놓아도 됩니다 · 여러 시트도 읽습니다</label>
+   <details style="margin-top:8px"><summary class="note" style="cursor:pointer">또는 엑셀에서 복사한 칸이나 메모를 붙여 넣기</summary>
+    <textarea class="t" id="bpaste" rows="5" style="width:100%;margin-top:6px;font:inherit" placeholder="예) 11/26~11/30 쿠팡 와우데이 진공다리미&#10;12월 1일 - 12월 7일 [이지웰] 단하루특가&#10;(엑셀 달력·표를 그대로 복사해 붙여도 됩니다)"></textarea>
+    <button class="b" id="bpgo" type="button" style="margin-top:6px">붙여 넣은 내용 읽기</button></details>
+   <div class="upguide" style="margin-top:10px"><b>양식은 따로 없어도 됩니다.</b> 아래 모양을 알아서 찾아 읽습니다.
+    <ul><li><b>달력 모양</b> — 날짜 숫자 줄(일~토) 아래 칸에 행사명을 적은 시트. 같은 행사명이 이어진 날짜는 한 행사(기간)로 묶습니다. 연·월은 달력 위의 <code>2026</code> <code>11</code> / <code>2026년 11월</code>에서 읽습니다.</li>
+    <li><b>표</b> — 행사명(구좌명)·기간(시작/종료)·사이트(채널)·거래처·품목·행사가·목표·담당·메모 같은 제목 줄이 있는 표. 열 이름이 조금 달라도 맞춥니다.</li>
+    <li><b>목록·메모</b> — 한 줄에 날짜(기간)와 행사명만 있어도 됩니다.</li>
+    <li>행사명 앞 <code>[이지웰]</code>이나 <code>쿠팡 …</code>처럼 사이트가 보이면 채널로 넣고, <code>사이트_구좌명_물품</code>으로 적으면 물품은 품목으로 넣습니다.</li>
+    <li>같은 행사명·같은 시작일이 이미 있으면 새로 만들지 않고 내용을 고칩니다 (이미지는 그대로). 미리보기에서 빼고 싶은 줄은 체크를 끄세요.</li></ul></div>
    <div id="bres" style="margin-top:12px"></div></div>`);
   $('#btpl').onclick=()=>{const H=['행사명','시작일','종료일','채널','거래처','품목','행사가','목표 수량','담당','메모'];
     const R=[H.map(v=>({v,h:true})),['카카오 톡딜 제트팬 선풍기','2026-05-15','2026-05-21','톡딜','(주)엘디네트웍스','제트팬 선풍기','29,900원',1000,'','17시 오픈'].map(v=>({v})),['DB손보 시책행사','2026-05-20','2026-06-20','시책행사','위닌컴퍼니','진공 스팀다리미, 진공 포장기','','','','보험지점 사은품'].map(v=>({v}))];
     xWrite([{title:'행사 일괄등록 양식',note:'2행부터 지우고 행사를 채워 올리세요',R,M:[],RC:['','',''],W:H.length}],'일괄등록_양식',$('#btpl'))};
-  const show=()=>{const{out,bad}=parsed,nw=out.filter(e=>!e.upd).length;
-    $('#bres').innerHTML=`${bad.length?`<div class="msg err">${bad.map(esc).join('<br>')}</div>`:''}<div class="msg">읽은 행사 <b>${out.length}건</b> (새로 ${nw}건 · 고침 ${out.length-nw}건). 확인하고 등록을 누르세요.</div>
-    <div class="tw scroll" style="max-height:45vh"><table><thead><tr><th>구분</th><th>행사명</th><th>기간</th><th>채널</th><th>거래처</th><th>품목</th><th>행사가</th><th class="n">목표</th><th>담당</th><th>메모</th></tr></thead><tbody>
-    ${out.map(e=>`<tr><td>${e.upd?'<span class="chip s-예정">고침</span>':'<span class="chip s-진행중">새로</span>'}</td><td><b>${esc(e.name)}</b></td><td>${e.from}${e.to!=e.from?' ~ '+e.to:''}</td><td>${esc(e.ch)}</td><td>${esc(e.cust)}</td><td>${esc(e.items.map(x=>x.nm||x.code).join(', '))}</td><td>${esc(e.price)}</td><td class="n">${W(+e.tq||null)}</td><td>${esc(e.owner)}</td><td class="t" style="max-width:220px;overflow:hidden;text-overflow:ellipsis">${esc(e.memo)}</td></tr>`).join('')}
-    <tr class="gt"><td>합계</td><td>${out.length}건</td><td></td><td></td><td></td><td></td><td></td><td class="n">${W(out.reduce((s,e)=>s+(+e.tq||0),0))}</td><td></td><td></td></tr></tbody></table></div>
-    <div style="display:flex;gap:8px;margin-top:10px"><button class="b p" id="bgo" type="button"${out.length?'':' disabled'}>${out.length}건 등록</button></div>`;
-    const bg=$('#bgo');if(bg)bg.onclick=async()=>{bg.disabled=true;bg.textContent='등록 중…';try{const evs=parsed.out.map(({upd,...e})=>e);const j=await api('',{method:'PUT',body:JSON.stringify({op:'bulk',evs})});EV=j.list;const f=evs.map(e=>e.from).sort()[0];if(f)UI.m=f.slice(0,7);closeDlg();UI.tab='cal';render();st(`행사 ${evs.length}건 등록`)}
+  const show=()=>{const{out,bad,info}=parsed,nw=out.filter(e=>!e.upd).length;
+    $('#bres').innerHTML=`${info.length?`<div class="msg">${info.map(esc).join('<br>')}</div>`:''}${bad.length?`<div class="msg err" style="max-height:120px;overflow:auto">${bad.slice(0,50).map(esc).join('<br>')}${bad.length>50?`<br>…외 ${bad.length-50}건`:''}</div>`:''}<div class="msg">읽은 행사 <b>${out.length}건</b> (새로 ${nw}건 · 고침 ${out.length-nw}건). 확인하고 등록을 누르세요.</div>
+    <div class="tw scroll" style="max-height:45vh"><table><thead><tr><th><input type="checkbox" id="ball" checked aria-label="전체 선택"></th><th>구분</th><th>행사명</th><th>기간</th><th>채널</th><th>거래처</th><th>품목</th><th>행사가</th><th class="n">목표</th><th>담당</th><th>메모</th></tr></thead><tbody>
+    ${out.map((e,i)=>`<tr><td><input type="checkbox" class="bck" data-i="${i}" checked aria-label="등록"></td><td>${e.upd?'<span class="chip s-예정">고침</span>':'<span class="chip s-진행중">새로</span>'}</td><td><b>${esc(e.name)}</b></td><td style="white-space:nowrap">${e.from}${e.to!=e.from?' ~ '+e.to:''}</td><td>${esc(e.ch)}</td><td>${esc(e.cust)}</td><td>${esc(e.items.map(x=>x.nm||x.code).join(', '))}</td><td>${esc(e.price)}</td><td class="n">${W(+e.tq||null)}</td><td>${esc(e.owner)}</td><td class="t" style="max-width:220px;overflow:hidden;text-overflow:ellipsis">${esc(e.memo)}</td></tr>`).join('')}
+    </tbody></table></div>
+    <div style="display:flex;gap:8px;margin-top:10px"><button class="b p" id="bgo" type="button"></button></div>`;
+    const sel=()=>$$('#bres .bck').filter(x=>x.checked).map(x=>out[+x.dataset.i]);const upd=()=>{const n=sel().length,bg=$('#bgo');bg.textContent=`${n}건 등록`;bg.disabled=!n};upd();
+    $$('#bres .bck').forEach(x=>x.onchange=upd);$('#ball').onchange=e=>{$$('#bres .bck').forEach(x=>x.checked=e.target.checked);upd()};
+    $('#bgo').onclick=async()=>{const bg=$('#bgo');bg.disabled=true;bg.textContent='등록 중…';try{const evs=sel().map(({upd,...e})=>e);const j=await api('',{method:'PUT',body:JSON.stringify({op:'bulk',evs})});EV=j.list;const f=evs.map(e=>e.from).sort()[0];if(f)UI.m=f.slice(0,7);closeDlg();UI.tab='cal';render();st(`행사 ${evs.length}건 등록`)}
       catch(x){bg.disabled=false;bg.textContent='다시 등록';$('#bres').insertAdjacentHTML('afterbegin',`<div class="msg err">${esc(x.message)}</div>`)}}};
+  const take=sheets=>{const all={out:[],bad:[],info:[]},errs=[],seen=new Set();
+    sheets.forEach(([sn,A])=>{const r=bParseAny(A,sn);if(r.err){errs.push(r.err);return}all.bad.push(...r.bad);all.info.push(`${sn}: ${r.info} — ${r.out.length}건`);
+      r.out.forEach(e=>{const k=e.name+'|'+e.from;if(seen.has(k))return;seen.add(k);all.out.push(e)})});
+    if(!all.out.length){$('#bres').innerHTML=`<div class="msg err">행사를 찾지 못했습니다. 날짜(또는 기간)와 행사명이 함께 있는지 확인해 주세요.${errs.length?'<br>'+errs.map(esc).join('<br>'):''}</div>`;return}
+    parsed=all;show()};
   const read=async f=>{if(!f)return;$('#bres').innerHTML='<div class="msg">읽는 중…</div>';try{for(let i=0;i<50&&!window.XLSX;i++)await new Promise(r=>setTimeout(r,200));
-    const wb=XLSX.read(await f.arrayBuffer(),{type:'array',cellDates:true});let all={out:[],bad:[]},err='';
-    for(const sn of wb.SheetNames){const r=bParse(XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:true,defval:''}));if(r.err){err=r.err;continue}all.out.push(...r.out);all.bad.push(...r.bad)}
-    if(!all.out.length&&err){$('#bres').innerHTML=`<div class="msg err">${esc(err)}</div>`;return}parsed=all;show()}catch(x){$('#bres').innerHTML=`<div class="msg err">파일을 읽지 못했습니다: ${esc(x.message)}</div>`}};
+    const wb=XLSX.read(await f.arrayBuffer(),{type:'array',cellNF:true});take(wb.SheetNames.map(sn=>[sn,sheetArr(wb.Sheets[sn])]))}catch(x){$('#bres').innerHTML=`<div class="msg err">파일을 읽지 못했습니다: ${esc(x.message)}</div>`}};
+  $('#bpgo').onclick=()=>{const t=$('#bpaste').value;if(!t.trim())return;take([['붙여넣기',t.replace(/\r/g,'').split('\n').map(l=>l.split('\t').map(v=>{const s=v.trim();return/^\d{1,2}$/.test(s)?+s:s}))]])};
   const dr=$('#bdrop');$('#bfi').onchange=e=>read(e.target.files[0]);dr.ondragover=e=>{e.preventDefault();dr.classList.add('on')};dr.ondragleave=()=>dr.classList.remove('on');dr.ondrop=e=>{e.preventDefault();dr.classList.remove('on');read(e.dataTransfer.files[0])}}
 
 
