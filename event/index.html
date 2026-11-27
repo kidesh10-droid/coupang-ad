@@ -276,7 +276,7 @@ function gal(imgs,canDel){return`<div class="gal">${imgs.map(g=>`<figure><img da
 function bindGal(root){fillImgs(root);root.querySelectorAll('[data-big]').forEach(i=>i.onclick=()=>showBig(i.dataset.big));root.querySelectorAll('[data-dl]').forEach(b=>b.onclick=e=>{e.stopPropagation();dl(b.dataset.dl,b.dataset.nm)})}
 async function upImgs(files,evId,msgEl){files=[...files].filter(f=>/^image\//.test(f.type));if(!files.length)return false;msgEl.innerHTML=`<div class="msg">올리는 중… (${files.length}장)</div>`;const got=[];let err='';
   for(const f of files){try{const d=await shrink(f),id=uid(),name=f.name&&f.name!='image.png'?f.name:`붙여넣은 이미지 ${new Date().toLocaleString('ko-KR')}.png`;await api('&img='+id,{method:'PUT',body:JSON.stringify({d,name})});IMG.set(id,Promise.resolve(d));got.push({id,name,at:Date.now()})}catch(x){err+=`${f.name}: ${x.message} `}}
-  if(got.length){let cur=EV.find(x=>x.id==evId);if(!cur)cur={id:LIBID,lib:1,name:'이미지 보관함',imgs:[]};await saveEv({...cur,imgs:[...(cur.imgs||[]),...got]})}
+  if(got.length){try{const j=await api('',{method:'PUT',body:JSON.stringify({op:'addimgs',id:evId||LIBID,imgs:got})});EV=j.list;render()}catch(x){err+=x.message}}
   msgEl.innerHTML=err?`<div class="msg err">${esc(err)}</div>`:`<div class="msg">${got.length}장 올렸습니다.</div>`;return got.length>0}
 function rImg(){const sec=$('#t-img'),lib=EV.find(e=>e.lib),L=filtered().filter(e=>(e.imgs||[]).length).sort((a,b)=>(b.from||'')<(a.from||'')?-1:1);
   const all=[...(lib?lib.imgs.map(g=>({...g,ev:null})):[]),...L.flatMap(e=>e.imgs.map(g=>({...g,ev:e})))].sort((a,b)=>(b.at||0)-(a.at||0));

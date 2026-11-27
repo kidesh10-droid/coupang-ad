@@ -111,6 +111,14 @@ export async function onRequest({ request, env }) {
       if (JSON.stringify(L).length > 20e6) return json({ error: 'big' }, 413);
       return save(L, 'auto');
     }
+    if (b.op === 'addimgs') { // 이미지 추가는 기존 목록에 덧붙이기만 (동시에 올려도 서로 안 지움)
+      if (!okId(b.id) || !Array.isArray(b.imgs)) return json({ error: 'bad' }, 400);
+      const L = list.slice(); let i = L.findIndex(x => x.id === b.id);
+      if (i < 0) { if (b.id !== 'gallerylibrary') return json({ error: 'none' }, 404); L.push({ id: b.id, lib: 1, name: '이미지 보관함', imgs: [] }); i = L.length - 1 }
+      const have = new Set((L[i].imgs || []).map(x => x.id));
+      L[i] = { ...L[i], imgs: [...(L[i].imgs || []), ...b.imgs.filter(x => x && okId(x.id) && !have.has(x.id)).map(x => ({ id: x.id, name: String(x.name || '').slice(0, 120), at: +x.at || Date.now() }))], ut: Date.now() };
+      return save(L, 'auto');
+    }
     if (b.op === 'del') {
       if (!await isAdm()) return json({ error: 'admin', msg: '행사 삭제는 관리자만 할 수 있습니다' }, 403);
       const cur = list.find(x => x.id === b.id); if (!cur) return json({ ok: true, list });
