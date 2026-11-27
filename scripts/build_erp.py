@@ -15,3 +15,9 @@ out = src.replace('__V__', V).replace('/*@@CSS@@*/', css).replace('/*@@XEXPORT@@
 os.makedirs(os.path.join(R, 'erp'), exist_ok=True)
 open(os.path.join(R, 'erp/index.html'), 'w', encoding='utf-8').write(out)
 print('erp/index.html', len(out))
+# 행사 기록 페이지
+ev = open(os.path.join(R, 'scripts/ev_src.html'), encoding='utf-8').read()
+xe = x.replace('const xFile=name=>`ERP_', 'const xFile=name=>`행사_').replace("wb.creator='디앤디컴 ERP'", "wb.creator='디앤디컴 행사 기록'")
+os.makedirs(os.path.join(R, 'event'), exist_ok=True)
+open(os.path.join(R, 'event/index.html'), 'w', encoding='utf-8').write(ev.replace('/*@@CSS@@*/', css).replace('/*@@XEXPORT@@*/', xe))
+print('event/index.html')

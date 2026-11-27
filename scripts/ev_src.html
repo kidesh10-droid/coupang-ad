@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>디앤디컴 행사 기록 · 캘린더</title>
+<meta name="description" content="행사 일정 캘린더 · 행사 기록 · 행사 이미지 보관">
+<meta property="og:type" content="website">
+<meta property="og:title" content="디앤디컴 행사 기록 · 캘린더">
+<meta property="og:description" content="행사 일정 캘린더 · 행사 기록 · 행사 이미지 보관">
+<meta property="og:image" content="https://dnd-coupang.pages.dev/og.jpg">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%235b2a86'/%3E%3Ctext x='16' y='22' font-size='15' text-anchor='middle' fill='white' font-family='sans-serif' font-weight='700'%3E%E2%98%85%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/*@@CSS@@*/
+/* 행사 기록 전용 */
+:root{--bar:#4a2a78}
+header a.hl,header button.hl{color:#fff;text-decoration:none;font:inherit;font-size:13px;border:1px solid rgba(255,255,255,.45);padding:5px 10px;border-radius:3px;white-space:nowrap;background:none;cursor:pointer}
+header a.hl:hover{background:rgba(255,255,255,.12)}header button.hl.on{background:#f2c94c;color:#1b2330;border-color:#f2c94c;font-weight:600}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:3px;overflow:hidden}
+.seg button{border:0;border-right:1px solid var(--line);background:var(--panel);color:var(--ink);font:inherit;font-size:14px;padding:0 12px;min-height:36px;cursor:pointer}
+.seg button:last-child{border-right:0}.seg button[aria-pressed=true]{background:var(--bar);color:#fff}
+.cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));border-left:1px solid var(--line);border-top:1px solid var(--line);background:var(--panel)}
+.cal .dh{padding:6px;text-align:center;font-size:13px;font-weight:600;background:var(--head);border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
+.cal .dh:first-child{color:var(--red)}.cal .dh:last-child{color:var(--blue)}
+.cal .d{min-height:118px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:4px 4px 6px;cursor:pointer;display:flex;flex-direction:column;gap:2px}
+.cal .d:hover{background:var(--sub)}.cal .d.out{background:light-dark(#f7f8fa,#151a21);color:var(--mute)}.cal .d.today{box-shadow:inset 0 0 0 2px var(--bar)}
+.cal .d .n{font-size:13px;font-weight:600;margin-bottom:2px}.cal .d.sun .n{color:var(--red)}.cal .d.sat .n{color:var(--blue)}
+.ev{display:block;font-size:12px;line-height:1.35;padding:1px 6px;border-radius:2px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;border:0;text-align:left;font-family:inherit;width:100%}
+.ev.c0{background:#5b2a86}.ev.c1{background:#1d6fb8}.ev.c2{background:#0b7a43}.ev.c3{background:#b8551d}.ev.c4{background:#a3266b}.ev.c5{background:#3b5568}.ev.c6{background:#7a6a0b}.ev.c7{background:#2c7a7a}
+.ev.cont{border-top-left-radius:0;border-bottom-left-radius:0;opacity:.85}
+.chip{font-size:12px;padding:1px 6px;border-radius:2px;white-space:nowrap;border:1px solid transparent}
+.s-예정{border-color:var(--blue);color:var(--blue)}.s-진행중{background:var(--red);color:#fff}.s-종료{border-color:var(--gray);color:var(--mute)}
+.f{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:end;padding:12px}
+.f label{display:grid;gap:3px;font-size:13px;color:var(--mute)}
+.frm{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px 14px}
+.frm label{display:grid;gap:3px;font-size:13px;color:var(--mute)}.frm label.w{grid-column:1/-1}
+.frm textarea{min-height:90px;resize:vertical}
+.dlgw{position:fixed;inset:0;background:rgba(0,0,0,.4);display:grid;place-items:start center;z-index:100;overflow:auto;padding:4vh 10px}
+.dlgw>.box{width:min(980px,100%);margin:0;box-shadow:0 10px 40px rgba(0,0,0,.3)}
+.gal{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.gal figure{margin:0;border:1px solid var(--line);background:var(--sub);position:relative}
+.gal img{display:block;width:100%;aspect-ratio:1;object-fit:contain;background:light-dark(#fff,#0e1116);cursor:zoom-in}
+.gal figcaption{font-size:12px;padding:4px 6px;display:flex;gap:4px;align-items:center;justify-content:space-between}
+.gal figcaption span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gal .ph{aspect-ratio:1;display:grid;place-items:center;color:var(--mute);font-size:12px}
+.drop{display:block;border:2px dashed var(--line);padding:18px;text-align:center;color:var(--mute);cursor:pointer}.drop.on{border-color:var(--bar);background:var(--sel)}
+.view{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:200;display:grid;place-items:center;cursor:zoom-out}.view img{max-width:96vw;max-height:92vh}
+.tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}.tags .chip{border-color:var(--line);color:var(--ink)}.tags .chip button{border:0;background:none;color:var(--red);cursor:pointer;padding:0 0 0 4px;font:inherit}
+.tw{overflow:auto;max-height:70vh}
+.erp{border-left:4px solid var(--bar);background:var(--sel);padding:8px 12px;margin:10px 0 0;font-size:14px}
+.msg.err{border-left-color:var(--red);background:light-dark(#fff5f5,#2a1616)}
+tr.click{cursor:pointer}tr.click:hover td{background:var(--sub)}
+</style>
+</head>
+<body>
+<header>
+  <h1>행사 기록</h1>
+  <nav role="tablist" id="nav">
+    <button data-t="cal" aria-selected="true">행사 캘린더</button>
+    <button data-t="list">행사 목록</button>
+    <button data-t="img">이미지 보관함</button>
+  </nav>
+  <span id="st">불러오는 중…</span>
+  <button class="hl" id="admbtn" type="button">관리자</button>
+  <a class="hl" href="/erp/">ERP</a>
+  <a class="hl" href="/ad/">쿠팡 광고 장부</a>
+</header>
+<main>
+  <section id="t-cal"></section>
+  <section id="t-list" hidden></section>
+  <section id="t-img" hidden></section>
+</main>
+<div id="dlg"></div>
+<script>
+'use strict';
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const p2=n=>String(n).padStart(2,'0'),iso=d=>`${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}`,TODAY=iso(new Date());
+const W=n=>n==null||n===''||!isFinite(n)?'–':Math.round(n).toLocaleString('ko-KR');
+const P=x=>x==null||!isFinite(x)?'–':(x*100).toFixed(1)+'%';
+const addD=(d,k)=>{const x=new Date(d+'T00:00:00');x.setDate(x.getDate()+k);return iso(x)};
+const KEY=()=>{try{return localStorage.getItem('cpad_key')||''}catch(e){return''}};
+const uid=()=>(Date.now().toString(36)+Math.random().toString(36).slice(2,8)).slice(0,16);
+const API='/api/store?ns=ev';
+const ADM={pw:null};try{ADM.pw=sessionStorage.getItem('cpad_admpw')}catch(e){}
+const st=t=>$('#st').textContent=t;
+async function api(q,opt){const r=await fetch(API+q,{cache:'no-store',...opt,headers:{'content-type':'application/json','x-team-key':KEY(),'x-admin-key':encodeURIComponent(ADM.pw||'')}});const j=await r.json().catch(()=>({}));if(!r.ok)throw Object.assign(new Error(j.msg||j.error||r.status),{status:r.status});return j}
+
+/* ===== 상태 ===== */
+let EV=[];const UI={tab:'cal',m:TODAY.slice(0,7),q:'',sf:'',ch:''};const IMG=new Map();
+const ERP={s:{},ok:false};
+async function load(){st('불러오는 중…');try{const j=await api('');EV=j.list||[];st('저장소 연결됨 · '+new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}))}catch(e){st('저장소에 연결하지 못했습니다')}render();loadERP()}
+async function loadERP(){try{const h={'x-team-key':KEY()};const{keys}=await fetch('/api/store?ns=erp',{cache:'no-store',headers:h}).then(r=>r.json());const ks=keys.filter(k=>k[0]=='s');if(!ks.length)return;
+  const{docs}=await fetch('/api/store?ns=erp&k='+ks.join(','),{cache:'no-store',headers:h}).then(r=>r.json());ERP.s={};Object.entries(docs).forEach(([k,v])=>{if(v)ERP.s[k.slice(1)]=v});ERP.ok=true;render()}catch(e){}}
+const erpCust=()=>[...new Set(Object.values(ERP.s).flatMap(S=>S.C))].filter(Boolean).sort();
+const erpItems=()=>{const o={};Object.values(ERP.s).forEach(S=>Object.assign(o,S.I));return o};
+/* 행사 기간 ERP 실적: 기간 × (거래처) × (품목) */
+function erpAct(e){if(!ERP.ok||!e.from)return null;const to=e.to||e.from,its=new Set((e.items||[]).map(x=>x.code)),cs=(e.cust||'').trim();let q=0,a=0,ca=0,n=0,days=new Set(),cov=false;
+  for(const m of Object.keys(ERP.s)){if(m<e.from.slice(0,7)||m>to.slice(0,7))continue;const S=ERP.s[m];S.R.forEach(r=>{const f=`${m}-${p2(r[0])}`,t=`${m}-${p2(r[1])}`;if(t>=e.from&&f<=to)cov=true});
+    for(const l of S.L){const d=`${m}-${p2(l[0])}`;if(d<e.from||d>to)continue;if(cs&&S.C[l[2]]!==cs)continue;if(its.size&&!its.has(l[3]))continue;q+=l[4];a+=l[6];ca+=l[8];n++;days.add(d)}}
+  if(!cov)return null;if(!cs&&!its.size)return null;return{q,a,ca,pf:a-ca,mg:a?(a-ca)/a:null,n}}
+const stOf=e=>{const t=e.to||e.from;if(!e.from)return'예정';return TODAY<e.from?'예정':TODAY>t?'종료':'진행중'};
+const colOf=e=>{let h=0;for(const c of (e.ch||e.cust||e.name||''))h=(h*31+c.charCodeAt(0))>>>0;return'c'+(h%8)};
+
+/* ===== 캘린더 ===== */
+function rCal(){const sec=$('#t-cal'),[y,mm]=UI.m.split('-').map(Number),first=new Date(y,mm-1,1),start=iso(new Date(y,mm-1,1-first.getDay()));
+  const evs=filtered();let cells='';
+  for(let i=0;i<42;i++){const d=addD(start,i),dw=i%7,inM=d.slice(0,7)==UI.m;if(i>=35&&!inM&&d.slice(0,7)>UI.m)break;
+    const today=evs.filter(e=>e.from&&d>=e.from&&d<=(e.to||e.from)).sort((a,b)=>a.from<b.from?-1:a.from>b.from?1:a.id<b.id?-1:1);
+    cells+=`<div class="d${inM?'':' out'}${dw==0?' sun':dw==6?' sat':''}${d==TODAY?' today':''}" data-day="${d}"><span class="n">${+d.slice(8)}${d.slice(8)=='01'||i==0?`<small class="note"> ${+d.slice(5,7)}월</small>`:''}</span>
+      ${today.slice(0,5).map(e=>`<button type="button" class="ev ${colOf(e)}${d!=e.from&&dw!=0?' cont':''}" data-ev="${e.id}" title="${esc(e.name)} · ${e.from}~${e.to||e.from}${e.cust?' · '+esc(e.cust):''}">${d==e.from||dw==0?esc(e.name):'&nbsp;'}</button>`).join('')}
+      ${today.length>5?`<span class="note">+${today.length-5}건</span>`:''}</div>`}
+  const inMonth=evs.filter(e=>e.from&&e.from<=`${UI.m}-31`&&(e.to||e.from)>=`${UI.m}-01`).sort((a,b)=>a.from<b.from?-1:1);
+  sec.innerHTML=`<div class="bar" style="margin:-14px max(-2vw,-12px) 14px;padding:10px max(2vw,12px)">
+    <button class="b" id="cp" aria-label="이전 달">◀</button><b style="font-size:18px;min-width:120px;text-align:center">${y}년 ${mm}월</b><button class="b" id="cn" aria-label="다음 달">▶</button><button class="b" id="ct">이번 달</button>
+    ${filt()}<span class="sp"></span><button class="b p" id="new1" type="button">+ 행사 등록</button></div>
+  <div class="cal">${'일월화수목금토'.split('').map(x=>`<div class="dh">${x}</div>`).join('')}${cells}</div>
+  <p class="note">날짜 칸을 누르면 그날로 새 행사를 등록하고, 행사 막대를 누르면 내용·이미지를 봅니다.</p>
+  ${listTable('c-m',`${mm}월 행사`,inMonth)}`;
+  const mv=k=>{const d=new Date(y,mm-1+k,1);UI.m=iso(d).slice(0,7);rCal()};$('#cp').onclick=()=>mv(-1);$('#cn').onclick=()=>mv(1);$('#ct').onclick=()=>{UI.m=TODAY.slice(0,7);rCal()};
+  $('#new1').onclick=()=>edit(null,TODAY);bindFilt(rCal);
+  sec.querySelectorAll('[data-day]').forEach(c=>c.onclick=e=>{if(e.target.closest('[data-ev]'))return;edit(null,c.dataset.day)});
+  bindRows(sec)}
+
+/* ===== 목록 ===== */
+const filtered=()=>EV.filter(e=>(!UI.sf||stOf(e)==UI.sf)&&(!UI.ch||(e.ch||'')==UI.ch)&&(!UI.q||[e.name,e.cust,e.ch,e.memo,e.owner,...(e.items||[]).map(x=>x.code+' '+x.nm)].join(' ').toLowerCase().includes(UI.q.toLowerCase())));
+const chans=()=>[...new Set(EV.map(e=>e.ch).filter(Boolean))].sort();
+const filt=()=>`<span class="seg" role="group" aria-label="상태">${['','예정','진행중','종료'].map(s=>`<button type="button" data-sf="${s}" aria-pressed="${UI.sf==s}">${s||'전체'}</button>`).join('')}</span>
+  <select id="fch" aria-label="채널"><option value="">채널 전체</option>${chans().map(c=>`<option${c==UI.ch?' selected':''}>${esc(c)}</option>`).join('')}</select>
+  <input class="t" id="fq" placeholder="검색 (행사·거래처·품목·메모)" value="${esc(UI.q)}" style="min-width:220px">`;
+function bindFilt(re){$$('[data-sf]').forEach(b=>b.onclick=()=>{UI.sf=b.dataset.sf;re()});$('#fch').onchange=e=>{UI.ch=e.target.value;re()};let tm;$('#fq').oninput=e=>{clearTimeout(tm);tm=setTimeout(()=>{UI.q=e.target.value.trim();re();const i=$('#fq');i.focus();i.setSelectionRange(i.value.length,i.value.length)},300)}}
+const TB={};
+function listTable(id,title,L){const R=L.map(e=>{const A=erpAct(e);return{e,A,q:A?A.q:(+e.aq||null),a:A?A.a:(+e.aa||null),pf:A?A.pf:null}});
+  const T={q:R.reduce((s,r)=>s+(r.q||0),0),a:R.reduce((s,r)=>s+(r.a||0),0),pf:R.reduce((s,r)=>s+(r.pf||0),0),tq:L.reduce((s,e)=>s+(+e.tq||0),0)};
+  TB[id]={title,R,T};
+  return`<div class="box"><h3>${esc(title)} <small>${L.length}건 · 실적은 ERP 매출(행사 기간 × 거래처 × 품목)에서 자동 계산, ERP에 없으면 직접 넣은 값</small><span style="flex:1"></span><button class="b s" data-x="${id}" type="button">엑셀 다운로드</button></h3>
+  <div class="tw scroll"><table><thead><tr><th>상태</th><th>행사명</th><th>채널</th><th>거래처</th><th>기간</th><th>품목</th><th>행사가</th><th class="n">목표 수량</th><th class="n">실판매 수량</th><th class="n">매출(공급가)</th><th class="n">이익</th><th class="n">이익율</th><th>담당</th><th class="n">이미지</th></tr></thead><tbody>
+  ${R.map(({e,A,q,a,pf})=>`<tr class="click" data-ev="${e.id}"><td><span class="chip s-${stOf(e)}">${stOf(e)}</span></td><td><b>${esc(e.name)}</b></td><td>${esc(e.ch||'')}</td><td>${esc(e.cust||'')}</td><td>${e.from?`${e.from.slice(5).replace('-','/')}~${(e.to||e.from).slice(5).replace('-','/')}`:''}</td>
+    <td class="t" style="max-width:260px;overflow:hidden;text-overflow:ellipsis">${esc((e.items||[]).map(x=>x.nm||x.code).join(', '))}</td><td>${esc(e.price||'')}</td><td class="n">${W(+e.tq||null)}</td><td class="n">${W(q)}</td><td class="n">${W(a)}</td><td class="n${pf<0?' neg':''}">${A?W(pf):'–'}</td><td class="n">${A?P(A.mg):'–'}</td><td>${esc(e.owner||'')}</td><td class="n">${(e.imgs||[]).length||''}</td></tr>`).join('')||'<tr><td colspan="14" class="note">등록된 행사가 없습니다.</td></tr>'}
+  ${L.length?`<tr class="gt"><td>합계</td><td>${L.length}건</td><td></td><td></td><td></td><td></td><td></td><td class="n">${W(T.tq)}</td><td class="n">${W(T.q)}</td><td class="n">${W(T.a)}</td><td class="n${T.pf<0?' neg':''}">${W(T.pf)}</td><td class="n">${T.a?P(T.pf/T.a):'–'}</td><td></td><td class="n">${L.reduce((s,e)=>s+(e.imgs||[]).length,0)}</td></tr>`:''}</tbody></table></div></div>`}
+function bindRows(sec){sec.querySelectorAll('[data-ev]').forEach(r=>r.onclick=e=>{e.stopPropagation();view(r.dataset.ev)})}
+function rList(){const sec=$('#t-list'),L=filtered().sort((a,b)=>(b.from||'')<(a.from||'')?-1:1);
+  sec.innerHTML=`<div class="box"><div class="f">${filt()}<span style="flex:1"></span><button class="b p" id="new2" type="button">+ 행사 등록</button></div></div>${listTable('l-all','행사 목록',L)}`;
+  bindFilt(rList);$('#new2').onclick=()=>edit(null,TODAY);bindRows(sec)}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-x]');if(!b)return;const t=TB[b.dataset.x];if(!t)return;
+  const H=['상태','행사명','채널','거래처','시작일','종료일','품목','행사가','목표 수량','실판매 수량','매출(공급가)','이익','이익율','담당','메모','이미지 수'];
+  const R=[H.map(v=>({v,h:true}))],RC=[''];
+  t.R.forEach(({e,A,q,a,pf})=>{R.push([stOf(e),e.name,e.ch||'',e.cust||'',e.from||'',e.to||e.from||'',(e.items||[]).map(x=>x.nm||x.code).join(', '),e.price||''].map(v=>({v})).concat([+e.tq||'',q??'',a??'',A?pf:''].map(v=>({v,z:'#,##0',neg:v<0})),[{v:A&&A.mg!=null?A.mg:'',z:'0.0%'}],[{v:e.owner||''},{v:e.memo||''},{v:(e.imgs||[]).length}]));RC.push('')});
+  R.push([{v:'합계',b:true},{v:t.R.length+'건',b:true},{v:''},{v:''},{v:''},{v:''},{v:''},{v:''},{v:t.T.tq,z:'#,##0',b:true},{v:t.T.q,z:'#,##0',b:true},{v:t.T.a,z:'#,##0',b:true},{v:t.T.pf,z:'#,##0',b:true},{v:t.T.a?t.T.pf/t.T.a:'',z:'0.0%',b:true},{v:''},{v:''},{v:''}]);RC.push('gt');
+  xWrite([{title:t.title,note:'',R,M:[],RC,W:H.length}],t.title,b)});
+
+/* ===== 이미지 ===== */
+async function imgData(id){if(IMG.has(id))return IMG.get(id);const p=api('&img='+id).then(j=>j.d).catch(()=>null);IMG.set(id,p);return p}
+function fillImgs(root){root.querySelectorAll('img[data-img]').forEach(async im=>{const d=await imgData(im.dataset.img);if(d)im.src=d;else im.alt='불러오지 못함'})}
+function shrink(file){return new Promise((ok,no)=>{const r=new FileReader();r.onerror=()=>no(new Error('읽기 실패'));r.onload=()=>{const src=r.result;if(file.size<1.5e6||!/^image\/(jpeg|png|webp)/.test(file.type))return ok(src);
+  const im=new Image();im.onload=()=>{const k=Math.min(1,2400/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);const g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,c.width,c.height);g.drawImage(im,0,0,c.width,c.height);ok(c.toDataURL('image/jpeg',.9))};im.onerror=()=>ok(src);im.src=src};r.readAsDataURL(file)})}
+function showBig(id){const v=document.createElement('div');v.className='view';v.innerHTML='<img alt="">';document.body.appendChild(v);imgData(id).then(d=>{if(d)v.firstChild.src=d});v.onclick=()=>v.remove()}
+async function dl(id,name){const d=await imgData(id);if(!d)return;const a=document.createElement('a');a.href=d;a.download=name||('행사이미지_'+id+'.jpg');document.body.appendChild(a);a.click();a.remove()}
+function gal(imgs,canDel){return`<div class="gal">${imgs.map(g=>`<figure><img data-img="${g.id}" alt="${esc(g.name)}" data-big="${g.id}"><figcaption><span title="${esc(g.name)}">${esc(g.name||'이미지')}</span><span style="display:flex;gap:4px"><button class="b s" type="button" data-dl="${g.id}" data-nm="${esc(g.name)}">받기</button>${canDel?`<button class="b s r" type="button" data-rm="${g.id}">빼기</button>`:''}</span></figcaption></figure>`).join('')}</div>`}
+function bindGal(root){fillImgs(root);root.querySelectorAll('[data-big]').forEach(i=>i.onclick=()=>showBig(i.dataset.big));root.querySelectorAll('[data-dl]').forEach(b=>b.onclick=e=>{e.stopPropagation();dl(b.dataset.dl,b.dataset.nm)})}
+function rImg(){const sec=$('#t-img'),L=filtered().filter(e=>(e.imgs||[]).length).sort((a,b)=>(b.from||'')<(a.from||'')?-1:1);
+  sec.innerHTML=`<div class="box"><div class="f">${filt()}</div></div>${L.map(e=>`<div class="box"><h3><span class="chip s-${stOf(e)}">${stOf(e)}</span> ${esc(e.name)} <small>${e.from||''}${e.to&&e.to!=e.from?' ~ '+e.to:''}${e.cust?' · '+esc(e.cust):''} · ${e.imgs.length}장</small><span style="flex:1"></span><button class="b s" data-open="${e.id}" type="button">행사 열기</button></h3><div class="pad">${gal(e.imgs,false)}</div></div>`).join('')||'<div class="msg">이미지가 있는 행사가 없습니다. 행사를 열어 이미지를 올리세요.</div>'}`;
+  bindFilt(rImg);bindGal(sec);sec.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>view(b.dataset.open))}
+
+/* ===== 행사 보기·등록·수정 ===== */
+function dlg(html){$('#dlg').innerHTML=`<div class="dlgw" role="dialog" aria-modal="true"><div class="box">${html}</div></div>`;$('#dlg .dlgw').onclick=e=>{if(e.target.classList.contains('dlgw'))closeDlg()};$$('#dlg [data-close]').forEach(b=>b.onclick=closeDlg)}
+const closeDlg=()=>{$('#dlg').innerHTML=''};
+function view(id){const e=EV.find(x=>x.id==id);if(!e)return;const A=erpAct(e),adm=!!ADM.pw;
+  dlg(`<h3><span class="chip s-${stOf(e)}">${stOf(e)}</span> ${esc(e.name)}<span style="flex:1"></span><button class="b s" id="ved" type="button">수정</button>${adm?'<button class="b s r" id="vdel" type="button">행사 삭제</button>':''}<button class="b s" data-close type="button">닫기</button></h3>
+  <div class="pad"><table><tbody>
+   <tr><th style="width:140px">기간</th><td>${e.from||''}${e.to&&e.to!=e.from?' ~ '+e.to:''}</td><th style="width:120px">채널</th><td>${esc(e.ch||'')}</td></tr>
+   <tr><th>거래처</th><td>${esc(e.cust||'')}</td><th>담당</th><td>${esc(e.owner||'')}</td></tr>
+   <tr><th>품목</th><td colspan="3" class="w">${esc((e.items||[]).map(x=>x.nm?`${x.nm} (${x.code})`:x.code).join(', '))}</td></tr>
+   <tr><th>행사가·조건</th><td>${esc(e.price||'')}</td><th>목표 수량</th><td>${W(+e.tq||null)}</td></tr>
+   <tr><th>메모</th><td colspan="3" class="w" style="white-space:pre-wrap">${esc(e.memo||'')}</td></tr></tbody></table>
+   ${A?`<div class="erp"><b>ERP 실적</b> (행사 기간${e.cust?' · '+esc(e.cust):''}${(e.items||[]).length?' · 지정 품목':''}) — 판매 <b>${W(A.q)}개</b> · 매출 <b>${W(A.a)}원</b> · 이익 <b class="${A.pf<0?'dn':''}">${W(A.pf)}원</b> (${P(A.mg)})${+e.tq?` · 목표 대비 <b>${P(A.q/+e.tq)}</b>`:''}</div>`
+     :(e.aq||e.aa)?`<div class="erp"><b>직접 넣은 실적</b> — 판매 ${W(+e.aq||null)}개 · 매출 ${W(+e.aa||null)}원</div>`:`<p class="note">ERP 매출에 이 기간 자료가 있고 거래처나 품목을 지정하면 실적이 자동으로 나옵니다.</p>`}
+   <h4 style="margin:16px 0 8px">행사 이미지 ${(e.imgs||[]).length}장</h4>
+   <label class="drop" id="vdrop"><input type="file" id="vfi" multiple accept="image/*" hidden>이미지를 끌어 놓거나 눌러서 고르세요 · 붙여넣기(Ctrl+V)도 됩니다</label>
+   <div id="vmsg"></div><div id="vgal" style="margin-top:10px">${gal(e.imgs||[],adm)}</div>
+   <p class="note">이미지 추가는 누구나, 빼기와 행사 삭제는 관리자만 할 수 있습니다.</p></div>`);
+  bindGal($('#vgal'));$('#ved').onclick=()=>edit(e);
+  const vd=$('#vdel');if(vd)vd.onclick=async()=>{if(!vd.dataset.a){vd.dataset.a=1;vd.textContent='한 번 더 누르면 삭제';return}try{const j=await api('',{method:'PUT',body:JSON.stringify({op:'del',id:e.id})});EV=j.list;closeDlg();render()}catch(x){alert2(x)}};
+  $('#vgal').querySelectorAll('[data-rm]').forEach(b=>b.onclick=async ev=>{ev.stopPropagation();if(!b.dataset.a){b.dataset.a=1;b.textContent='한 번 더';return}await saveEv({...e,imgs:e.imgs.filter(g=>g.id!=b.dataset.rm)});view(e.id)});
+  const add=async files=>{files=[...files].filter(f=>/^image\//.test(f.type));if(!files.length)return;const m=$('#vmsg');m.innerHTML=`<div class="msg">올리는 중… (${files.length}장)</div>`;const got=[];
+    for(const f of files){try{const d=await shrink(f),id=uid();await api('&img='+id,{method:'PUT',body:JSON.stringify({d,name:f.name||'붙여넣은 이미지.png'})});IMG.set(id,Promise.resolve(d));got.push({id,name:f.name||'붙여넣은 이미지.png',at:Date.now()})}catch(x){m.innerHTML=`<div class="msg err">${esc(f.name)}: ${esc(x.message)}</div>`}}
+    if(got.length){const cur=EV.find(x=>x.id==e.id)||e;await saveEv({...cur,imgs:[...(cur.imgs||[]),...got]});view(e.id)}};
+  const dr=$('#vdrop');$('#vfi').onchange=ev=>add(ev.target.files);dr.ondragover=ev=>{ev.preventDefault();dr.classList.add('on')};dr.ondragleave=()=>dr.classList.remove('on');dr.ondrop=ev=>{ev.preventDefault();dr.classList.remove('on');add(ev.dataTransfer.files)};
+  PASTE=items=>add(items)}
+let PASTE=null;document.addEventListener('paste',e=>{if(!PASTE||!$('#vdrop'))return;const fs=[...(e.clipboardData||{}).files||[]];if(fs.length){e.preventDefault();PASTE(fs)}});
+const alert2=x=>{const m=$('#vmsg')||$('#emsg');if(m)m.innerHTML=`<div class="msg err">${esc(x.status==403?(x.message||'관리자만 할 수 있습니다'):'저장하지 못했습니다: '+x.message)}</div>`};
+async function saveEv(e){try{st('저장 중…');const j=await api('',{method:'PUT',body:JSON.stringify({op:'upsert',ev:e})});EV=j.list;st('저장됨');render();return true}catch(x){st('저장 실패');alert2(x);return false}}
+function edit(e,day){const isNew=!e;e=e?JSON.parse(JSON.stringify(e)):{id:uid(),name:'',from:day||TODAY,to:day||TODAY,ch:'',cust:'',items:[],price:'',tq:'',aq:'',aa:'',owner:'',memo:'',imgs:[]};
+  const IT=erpItems(),its=e.items||[];
+  dlg(`<h3>${isNew?'행사 등록':'행사 수정'}<span style="flex:1"></span><button class="b s" data-close type="button">닫기</button></h3><div class="pad">
+  <div class="frm">
+   <label class="w">행사명 *<input class="t" id="en" value="${esc(e.name)}" placeholder="예: 카카오 톡딜 제트팬 선풍기"></label>
+   <label>시작일 *<input class="t" type="date" id="ef" value="${e.from||''}"></label>
+   <label>종료일<input class="t" type="date" id="et" value="${e.to||''}"></label>
+   <label>채널·행사 종류<input class="t" id="ec" value="${esc(e.ch||'')}" list="chl" placeholder="예: 톡딜 / 시책행사 / 쿠팡 프로모션"></label>
+   <label>거래처 (ERP 거래처명이면 실적 자동)<input class="t" id="ecu" value="${esc(e.cust||'')}" list="cul" placeholder="예: (주)엘디네트웍스"></label>
+   <label>행사가·조건<input class="t" id="ep" value="${esc(e.price||'')}" placeholder="예: 29,900원 / 1+1"></label>
+   <label>목표 수량<input class="t" type="number" id="etq" value="${esc(e.tq||'')}"></label>
+   <label>담당<input class="t" id="eo" value="${esc(e.owner||'')}"></label>
+   <label class="w">품목 (코드·이름으로 찾아 Enter)<input class="t" id="eit" list="itl" placeholder="예: 진공 스팀다리미 / E4-036-01023"><div class="tags" id="etags"></div></label>
+   <label>실판매 수량 (ERP에 없을 때만)<input class="t" type="number" id="eaq" value="${esc(e.aq||'')}"></label>
+   <label>매출 (ERP에 없을 때만)<input class="t" type="number" id="eaa" value="${esc(e.aa||'')}"></label>
+   <label class="w">메모<textarea id="em" placeholder="진행 내용, 노출 위치, 결과, 다음 행사 참고 등">${esc(e.memo||'')}</textarea></label>
+  </div>
+  <datalist id="chl">${chans().map(c=>`<option value="${esc(c)}">`).join('')}</datalist>
+  <datalist id="cul">${erpCust().map(c=>`<option value="${esc(c)}">`).join('')}</datalist>
+  <datalist id="itl">${Object.entries(IT).map(([c,n])=>`<option value="${esc(c)}">${esc(n)}</option>`).join('')}</datalist>
+  <div id="emsg"></div>
+  <div style="display:flex;gap:8px;margin-top:12px"><button class="b p" id="esv" type="button">저장</button><button class="b" data-close type="button">취소</button></div>
+  <p class="note">이미지는 저장한 뒤 행사 화면에서 올립니다.</p></div>`);
+  const tags=()=>{$('#etags').innerHTML=its.map((x,i)=>`<span class="chip">${esc(x.nm||x.code)}<button type="button" data-ti="${i}" aria-label="빼기">×</button></span>`).join('');$$('#etags [data-ti]').forEach(b=>b.onclick=()=>{its.splice(+b.dataset.ti,1);tags()})};tags();
+  const addIt=()=>{const v=$('#eit').value.trim();if(!v)return;let code=IT[v]?v:Object.keys(IT).find(c=>IT[c]==v)||Object.keys(IT).find(c=>IT[c].includes(v))||v;if(!its.some(x=>x.code==code))its.push({code,nm:IT[code]||''});$('#eit').value='';tags()};
+  $('#eit').onkeydown=ev=>{if(ev.key=='Enter'){ev.preventDefault();addIt()}};$('#eit').onchange=()=>{if(IT[$('#eit').value])addIt()};
+  $('#esv').onclick=async()=>{const g=id=>$('#'+id).value.trim();if($('#eit').value.trim())addIt();
+    const n={...e,name:g('en'),from:g('ef'),to:g('et')||g('ef'),ch:g('ec'),cust:g('ecu'),price:g('ep'),tq:g('etq'),owner:g('eo'),aq:g('eaq'),aa:g('eaa'),memo:$('#em').value,items:its};
+    if(!n.name||!n.from){$('#emsg').innerHTML='<div class="msg err">행사명과 시작일을 넣어 주세요.</div>';return}if(n.to<n.from)[n.from,n.to]=[n.to,n.from];
+    if(await saveEv(n)){UI.m=n.from.slice(0,7);view(n.id)}};
+  $('#en').focus()}
+
+/*@@XEXPORT@@*/
+
+/* ===== 관리자 ===== */
+function admDlg(){if(ADM.pw){ADM.pw=null;try{sessionStorage.removeItem('cpad_admpw')}catch(e){}render();return}
+  dlg(`<h3>관리자</h3><div class="pad" style="display:grid;gap:10px;max-width:420px"><label class="note">관리자 비밀번호 (광고 장부와 같음)<input class="t" type="password" id="apw" autocomplete="current-password"></label><div class="note dn" id="amsg"></div>
+  <div style="display:flex;gap:8px"><button class="b p" id="ago" type="button">열기</button><button class="b" data-close type="button">닫기</button></div></div>`);
+  const go=async()=>{const pw=$('#apw').value;if(!pw)return;try{const r=await fetch('/api/store?admin=check',{method:'POST',headers:{'content-type':'application/json','x-team-key':KEY()},body:JSON.stringify({pw})}).then(r=>r.json());
+    if(r&&r.ok){ADM.pw=pw;try{sessionStorage.setItem('cpad_admpw',pw)}catch(e){}closeDlg();render()}else $('#amsg').textContent='비밀번호가 맞지 않습니다.'}catch(e){$('#amsg').textContent='확인하지 못했습니다.'}};
+  $('#ago').onclick=go;$('#apw').onkeydown=e=>{if(e.key=='Enter')go()};$('#apw').focus()}
+$('#admbtn').onclick=admDlg;document.addEventListener('keydown',e=>{if(e.key=='Escape'){const v=$('.view');if(v)v.remove();else closeDlg()}});
+
+function render(){const b=$('#admbtn');b.classList.toggle('on',!!ADM.pw);b.textContent=ADM.pw?'관리자 모드 · 잠그기':'관리자';
+  $$('#nav button').forEach(x=>x.setAttribute('aria-selected',x.dataset.t==UI.tab));$$('main>section').forEach(s=>s.hidden=s.id!='t-'+UI.tab);
+  ({cal:rCal,list:rList,img:rImg})[UI.tab]()}
+$('#nav').onclick=e=>{const b=e.target.closest('button');if(!b)return;UI.tab=b.dataset.t;try{history.replaceState(null,'','#'+UI.tab)}catch(x){}render()};
+{const h=location.hash.slice(1);if(['cal','list','img'].includes(h))UI.tab=h}
+load();addEventListener('focus',()=>{if(!$('#dlg').innerHTML&&Date.now()-(window._lf||0)>60e3){window._lf=Date.now();load()}});
+</script>
+</body>
+</html>

@@ -1,6 +1,7 @@
 // 쿠팡 광고 장부 공용 저장소 (Cloudflare Pages Functions + KV)
 // 필요한 설정: KV 바인딩 이름 DB. (선택) 환경변수 TEAM_PASSWORD를 넣으면 비밀번호로 잠김, 없으면 누구나 공용
 // ?admin=status|set|check  관리자 비밀번호 (설정 탭·전체 삭제 보호)
+// ?ns=ev                   행사 기록 (입력 누구나, 삭제 관리자)
 // ?ns=erp                  ERP 자료 (보기 누구나, 쓰기 관리자)
 // ?ns=memo                 회의록 폴더 (브라우저에서 암호화된 내용만 저장, 수정·삭제는 그 폴더 비밀번호 필요)
 import '../../scripts/erp_ecp.js'; // globalThis.ECP (이카운트 자료 합치기, 화면과 같은 코드)
@@ -76,6 +77,45 @@ export async function onRequest({ request, env }) {
         n++;
       }
       return json({ ok: true, docs: n });
+    }
+    return json({ error: 'bad' }, 400);
+  }
+
+  /* 행사 기록 (?ns=ev) — 입력·수정·이미지 추가는 누구나, 행사 삭제·이미지 빼기는 관리자 */
+  if (qp.get('ns') === 'ev') {
+    const LK = 'ev:doc:list', okId = id => /^[a-z0-9]{6,32}$/.test(id || '');
+    const img = qp.get('img');
+    if (request.method === 'GET') {
+      if (img) { if (!okId(img)) return json({ error: 'bad' }, 400); const v = await env.DB.get('ev:img:' + img, 'json'); return v ? json(v) : json({ error: 'none' }, 404); }
+      return json({ list: (await env.DB.get(LK, 'json')) || [], at: Date.now() });
+    }
+    if (request.method !== 'PUT') return json({ error: 'method' }, 405);
+    const b = await body(request); if (!b) return json({ error: 'bad_json' }, 400);
+    const isAdm = () => adminOk(env, decode(request.headers.get('x-admin-key')));
+    if (img) {
+      if (!okId(img) || !b.d || !/^data:image\//.test(b.d)) return json({ error: 'bad' }, 400);
+      if (b.d.length > 20e6) return json({ error: 'big', msg: '이미지가 너무 큽니다' }, 413);
+      if (await env.DB.get('ev:img:' + img)) return json({ error: 'exists' }, 409);
+      await env.DB.put('ev:img:' + img, JSON.stringify({ d: b.d, name: String(b.name || '').slice(0, 120), at: Date.now() }));
+      return json({ ok: true });
+    }
+    const list = (await env.DB.get(LK, 'json')) || [];
+    const save = async (L, why) => { await env.DB.put('hist:ev:' + String(Date.now()).padStart(14, '0') + ':list', JSON.stringify(list), { expirationTtl: KEEP, metadata: { k: 'list', ts: Date.now(), why } }); await env.DB.put(LK, JSON.stringify(L)); return json({ ok: true, list: L, at: Date.now() }); };
+    if (b.op === 'upsert') {
+      const e = b.ev || {}; if (!okId(e.id)) return json({ error: 'bad' }, 400);
+      const i = list.findIndex(x => x.id === e.id), cur = i >= 0 ? list[i] : null;
+      const gone = cur ? (cur.imgs || []).filter(x => !(e.imgs || []).some(y => y.id === x.id)) : [];
+      if (gone.length && !await isAdm()) return json({ error: 'admin', msg: '이미지 삭제는 관리자만 할 수 있습니다' }, 403);
+      for (const g of gone) await env.DB.delete('ev:img:' + g.id);
+      const L = list.slice(); const v = { ...e, ut: Date.now() }; if (i >= 0) L[i] = v; else L.push(v);
+      if (JSON.stringify(L).length > 20e6) return json({ error: 'big' }, 413);
+      return save(L, 'auto');
+    }
+    if (b.op === 'del') {
+      if (!await isAdm()) return json({ error: 'admin', msg: '행사 삭제는 관리자만 할 수 있습니다' }, 403);
+      const cur = list.find(x => x.id === b.id); if (!cur) return json({ ok: true, list });
+      for (const g of (cur.imgs || [])) await env.DB.delete('ev:img:' + g.id);
+      return save(list.filter(x => x.id !== b.id), 'del');
     }
     return json({ error: 'bad' }, 400);
   }
