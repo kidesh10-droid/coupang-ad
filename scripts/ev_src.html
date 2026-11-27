@@ -60,9 +60,10 @@ tr.click{cursor:pointer}tr.click:hover td{background:var(--sub)}
   <nav role="tablist" id="nav">
     <button data-t="cal" aria-selected="true">행사 캘린더</button>
     <button data-t="list">행사 목록</button>
-    <button data-t="img">이미지 보관함</button>
+    <button data-t="img">행사 이미지</button>
   </nav>
   <span id="st">불러오는 중…</span>
+  <button class="hl" id="upbtn" type="button" style="background:#f2c94c;color:#1b2330;border-color:#f2c94c;font-weight:600">⬆ 이미지 업로드</button>
   <button class="hl" id="admbtn" type="button">관리자</button>
   <a class="hl" href="/erp/">ERP</a>
   <a class="hl" href="/ad/">쿠팡 광고 장부</a>
@@ -125,8 +126,9 @@ function rCal(){const sec=$('#t-cal'),[y,mm]=UI.m.split('-').map(Number),first=n
   bindRows(sec)}
 
 /* ===== 목록 ===== */
-const filtered=()=>EV.filter(e=>(!UI.sf||stOf(e)==UI.sf)&&(!UI.ch||(e.ch||'')==UI.ch)&&(!UI.q||[e.name,e.cust,e.ch,e.memo,e.owner,...(e.items||[]).map(x=>x.code+' '+x.nm)].join(' ').toLowerCase().includes(UI.q.toLowerCase())));
-const chans=()=>[...new Set(EV.map(e=>e.ch).filter(Boolean))].sort();
+const LIBID='gallerylibrary';const real=()=>EV.filter(e=>!e.lib);
+const filtered=()=>real().filter(e=>(!UI.sf||stOf(e)==UI.sf)&&(!UI.ch||(e.ch||'')==UI.ch)&&(!UI.q||[e.name,e.cust,e.ch,e.memo,e.owner,...(e.items||[]).map(x=>x.code+' '+x.nm)].join(' ').toLowerCase().includes(UI.q.toLowerCase())));
+const chans=()=>[...new Set(real().map(e=>e.ch).filter(Boolean))].sort();
 const filt=()=>`<span class="seg" role="group" aria-label="상태">${['','예정','진행중','종료'].map(s=>`<button type="button" data-sf="${s}" aria-pressed="${UI.sf==s}">${s||'전체'}</button>`).join('')}</span>
   <select id="fch" aria-label="채널"><option value="">채널 전체</option>${chans().map(c=>`<option${c==UI.ch?' selected':''}>${esc(c)}</option>`).join('')}</select>
   <input class="t" id="fq" placeholder="검색 (행사·거래처·품목·메모)" value="${esc(UI.q)}" style="min-width:220px">`;
@@ -160,9 +162,27 @@ function showBig(id){const v=document.createElement('div');v.className='view';v.
 async function dl(id,name){const d=await imgData(id);if(!d)return;const a=document.createElement('a');a.href=d;a.download=name||('행사이미지_'+id+'.jpg');document.body.appendChild(a);a.click();a.remove()}
 function gal(imgs,canDel){return`<div class="gal">${imgs.map(g=>`<figure><img data-img="${g.id}" alt="${esc(g.name)}" data-big="${g.id}"><figcaption><span title="${esc(g.name)}">${esc(g.name||'이미지')}</span><span style="display:flex;gap:4px"><button class="b s" type="button" data-dl="${g.id}" data-nm="${esc(g.name)}">받기</button>${canDel?`<button class="b s r" type="button" data-rm="${g.id}">빼기</button>`:''}</span></figcaption></figure>`).join('')}</div>`}
 function bindGal(root){fillImgs(root);root.querySelectorAll('[data-big]').forEach(i=>i.onclick=()=>showBig(i.dataset.big));root.querySelectorAll('[data-dl]').forEach(b=>b.onclick=e=>{e.stopPropagation();dl(b.dataset.dl,b.dataset.nm)})}
-function rImg(){const sec=$('#t-img'),L=filtered().filter(e=>(e.imgs||[]).length).sort((a,b)=>(b.from||'')<(a.from||'')?-1:1);
-  sec.innerHTML=`<div class="box"><div class="f">${filt()}</div></div>${L.map(e=>`<div class="box"><h3><span class="chip s-${stOf(e)}">${stOf(e)}</span> ${esc(e.name)} <small>${e.from||''}${e.to&&e.to!=e.from?' ~ '+e.to:''}${e.cust?' · '+esc(e.cust):''} · ${e.imgs.length}장</small><span style="flex:1"></span><button class="b s" data-open="${e.id}" type="button">행사 열기</button></h3><div class="pad">${gal(e.imgs,false)}</div></div>`).join('')||'<div class="msg">이미지가 있는 행사가 없습니다. 행사를 열어 이미지를 올리세요.</div>'}`;
-  bindFilt(rImg);bindGal(sec);sec.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>view(b.dataset.open))}
+async function upImgs(files,evId,msgEl){files=[...files].filter(f=>/^image\//.test(f.type));if(!files.length)return false;msgEl.innerHTML=`<div class="msg">올리는 중… (${files.length}장)</div>`;const got=[];let err='';
+  for(const f of files){try{const d=await shrink(f),id=uid(),name=f.name&&f.name!='image.png'?f.name:`붙여넣은 이미지 ${new Date().toLocaleString('ko-KR')}.png`;await api('&img='+id,{method:'PUT',body:JSON.stringify({d,name})});IMG.set(id,Promise.resolve(d));got.push({id,name,at:Date.now()})}catch(x){err+=`${f.name}: ${x.message} `}}
+  if(got.length){let cur=EV.find(x=>x.id==evId);if(!cur)cur={id:LIBID,lib:1,name:'이미지 보관함',imgs:[]};await saveEv({...cur,imgs:[...(cur.imgs||[]),...got]})}
+  msgEl.innerHTML=err?`<div class="msg err">${esc(err)}</div>`:`<div class="msg">${got.length}장 올렸습니다.</div>`;return got.length>0}
+function rImg(){const sec=$('#t-img'),lib=EV.find(e=>e.lib),L=filtered().filter(e=>(e.imgs||[]).length).sort((a,b)=>(b.from||'')<(a.from||'')?-1:1);
+  const all=[...(lib?lib.imgs.map(g=>({...g,ev:null})):[]),...L.flatMap(e=>e.imgs.map(g=>({...g,ev:e})))].sort((a,b)=>(b.at||0)-(a.at||0));
+  sec.innerHTML=`<div class="box"><h3>행사 이미지 올리기 <small>만들어 둔 이미지를 올리면 바로 아래에 보입니다 · 여러 장 한 번에 · Ctrl+V 붙여넣기도 됩니다</small></h3><div class="pad">
+    <div class="f" style="padding:0 0 10px"><label>연결할 행사 (선택)<select id="gev"><option value="">행사 없이 보관</option>${real().sort((a,b)=>(b.from||'')<(a.from||'')?-1:1).map(e=>`<option value="${e.id}"${UI.gev==e.id?' selected':''}>${esc(e.name)} (${e.from||''})</option>`).join('')}</select></label></div>
+    <label class="drop" id="gdrop"><input type="file" id="gfi" multiple accept="image/*" hidden><span class="b p" style="display:inline-flex;align-items:center;gap:6px;font-size:16px;padding:8px 22px;border-radius:3px;margin-bottom:8px">⬆ 이미지 업로드</span><br>여기로 끌어 놓아도 되고, 캡처한 이미지는 Ctrl+V로 붙여 넣으면 됩니다</label><div id="gmsg"></div></div></div>
+  <div class="box"><div class="f">${filt()}<span class="seg" role="group" aria-label="보기"><button type="button" data-gv="all" aria-pressed="${UI.gv!='ev'}">최근 올린 순</button><button type="button" data-gv="ev" aria-pressed="${UI.gv=='ev'}">행사별</button></span></div></div>
+  ${UI.gv=='ev'?
+   (lib&&lib.imgs.length?`<div class="box"><h3>행사 없이 보관한 이미지 <small>${lib.imgs.length}장</small></h3><div class="pad">${gal(lib.imgs,!!ADM.pw)}</div></div>`:'')+L.map(e=>`<div class="box"><h3><span class="chip s-${stOf(e)}">${stOf(e)}</span> ${esc(e.name)} <small>${e.from||''}${e.to&&e.to!=e.from?' ~ '+e.to:''}${e.cust?' · '+esc(e.cust):''} · ${e.imgs.length}장</small><span style="flex:1"></span><button class="b s" data-open="${e.id}" type="button">행사 열기</button></h3><div class="pad">${gal(e.imgs,false)}</div></div>`).join('')
+   :`<div class="box"><h3>전체 이미지 <small>${all.length}장 · 누르면 크게</small></h3><div class="pad">${all.length?`<div class="gal">${all.map(g=>`<figure><img data-img="${g.id}" alt="${esc(g.name)}" data-big="${g.id}"><figcaption><span title="${esc(g.name)}">${g.ev?`<b>${esc(g.ev.name)}</b> · `:''}${esc(g.name||'이미지')}</span><span style="display:flex;gap:4px"><button class="b s" type="button" data-dl="${g.id}" data-nm="${esc(g.name)}">받기</button>${ADM.pw&&!g.ev?`<button class="b s r" type="button" data-rm="${g.id}">빼기</button>`:''}</span></figcaption></figure>`).join('')}</div>`:'<p class="note" style="margin:0">아직 올린 이미지가 없습니다.</p>'}</div></div>`}`;
+  bindFilt(rImg);bindGal(sec);sec.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>view(b.dataset.open));
+  sec.querySelectorAll('[data-gv]').forEach(b=>b.onclick=()=>{UI.gv=b.dataset.gv;rImg()});
+  $('#gev').onchange=e=>UI.gev=e.target.value;
+  sec.querySelectorAll('[data-rm]').forEach(b=>b.onclick=async ev=>{ev.stopPropagation();if(!b.dataset.a){b.dataset.a=1;b.textContent='한 번 더';return}const L2=EV.find(e=>e.lib);if(L2)await saveEv({...L2,imgs:L2.imgs.filter(g=>g.id!=b.dataset.rm)})});
+  const go=async fs=>{if(await upImgs(fs,$('#gev').value,$('#gmsg')))rImg()};
+  const dr=$('#gdrop');$('#gfi').onchange=e=>go(e.target.files);dr.ondragover=e=>{e.preventDefault();dr.classList.add('on')};dr.ondragleave=()=>dr.classList.remove('on');dr.ondrop=e=>{e.preventDefault();dr.classList.remove('on');go(e.dataTransfer.files)};
+  PASTE2=go}
+let PASTE2=null;
 
 /* ===== 행사 보기·등록·수정 ===== */
 function dlg(html){$('#dlg').innerHTML=`<div class="dlgw" role="dialog" aria-modal="true"><div class="box">${html}</div></div>`;$('#dlg .dlgw').onclick=e=>{if(e.target.classList.contains('dlgw'))closeDlg()};$$('#dlg [data-close]').forEach(b=>b.onclick=closeDlg)}
@@ -178,18 +198,16 @@ function view(id){const e=EV.find(x=>x.id==id);if(!e)return;const A=erpAct(e),ad
    ${A?`<div class="erp"><b>ERP 실적</b> (행사 기간${e.cust?' · '+esc(e.cust):''}${(e.items||[]).length?' · 지정 품목':''}) — 판매 <b>${W(A.q)}개</b> · 매출 <b>${W(A.a)}원</b> · 이익 <b class="${A.pf<0?'dn':''}">${W(A.pf)}원</b> (${P(A.mg)})${+e.tq?` · 목표 대비 <b>${P(A.q/+e.tq)}</b>`:''}</div>`
      :(e.aq||e.aa)?`<div class="erp"><b>직접 넣은 실적</b> — 판매 ${W(+e.aq||null)}개 · 매출 ${W(+e.aa||null)}원</div>`:`<p class="note">ERP 매출에 이 기간 자료가 있고 거래처나 품목을 지정하면 실적이 자동으로 나옵니다.</p>`}
    <h4 style="margin:16px 0 8px">행사 이미지 ${(e.imgs||[]).length}장</h4>
-   <label class="drop" id="vdrop"><input type="file" id="vfi" multiple accept="image/*" hidden>이미지를 끌어 놓거나 눌러서 고르세요 · 붙여넣기(Ctrl+V)도 됩니다</label>
+   <label class="drop" id="vdrop"><input type="file" id="vfi" multiple accept="image/*" hidden><span class="b p" style="display:inline-flex;font-size:15px;padding:6px 18px;border-radius:3px;margin-right:8px">⬆ 이미지 업로드</span>이미지를 끌어 놓거나 눌러서 고르세요 · 붙여넣기(Ctrl+V)도 됩니다</label>
    <div id="vmsg"></div><div id="vgal" style="margin-top:10px">${gal(e.imgs||[],adm)}</div>
    <p class="note">이미지 추가는 누구나, 빼기와 행사 삭제는 관리자만 할 수 있습니다.</p></div>`);
   bindGal($('#vgal'));$('#ved').onclick=()=>edit(e);
   const vd=$('#vdel');if(vd)vd.onclick=async()=>{if(!vd.dataset.a){vd.dataset.a=1;vd.textContent='한 번 더 누르면 삭제';return}try{const j=await api('',{method:'PUT',body:JSON.stringify({op:'del',id:e.id})});EV=j.list;closeDlg();render()}catch(x){alert2(x)}};
   $('#vgal').querySelectorAll('[data-rm]').forEach(b=>b.onclick=async ev=>{ev.stopPropagation();if(!b.dataset.a){b.dataset.a=1;b.textContent='한 번 더';return}await saveEv({...e,imgs:e.imgs.filter(g=>g.id!=b.dataset.rm)});view(e.id)});
-  const add=async files=>{files=[...files].filter(f=>/^image\//.test(f.type));if(!files.length)return;const m=$('#vmsg');m.innerHTML=`<div class="msg">올리는 중… (${files.length}장)</div>`;const got=[];
-    for(const f of files){try{const d=await shrink(f),id=uid();await api('&img='+id,{method:'PUT',body:JSON.stringify({d,name:f.name||'붙여넣은 이미지.png'})});IMG.set(id,Promise.resolve(d));got.push({id,name:f.name||'붙여넣은 이미지.png',at:Date.now()})}catch(x){m.innerHTML=`<div class="msg err">${esc(f.name)}: ${esc(x.message)}</div>`}}
-    if(got.length){const cur=EV.find(x=>x.id==e.id)||e;await saveEv({...cur,imgs:[...(cur.imgs||[]),...got]});view(e.id)}};
+  const add=async files=>{if(await upImgs(files,e.id,$('#vmsg')))view(e.id)};
   const dr=$('#vdrop');$('#vfi').onchange=ev=>add(ev.target.files);dr.ondragover=ev=>{ev.preventDefault();dr.classList.add('on')};dr.ondragleave=()=>dr.classList.remove('on');dr.ondrop=ev=>{ev.preventDefault();dr.classList.remove('on');add(ev.dataTransfer.files)};
   PASTE=items=>add(items)}
-let PASTE=null;document.addEventListener('paste',e=>{if(!PASTE||!$('#vdrop'))return;const fs=[...(e.clipboardData||{}).files||[]];if(fs.length){e.preventDefault();PASTE(fs)}});
+let PASTE=null;document.addEventListener('paste',e=>{if(!$('#vdrop')){const fs=[...(e.clipboardData||{}).files||[]];if(fs.length&&UI.tab=='img'&&PASTE2){e.preventDefault();PASTE2(fs)}return}if(!PASTE)return;const fs=[...(e.clipboardData||{}).files||[]];if(fs.length){e.preventDefault();PASTE(fs)}});
 const alert2=x=>{const m=$('#vmsg')||$('#emsg');if(m)m.innerHTML=`<div class="msg err">${esc(x.status==403?(x.message||'관리자만 할 수 있습니다'):'저장하지 못했습니다: '+x.message)}</div>`};
 async function saveEv(e){try{st('저장 중…');const j=await api('',{method:'PUT',body:JSON.stringify({op:'upsert',ev:e})});EV=j.list;st('저장됨');render();return true}catch(x){st('저장 실패');alert2(x);return false}}
 function edit(e,day){const isNew=!e;e=e?JSON.parse(JSON.stringify(e)):{id:uid(),name:'',from:day||TODAY,to:day||TODAY,ch:'',cust:'',items:[],price:'',tq:'',aq:'',aa:'',owner:'',memo:'',imgs:[]};
@@ -233,7 +251,7 @@ function admDlg(){if(ADM.pw){ADM.pw=null;try{sessionStorage.removeItem('cpad_adm
   const go=async()=>{const pw=$('#apw').value;if(!pw)return;try{const r=await fetch('/api/store?admin=check',{method:'POST',headers:{'content-type':'application/json','x-team-key':KEY()},body:JSON.stringify({pw})}).then(r=>r.json());
     if(r&&r.ok){ADM.pw=pw;try{sessionStorage.setItem('cpad_admpw',pw)}catch(e){}closeDlg();render()}else $('#amsg').textContent='비밀번호가 맞지 않습니다.'}catch(e){$('#amsg').textContent='확인하지 못했습니다.'}};
   $('#ago').onclick=go;$('#apw').onkeydown=e=>{if(e.key=='Enter')go()};$('#apw').focus()}
-$('#admbtn').onclick=admDlg;document.addEventListener('keydown',e=>{if(e.key=='Escape'){const v=$('.view');if(v)v.remove();else closeDlg()}});
+$('#admbtn').onclick=admDlg;$('#upbtn').onclick=()=>{closeDlg();UI.tab='img';render();$('#gfi').click()};document.addEventListener('keydown',e=>{if(e.key=='Escape'){const v=$('.view');if(v)v.remove();else closeDlg()}});
 
 function render(){const b=$('#admbtn');b.classList.toggle('on',!!ADM.pw);b.textContent=ADM.pw?'관리자 모드 · 잠그기':'관리자';
   $$('#nav button').forEach(x=>x.setAttribute('aria-selected',x.dataset.t==UI.tab));$$('main>section').forEach(s=>s.hidden=s.id!='t-'+UI.tab);
