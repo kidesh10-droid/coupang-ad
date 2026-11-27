@@ -140,8 +140,15 @@ header a.hl:hover{background:rgba(255,255,255,.12)}header button.hl.on{backgroun
 .cal .d:hover{background:var(--sub)}.cal .d.out{background:light-dark(#f7f8fa,#151a21);color:var(--mute)}.cal .d.today{box-shadow:inset 0 0 0 2px var(--bar)}
 .cal .d .n{font-size:13px;font-weight:600;margin-bottom:2px}.cal .d.sun .n{color:var(--red)}.cal .d.sat .n{color:var(--blue)}
 .cal .wk{grid-column:1/-1;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));grid-auto-rows:21px;min-height:118px;padding-bottom:6px;row-gap:2px}
-.cal .wk .d{grid-row:1/-1;min-height:0}.cal .wk .ev{position:relative;z-index:1;margin:0 4px;width:auto;align-self:stretch;line-height:19px;padding:0 2px;background:none;color:var(--ink,#1b2330);border-radius:0;border-bottom:1px solid var(--line);font-size:12.5px}.cal .wk .ev:hover{background:var(--sel);text-decoration:underline}
-.cal .wk .ev.l{border-top-left-radius:0;border-bottom-left-radius:0;margin-left:0}.cal .wk .ev.r{border-top-right-radius:0;border-bottom-right-radius:0;margin-right:0}
+.cal .wk .d{grid-row:1/-1;min-height:0}.cal .wk .ev{position:relative;z-index:1;margin:0 4px;width:auto;align-self:stretch;line-height:19px;padding:0 7px;font-size:12px;font-weight:500;border-radius:5px;
+ background:color-mix(in srgb,var(--c) 14%,var(--panel));color:color-mix(in srgb,var(--c) 72%,var(--ink,#1b2330));border-left:3px solid var(--c);transition:background .12s}
+.cal .wk .ev:hover{background:color-mix(in srgb,var(--c) 24%,var(--panel))}
+.cal .wk .ev .note{color:inherit;opacity:.65;font-weight:400;margin-left:4px}
+.cal .wk .ev.one{background:none;border-left:0;padding-left:15px;color:var(--ink,#1b2330)}.cal .wk .ev.one::before{content:'';position:absolute;left:4px;top:6px;width:7px;height:7px;border-radius:50%;background:var(--c)}
+.cal .wk .ev.one:hover{background:color-mix(in srgb,var(--c) 10%,var(--panel))}
+.cal .wk .ev.l{border-left:0;border-top-left-radius:0;border-bottom-left-radius:0;margin-left:0;padding-left:8px}.cal .wk .ev.r{border-top-right-radius:0;border-bottom-right-radius:0;margin-right:0}
+.cal .wk .d .n{display:inline-flex;align-items:center;gap:3px}.cal .wk .d.today .n b{background:var(--bar);color:#fff;border-radius:50%;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center}
+.cal .wk .d.today{box-shadow:none;background:color-mix(in srgb,var(--bar) 5%,var(--panel))}
 .sw{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}.sw button{width:24px;height:24px;border-radius:3px;border:2px solid transparent;cursor:pointer;padding:0}.sw button.on{border-color:var(--ink,#111);box-shadow:0 0 0 1px #fff inset}.sw button.auto{background:var(--panel);font-size:11px;width:auto;padding:0 6px;border:1px solid var(--line)}
 .ev{display:block;font-size:12px;line-height:1.35;padding:1px 6px;border-radius:2px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;border:0;text-align:left;font-family:inherit;width:100%}
 .ev.c0{background:#5b2a86}.ev.c1{background:#1d6fb8}.ev.c2{background:#0b7a43}.ev.c3{background:#b8551d}.ev.c4{background:#a3266b}.ev.c5{background:#3b5568}.ev.c6{background:#7a6a0b}.ev.c7{background:#2c7a7a}
@@ -221,7 +228,7 @@ function erpAct(e){if(!ERP.ok||!e.from)return null;const to=e.to||e.from,its=new
     for(const l of S.L){const d=`${m}-${p2(l[0])}`;if(d<e.from||d>to)continue;if(cs&&S.C[l[2]]!==cs)continue;if(its.size&&!its.has(l[3]))continue;q+=l[4];a+=l[6];ca+=l[8];n++;days.add(d)}}
   if(!cov)return null;if(!cs&&!its.size)return null;return{q,a,ca,pf:a-ca,mg:a?(a-ca)/a:null,n}}
 const stOf=e=>{const t=e.to||e.from;if(!e.from)return'예정';return TODAY<e.from?'예정':TODAY>t?'종료':'진행중'};
-const PAL=['#5b2a86','#1d6fb8','#0b7a43','#b8551d','#a3266b','#3b5568','#8a6d00','#2c7a7a','#c0392b','#6d4c41','#2e7d32','#1565c0','#ad1457','#00838f','#e65100','#4527a0','#558b2f','#5d4037','#283593','#00695c'];
+const PAL=['#4f6bed','#0e9f6e','#d97706','#e02424','#8b5cf6','#0891b2','#ea580c','#db2777','#2563eb','#16a34a','#ca8a04','#7c3aed'];
 const hashC=s=>{let h=0;for(const c of String(s||''))h=(h*31+c.charCodeAt(0))>>>0;return h};
 /* 색: 직접 고른 색 → 없으면 이름으로 정한 색, 같은 날 겹치는 행사끼리는 서로 다른 색 */
 function colMap(evs){const M={},L=evs.filter(e=>e.from).sort((a,b)=>a.from<b.from?-1:a.from>b.from?1:a.id<b.id?-1:1);
@@ -230,14 +237,14 @@ const colOf=e=>'';
 
 /* ===== 캘린더 ===== */
 function rCal(){const sec=$('#t-cal'),[y,mm]=UI.m.split('-').map(Number),first=new Date(y,mm-1,1),start=iso(new Date(y,mm-1,1-first.getDay()));
-  const evs=filtered();let cells='';
+  const evs=filtered(),CM=colMap(evs);let cells='';
   for(let w=0;w<6;w++){const ws=addD(start,w*7),we=addD(ws,6);if(w>=4&&ws.slice(0,7)>UI.m)break;
     const wk=evs.filter(e=>e.from&&e.from<=we&&(e.to||e.from)>=ws).sort((a,b)=>{const sa=a.from<ws?ws:a.from,sb=b.from<ws?ws:b.from;if(sa!=sb)return sa<sb?-1:1;const da=(a.to||a.from),db=(b.to||b.from);if(da!=db)return da>db?-1:1;return a.name<b.name?-1:1});
     const lanes=[],bars=[];const di=d=>Math.round((new Date(d+'T00:00:00')-new Date(ws+'T00:00:00'))/864e5);
     wk.forEach(e=>{const to=e.to||e.from,c0=Math.max(0,di(e.from)),c1=Math.min(6,di(to));let l=lanes.findIndex(x=>x<c0);if(l<0){l=lanes.length;lanes.push(c1)}else lanes[l]=c1;
-      bars.push(`<button type="button" class="ev${e.from<ws?' l':''}${to>we?' r':''}" data-ev="${e.id}" style="grid-column:${c0+1}/${c1+2};grid-row:${l+2}" title="${esc(e.name)} · ${e.from}~${to}${e.cust?' · '+esc(e.cust):''}">${e.from<ws?'◂ ':''}${esc(e.name)}${to!=e.from?` <small class="note">${+e.from.slice(5,7)}/${+e.from.slice(8)}~${+to.slice(5,7)}/${+to.slice(8)}</small>`:''}</button>`)});
+      bars.push(`<button type="button" class="ev${to==e.from?' one':''}${e.from<ws?' l':''}${to>we?' r':''}" data-ev="${e.id}" style="grid-column:${c0+1}/${c1+2};grid-row:${l+2};--c:${CM[e.id]}" title="${esc(e.name)} · ${e.from}~${to}${e.cust?' · '+esc(e.cust):''}">${esc(e.name)}${to!=e.from?` <small class="note">${+e.from.slice(5,7)}/${+e.from.slice(8)}~${+to.slice(5,7)}/${+to.slice(8)}</small>`:''}</button>`)});
     let days='';for(let j=0;j<7;j++){const d=addD(ws,j),inM=d.slice(0,7)==UI.m;
-      days+=`<div class="d${inM?'':' out'}${j==0?' sun':j==6?' sat':''}${d==TODAY?' today':''}" data-day="${d}" style="grid-column:${j+1}"><span class="n">${+d.slice(8)}${d.slice(8)=='01'||(w==0&&j==0)?`<small class="note"> ${+d.slice(5,7)}월</small>`:''}</span></div>`}
+      days+=`<div class="d${inM?'':' out'}${j==0?' sun':j==6?' sat':''}${d==TODAY?' today':''}" data-day="${d}" style="grid-column:${j+1}"><span class="n"><b>${+d.slice(8)}</b>${d.slice(8)=='01'||(w==0&&j==0)?`<small class="note"> ${+d.slice(5,7)}월</small>`:''}</span></div>`}
     cells+=`<div class="wk" style="grid-template-rows:24px repeat(${Math.max(lanes.length,4)},21px)">${days}${bars.join('')}</div>`}
   const inMonth=evs.filter(e=>e.from&&e.from<=`${UI.m}-31`&&(e.to||e.from)>=`${UI.m}-01`).sort((a,b)=>a.from<b.from?-1:1);
   sec.innerHTML=`<div class="bar" style="margin:-14px max(-2vw,-12px) 14px;padding:10px max(2vw,12px)">
