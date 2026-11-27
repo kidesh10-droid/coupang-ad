@@ -140,7 +140,7 @@ header a.hl:hover{background:rgba(255,255,255,.12)}header button.hl.on{backgroun
 .cal .d:hover{background:var(--sub)}.cal .d.out{background:light-dark(#f7f8fa,#151a21);color:var(--mute)}.cal .d.today{box-shadow:inset 0 0 0 2px var(--bar)}
 .cal .d .n{font-size:13px;font-weight:600;margin-bottom:2px}.cal .d.sun .n{color:var(--red)}.cal .d.sat .n{color:var(--blue)}
 .cal .wk{grid-column:1/-1;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));grid-auto-rows:21px;min-height:118px;padding-bottom:6px;row-gap:2px}
-.cal .wk .d{grid-row:1/-1;min-height:0}.cal .wk .ev{position:relative;z-index:1;margin:0 2px;width:auto;align-self:stretch;line-height:19px;padding:0 6px}
+.cal .wk .d{grid-row:1/-1;min-height:0}.cal .wk .ev{position:relative;z-index:1;margin:0 4px;width:auto;align-self:stretch;line-height:19px;padding:0 2px;background:none;color:var(--ink,#1b2330);border-radius:0;border-bottom:1px solid var(--line);font-size:12.5px}.cal .wk .ev:hover{background:var(--sel);text-decoration:underline}
 .cal .wk .ev.l{border-top-left-radius:0;border-bottom-left-radius:0;margin-left:0}.cal .wk .ev.r{border-top-right-radius:0;border-bottom-right-radius:0;margin-right:0}
 .sw{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}.sw button{width:24px;height:24px;border-radius:3px;border:2px solid transparent;cursor:pointer;padding:0}.sw button.on{border-color:var(--ink,#111);box-shadow:0 0 0 1px #fff inset}.sw button.auto{background:var(--panel);font-size:11px;width:auto;padding:0 6px;border:1px solid var(--line)}
 .ev{display:block;font-size:12px;line-height:1.35;padding:1px 6px;border-radius:2px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;border:0;text-align:left;font-family:inherit;width:100%}
@@ -230,12 +230,12 @@ const colOf=e=>'';
 
 /* ===== 캘린더 ===== */
 function rCal(){const sec=$('#t-cal'),[y,mm]=UI.m.split('-').map(Number),first=new Date(y,mm-1,1),start=iso(new Date(y,mm-1,1-first.getDay()));
-  const evs=filtered(),CM=colMap(evs);let cells='';
+  const evs=filtered();let cells='';
   for(let w=0;w<6;w++){const ws=addD(start,w*7),we=addD(ws,6);if(w>=4&&ws.slice(0,7)>UI.m)break;
     const wk=evs.filter(e=>e.from&&e.from<=we&&(e.to||e.from)>=ws).sort((a,b)=>{const sa=a.from<ws?ws:a.from,sb=b.from<ws?ws:b.from;if(sa!=sb)return sa<sb?-1:1;const da=(a.to||a.from),db=(b.to||b.from);if(da!=db)return da>db?-1:1;return a.name<b.name?-1:1});
     const lanes=[],bars=[];const di=d=>Math.round((new Date(d+'T00:00:00')-new Date(ws+'T00:00:00'))/864e5);
     wk.forEach(e=>{const to=e.to||e.from,c0=Math.max(0,di(e.from)),c1=Math.min(6,di(to));let l=lanes.findIndex(x=>x<c0);if(l<0){l=lanes.length;lanes.push(c1)}else lanes[l]=c1;
-      bars.push(`<button type="button" class="ev${e.from<ws?' l':''}${to>we?' r':''}" data-ev="${e.id}" style="grid-column:${c0+1}/${c1+2};grid-row:${l+2};background:${CM[e.id]}" title="${esc(e.name)} · ${e.from}~${to}${e.cust?' · '+esc(e.cust):''}">${e.from<ws?'◂ ':''}${esc(e.name)}</button>`)});
+      bars.push(`<button type="button" class="ev${e.from<ws?' l':''}${to>we?' r':''}" data-ev="${e.id}" style="grid-column:${c0+1}/${c1+2};grid-row:${l+2}" title="${esc(e.name)} · ${e.from}~${to}${e.cust?' · '+esc(e.cust):''}">${e.from<ws?'◂ ':''}${esc(e.name)}${to!=e.from?` <small class="note">${+e.from.slice(5,7)}/${+e.from.slice(8)}~${+to.slice(5,7)}/${+to.slice(8)}</small>`:''}</button>`)});
     let days='';for(let j=0;j<7;j++){const d=addD(ws,j),inM=d.slice(0,7)==UI.m;
       days+=`<div class="d${inM?'':' out'}${j==0?' sun':j==6?' sat':''}${d==TODAY?' today':''}" data-day="${d}" style="grid-column:${j+1}"><span class="n">${+d.slice(8)}${d.slice(8)=='01'||(w==0&&j==0)?`<small class="note"> ${+d.slice(5,7)}월</small>`:''}</span></div>`}
     cells+=`<div class="wk" style="grid-template-rows:24px repeat(${Math.max(lanes.length,4)},21px)">${days}${bars.join('')}</div>`}
@@ -244,7 +244,7 @@ function rCal(){const sec=$('#t-cal'),[y,mm]=UI.m.split('-').map(Number),first=n
     <button class="b" id="cp" aria-label="이전 달">◀</button><b style="font-size:18px;min-width:120px;text-align:center">${y}년 ${mm}월</b><button class="b" id="cn" aria-label="다음 달">▶</button><button class="b" id="ct">이번 달</button>
     ${filt()}<span class="sp"></span><button class="b" id="bulk1" type="button">⬆ 일괄등록</button><button class="b p" id="new1" type="button">+ 행사 등록</button></div>
   <div class="cal">${'일월화수목금토'.split('').map(x=>`<div class="dh">${x}</div>`).join('')}${cells}</div>
-  <p class="note">날짜 칸을 누르면 그날로 새 행사를 등록하고, 행사 막대를 누르면 내용·이미지를 봅니다. 하루에 몇 건이든 모두 표시되고, 같은 날 겹치는 행사는 서로 다른 색입니다 (행사 수정에서 색을 직접 고를 수도 있습니다).</p>
+  <p class="note">날짜 칸을 누르면 그날로 새 행사를 등록하고, 행사 막대를 누르면 내용·이미지를 봅니다. 하루에 몇 건이든 모두 표시되고, 기간 행사는 시작일부터 종료일까지 한 줄로 이어집니다.</p>
   ${listTable('c-m',`${mm}월 행사`,inMonth)}`;
   const mv=k=>{const d=new Date(y,mm-1+k,1);UI.m=iso(d).slice(0,7);rCal()};$('#cp').onclick=()=>mv(-1);$('#cn').onclick=()=>mv(1);$('#ct').onclick=()=>{UI.m=TODAY.slice(0,7);rCal()};
   $('#new1').onclick=()=>edit(null,TODAY);$('#bulk1').onclick=bulkDlg;bindFilt(rCal);
@@ -351,7 +351,6 @@ function edit(e,day){const isNew=!e;e=e?JSON.parse(JSON.stringify(e)):{id:uid(),
    <label class="w">품목 (코드·이름으로 찾아 Enter)<input class="t" id="eit" list="itl" placeholder="예: 진공 스팀다리미 / E4-036-01023"><div class="tags" id="etags"></div></label>
    <label>실판매 수량 (ERP에 없을 때만)<input class="t" type="number" id="eaq" value="${esc(e.aq||'')}"></label>
    <label>매출 (ERP에 없을 때만)<input class="t" type="number" id="eaa" value="${esc(e.aa||'')}"></label>
-   <div class="w note">막대 색<div class="sw" id="esw"><button type="button" class="auto${e.color?'':' on'}" data-c="">자동</button>${PAL.map(c=>`<button type="button" data-c="${c}" style="background:${c}" class="${e.color==c?'on':''}" aria-label="색 ${c}"></button>`).join('')}</div></div>
    <label class="w">메모<textarea id="em" placeholder="진행 내용, 노출 위치, 결과, 다음 행사 참고 등">${esc(e.memo||'')}</textarea></label>
   </div>
   <datalist id="chl">${chans().map(c=>`<option value="${esc(c)}">`).join('')}</datalist>
@@ -362,10 +361,9 @@ function edit(e,day){const isNew=!e;e=e?JSON.parse(JSON.stringify(e)):{id:uid(),
   <p class="note">이미지는 저장한 뒤 행사 화면에서 올립니다.</p></div>`);
   const tags=()=>{$('#etags').innerHTML=its.map((x,i)=>`<span class="chip">${esc(x.nm||x.code)}<button type="button" data-ti="${i}" aria-label="빼기">×</button></span>`).join('');$$('#etags [data-ti]').forEach(b=>b.onclick=()=>{its.splice(+b.dataset.ti,1);tags()})};tags();
   const addIt=()=>{const v=$('#eit').value.trim();if(!v)return;let code=IT[v]?v:Object.keys(IT).find(c=>IT[c]==v)||Object.keys(IT).find(c=>IT[c].includes(v))||v;if(!its.some(x=>x.code==code))its.push({code,nm:IT[code]||''});$('#eit').value='';tags()};
-  let ecol=e.color||'';$$('#esw button').forEach(b=>b.onclick=()=>{ecol=b.dataset.c;$$('#esw button').forEach(x=>x.classList.toggle('on',x==b))});
   $('#eit').onkeydown=ev=>{if(ev.key=='Enter'){ev.preventDefault();addIt()}};$('#eit').onchange=()=>{if(IT[$('#eit').value])addIt()};
   $('#esv').onclick=async()=>{const g=id=>$('#'+id).value.trim();if($('#eit').value.trim())addIt();
-    const n={...e,name:g('en'),from:g('ef'),to:g('et')||g('ef'),ch:g('ec'),cust:g('ecu'),price:g('ep'),tq:g('etq'),owner:g('eo'),aq:g('eaq'),aa:g('eaa'),memo:$('#em').value,items:its,color:ecol};
+    const n={...e,name:g('en'),from:g('ef'),to:g('et')||g('ef'),ch:g('ec'),cust:g('ecu'),price:g('ep'),tq:g('etq'),owner:g('eo'),aq:g('eaq'),aa:g('eaa'),memo:$('#em').value,items:its};
     if(!n.name||!n.from){$('#emsg').innerHTML='<div class="msg err">행사명과 시작일을 넣어 주세요.</div>';return}if(n.to<n.from)[n.from,n.to]=[n.to,n.from];
     if(await saveEv(n)){UI.m=n.from.slice(0,7);view(n.id)}};
   $('#en').focus()}
