@@ -111,6 +111,13 @@ export async function onRequest({ request, env }) {
       if (JSON.stringify(L).length > 20e6) return json({ error: 'big' }, 413);
       return save(L, 'auto');
     }
+    if (b.op === 'bulk') { // 엑셀로 여러 행사 한 번에 (같은 id는 고침, 이미지는 건드리지 않음)
+      if (!Array.isArray(b.evs) || b.evs.length > 2000) return json({ error: 'bad' }, 400);
+      const L = list.slice();
+      for (const e of b.evs) { if (!e || !okId(e.id)) continue; const i = L.findIndex(x => x.id === e.id); const v = { ...e, imgs: i >= 0 ? (L[i].imgs || []) : [], ut: Date.now() }; if (i >= 0) L[i] = v; else L.push(v) }
+      if (JSON.stringify(L).length > 20e6) return json({ error: 'big' }, 413);
+      return save(L, 'up');
+    }
     if (b.op === 'addimgs') { // 이미지 추가는 기존 목록에 덧붙이기만 (동시에 올려도 서로 안 지움)
       if (!okId(b.id) || !Array.isArray(b.imgs)) return json({ error: 'bad' }, 400);
       const L = list.slice(); let i = L.findIndex(x => x.id === b.id);

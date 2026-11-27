@@ -175,6 +175,7 @@ tr.click{cursor:pointer}tr.click:hover td{background:var(--sub)}
     <button data-t="img">행사 이미지</button>
   </nav>
   <span id="st">불러오는 중…</span>
+  <button class="hl" id="bulkbtn" type="button">⬆ 행사 엑셀 일괄등록</button>
   <button class="hl" id="upbtn" type="button" style="background:#f2c94c;color:#1b2330;border-color:#f2c94c;font-weight:600">⬆ 이미지 업로드</button>
   <button class="hl" id="admbtn" type="button">관리자</button>
   <a class="hl" href="/erp/">ERP</a>
@@ -186,6 +187,7 @@ tr.click{cursor:pointer}tr.click:hover td{background:var(--sub)}
   <section id="t-img" hidden></section>
 </main>
 <div id="dlg"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" async></script>
 <script>
 'use strict';
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
@@ -228,12 +230,12 @@ function rCal(){const sec=$('#t-cal'),[y,mm]=UI.m.split('-').map(Number),first=n
   const inMonth=evs.filter(e=>e.from&&e.from<=`${UI.m}-31`&&(e.to||e.from)>=`${UI.m}-01`).sort((a,b)=>a.from<b.from?-1:1);
   sec.innerHTML=`<div class="bar" style="margin:-14px max(-2vw,-12px) 14px;padding:10px max(2vw,12px)">
     <button class="b" id="cp" aria-label="이전 달">◀</button><b style="font-size:18px;min-width:120px;text-align:center">${y}년 ${mm}월</b><button class="b" id="cn" aria-label="다음 달">▶</button><button class="b" id="ct">이번 달</button>
-    ${filt()}<span class="sp"></span><button class="b p" id="new1" type="button">+ 행사 등록</button></div>
+    ${filt()}<span class="sp"></span><button class="b" id="bulk1" type="button">⬆ 엑셀 일괄등록</button><button class="b p" id="new1" type="button">+ 행사 등록</button></div>
   <div class="cal">${'일월화수목금토'.split('').map(x=>`<div class="dh">${x}</div>`).join('')}${cells}</div>
   <p class="note">날짜 칸을 누르면 그날로 새 행사를 등록하고, 행사 막대를 누르면 내용·이미지를 봅니다.</p>
   ${listTable('c-m',`${mm}월 행사`,inMonth)}`;
   const mv=k=>{const d=new Date(y,mm-1+k,1);UI.m=iso(d).slice(0,7);rCal()};$('#cp').onclick=()=>mv(-1);$('#cn').onclick=()=>mv(1);$('#ct').onclick=()=>{UI.m=TODAY.slice(0,7);rCal()};
-  $('#new1').onclick=()=>edit(null,TODAY);bindFilt(rCal);
+  $('#new1').onclick=()=>edit(null,TODAY);$('#bulk1').onclick=bulkDlg;bindFilt(rCal);
   sec.querySelectorAll('[data-day]').forEach(c=>c.onclick=e=>{if(e.target.closest('[data-ev]'))return;edit(null,c.dataset.day)});
   bindRows(sec)}
 
@@ -256,8 +258,8 @@ function listTable(id,title,L){const R=L.map(e=>{const A=erpAct(e);return{e,A,q:
   ${L.length?`<tr class="gt"><td>합계</td><td>${L.length}건</td><td></td><td></td><td></td><td></td><td></td><td class="n">${W(T.tq)}</td><td class="n">${W(T.q)}</td><td class="n">${W(T.a)}</td><td class="n${T.pf<0?' neg':''}">${W(T.pf)}</td><td class="n">${T.a?P(T.pf/T.a):'–'}</td><td></td><td class="n">${L.reduce((s,e)=>s+(e.imgs||[]).length,0)}</td></tr>`:''}</tbody></table></div></div>`}
 function bindRows(sec){sec.querySelectorAll('[data-ev]').forEach(r=>r.onclick=e=>{e.stopPropagation();view(r.dataset.ev)})}
 function rList(){const sec=$('#t-list'),L=filtered().sort((a,b)=>(b.from||'')<(a.from||'')?-1:1);
-  sec.innerHTML=`<div class="box"><div class="f">${filt()}<span style="flex:1"></span><button class="b p" id="new2" type="button">+ 행사 등록</button></div></div>${listTable('l-all','행사 목록',L)}`;
-  bindFilt(rList);$('#new2').onclick=()=>edit(null,TODAY);bindRows(sec)}
+  sec.innerHTML=`<div class="box"><div class="f">${filt()}<span style="flex:1"></span><button class="b" id="bulk2" type="button">⬆ 엑셀 일괄등록</button><button class="b p" id="new2" type="button">+ 행사 등록</button></div></div>${listTable('l-all','행사 목록',L)}`;
+  bindFilt(rList);$('#new2').onclick=()=>edit(null,TODAY);$('#bulk2').onclick=bulkDlg;bindRows(sec)}
 document.addEventListener('click',e=>{const b=e.target.closest('[data-x]');if(!b)return;const t=TB[b.dataset.x];if(!t)return;
   const H=['상태','행사명','채널','거래처','시작일','종료일','품목','행사가','목표 수량','실판매 수량','매출(공급가)','이익','이익율','담당','메모','이미지 수'];
   const R=[H.map(v=>({v,h:true}))],RC=[''];
@@ -401,6 +403,53 @@ async function xWrite(list,fname,btn){const lab=btn&&btn.textContent;if(btn){btn
   finally{if(btn){btn.disabled=false;btn.textContent=lab}}}
 
 
+/* ===== 행사 엑셀 일괄 등록 ===== */
+const BH={name:/^(행사(명|이름)?|제목|이벤트)$/,from:/^(시작(일|일자)?|일자|날짜|오픈(일)?|행사\s*시작)$/,to:/^(종료(일|일자)?|마감(일)?|끝|행사\s*종료)$/,per:/^(기간|행사\s*기간|진행\s*기간|일정)$/,
+  ch:/^(채널|종류|행사\s*종류|구분|유형|플랫폼|몰)$/,cust:/^(거래처(명)?|업체(명)?|판매처|파트너)$/,items:/^(품목(명)?|상품(명)?|품목코드|제품(명)?)$/,price:/^(행사가|조건|행사\s*조건|판매가|가격|혜택)$/,
+  tq:/^(목표(\s*수량)?|예상\s*수량|수량)$/,aq:/^(실판매(\s*수량)?|판매\s*수량|실적\s*수량)$/,aa:/^(매출|실적(\s*금액)?|판매\s*금액)$/,owner:/^(담당(자)?|진행자)$/,memo:/^(메모|비고|내용|노출|설명|참고)$/};
+function bDate(v,yr){if(v==null||v==='')return'';if(v instanceof Date)return iso(v);if(typeof v=='number'&&v>20000&&v<80000){const d=new Date(Math.round((v-25569)*864e5));return iso(new Date(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate()))}
+  const t=String(v).trim();let m=t.match(/(\d{4})\s*[.\/\-년]\s*(\d{1,2})\s*[.\/\-월]\s*(\d{1,2})/);if(m)return`${m[1]}-${p2(m[2])}-${p2(m[3])}`;
+  m=t.match(/(\d{2})(\d{2})(\d{2})/);if(m&&t.replace(/\D/g,'').length==6)return`20${m[1]}-${m[2]}-${m[3]}`;
+  m=t.match(/(\d{1,2})\s*[.\/\-월]\s*(\d{1,2})/);if(m)return`${yr}-${p2(m[1])}-${p2(m[2])}`;return''}
+function bPer(v,yr){if(v instanceof Date||typeof v=='number')return[bDate(v,yr),''];const t=String(v||'');const parts=t.split(/\s*(?:~|–|—|-(?=\s*\d{1,4}\s*[.\/월])|부터|까지)\s*/).filter(x=>/\d/.test(x));
+  const a=bDate(parts[0]||'',yr);let b=parts[1]?bDate(parts[1],a?a.slice(0,4):yr):'';if(!b&&parts[1]&&/^\s*\d{1,2}\s*일?\s*$/.test(parts[1])&&a)b=a.slice(0,8)+p2(parts[1].replace(/\D/g,''));if(a&&b&&b<a&&b.slice(5)<a.slice(5))b=(+a.slice(0,4)+1)+b.slice(4);return[a,b]}
+function bParse(A){A=A.map(r=>(r||[]).map(v=>v instanceof Date?v:v==null?'':v));const T=v=>String(v??'').replace(/\s+/g,' ').trim();
+  const hi=A.findIndex(r=>r.some(v=>BH.name.test(T(v))));if(hi<0)return{err:'"행사명" 열을 찾지 못했습니다. 첫 줄에 행사명·시작일·종료일 같은 제목을 넣어 주세요.'};
+  const H=A[hi].map(T),col={};Object.entries(BH).forEach(([k,re])=>{const i=H.findIndex(h=>re.test(h));if(i>=0)col[k]=i});
+  const IT=erpItems(),yr=TODAY.slice(0,4),out=[],bad=[];
+  A.slice(hi+1).forEach((r,ri)=>{const g=k=>col[k]!=null?r[col[k]]:'';const name=T(g('name'));if(!name)return;
+    let from=bDate(g('from'),yr),to=bDate(g('to'),from?from.slice(0,4):yr);if(!from&&col.per!=null){[from,to]=bPer(g('per'),yr)}if(!from&&col.per==null&&col.from!=null&&/~|부터/.test(T(g('from'))))[from,to]=bPer(g('from'),yr);
+    if(!from){bad.push(`${hi+ri+2}행 "${name}": 시작일을 못 읽음`);return}if(!to)to=from;if(to<from)[from,to]=[to,from];
+    const items=T(g('items')).split(/[,\n/·]+/).map(x=>x.trim()).filter(Boolean).map(v=>{const code=IT[v]?v:Object.keys(IT).find(c=>IT[c]==v)||Object.keys(IT).find(c=>IT[c].includes(v));return code?{code,nm:IT[code]}:{code:v,nm:v}});
+    const n=x=>{const s=T(x).replace(/[,원개\s]/g,'');return s&&isFinite(+s)?String(+s):''};
+    const old=EV.find(e=>!e.lib&&e.name==name&&e.from==from);
+    out.push({id:old?old.id:uid()+ri.toString(36),name,from,to,ch:T(g('ch')),cust:T(g('cust')),items,price:T(g('price')),tq:n(g('tq')),aq:n(g('aq')),aa:n(g('aa')),owner:T(g('owner')),memo:T(g('memo')),upd:!!old})});
+  return{out,bad,cols:Object.keys(col)}}
+function bulkDlg(){let parsed=null;
+  dlg(`<h3>행사 엑셀 일괄 등록<span style="flex:1"></span><button class="b s" id="btpl" type="button">양식 받기</button><button class="b s" data-close type="button">닫기</button></h3><div class="pad">
+   <label class="drop" id="bdrop"><input type="file" id="bfi" accept=".xlsx,.xls,.csv" hidden><span class="b p" style="display:inline-flex;font-size:15px;padding:6px 18px;border-radius:3px;margin-bottom:6px">⬆ 행사 엑셀 파일 올리기</span><br>엑셀·CSV를 끌어 놓아도 됩니다 · 여러 시트도 읽습니다</label>
+   <div class="upguide" style="margin-top:10px">열 이름은 아래 중 아무거나 쓰면 알아서 맞춥니다. <b>행사명</b>과 <b>시작일</b>(또는 <b>기간</b>)만 있으면 됩니다.
+    <ul><li>행사명 · 시작일 · 종료일 (또는 기간: <code>11/26~11/30</code>, <code>5월 20일 - 6월 20일</code>)</li><li>채널(종류) · 거래처 · 품목(여러 개는 쉼표) · 행사가(조건) · 목표 수량 · 담당 · 메모 · 실판매 수량 · 매출</li>
+    <li>같은 행사명·같은 시작일이 이미 있으면 새로 만들지 않고 내용을 고칩니다 (이미지는 그대로).</li></ul></div>
+   <div id="bres" style="margin-top:12px"></div></div>`);
+  $('#btpl').onclick=()=>{const H=['행사명','시작일','종료일','채널','거래처','품목','행사가','목표 수량','담당','메모'];
+    const R=[H.map(v=>({v,h:true})),['카카오 톡딜 제트팬 선풍기','2026-05-15','2026-05-21','톡딜','(주)엘디네트웍스','제트팬 선풍기','29,900원',1000,'','17시 오픈'].map(v=>({v})),['DB손보 시책행사','2026-05-20','2026-06-20','시책행사','위닌컴퍼니','진공 스팀다리미, 진공 포장기','','','','보험지점 사은품'].map(v=>({v}))];
+    xWrite([{title:'행사 일괄등록 양식',note:'2행부터 지우고 행사를 채워 올리세요',R,M:[],RC:['','',''],W:H.length}],'일괄등록_양식',$('#btpl'))};
+  const show=()=>{const{out,bad}=parsed,nw=out.filter(e=>!e.upd).length;
+    $('#bres').innerHTML=`${bad.length?`<div class="msg err">${bad.map(esc).join('<br>')}</div>`:''}<div class="msg">읽은 행사 <b>${out.length}건</b> (새로 ${nw}건 · 고침 ${out.length-nw}건). 확인하고 등록을 누르세요.</div>
+    <div class="tw scroll" style="max-height:45vh"><table><thead><tr><th>구분</th><th>행사명</th><th>기간</th><th>채널</th><th>거래처</th><th>품목</th><th>행사가</th><th class="n">목표</th><th>담당</th><th>메모</th></tr></thead><tbody>
+    ${out.map(e=>`<tr><td>${e.upd?'<span class="chip s-예정">고침</span>':'<span class="chip s-진행중">새로</span>'}</td><td><b>${esc(e.name)}</b></td><td>${e.from}${e.to!=e.from?' ~ '+e.to:''}</td><td>${esc(e.ch)}</td><td>${esc(e.cust)}</td><td>${esc(e.items.map(x=>x.nm||x.code).join(', '))}</td><td>${esc(e.price)}</td><td class="n">${W(+e.tq||null)}</td><td>${esc(e.owner)}</td><td class="t" style="max-width:220px;overflow:hidden;text-overflow:ellipsis">${esc(e.memo)}</td></tr>`).join('')}
+    <tr class="gt"><td>합계</td><td>${out.length}건</td><td></td><td></td><td></td><td></td><td></td><td class="n">${W(out.reduce((s,e)=>s+(+e.tq||0),0))}</td><td></td><td></td></tr></tbody></table></div>
+    <div style="display:flex;gap:8px;margin-top:10px"><button class="b p" id="bgo" type="button"${out.length?'':' disabled'}>${out.length}건 등록</button></div>`;
+    const bg=$('#bgo');if(bg)bg.onclick=async()=>{bg.disabled=true;bg.textContent='등록 중…';try{const evs=parsed.out.map(({upd,...e})=>e);const j=await api('',{method:'PUT',body:JSON.stringify({op:'bulk',evs})});EV=j.list;const f=evs.map(e=>e.from).sort()[0];if(f)UI.m=f.slice(0,7);closeDlg();UI.tab='cal';render();st(`행사 ${evs.length}건 등록`)}
+      catch(x){bg.disabled=false;bg.textContent='다시 등록';$('#bres').insertAdjacentHTML('afterbegin',`<div class="msg err">${esc(x.message)}</div>`)}}};
+  const read=async f=>{if(!f)return;$('#bres').innerHTML='<div class="msg">읽는 중…</div>';try{for(let i=0;i<50&&!window.XLSX;i++)await new Promise(r=>setTimeout(r,200));
+    const wb=XLSX.read(await f.arrayBuffer(),{type:'array',cellDates:true});let all={out:[],bad:[]},err='';
+    for(const sn of wb.SheetNames){const r=bParse(XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:true,defval:''}));if(r.err){err=r.err;continue}all.out.push(...r.out);all.bad.push(...r.bad)}
+    if(!all.out.length&&err){$('#bres').innerHTML=`<div class="msg err">${esc(err)}</div>`;return}parsed=all;show()}catch(x){$('#bres').innerHTML=`<div class="msg err">파일을 읽지 못했습니다: ${esc(x.message)}</div>`}};
+  const dr=$('#bdrop');$('#bfi').onchange=e=>read(e.target.files[0]);dr.ondragover=e=>{e.preventDefault();dr.classList.add('on')};dr.ondragleave=()=>dr.classList.remove('on');dr.ondrop=e=>{e.preventDefault();dr.classList.remove('on');read(e.dataTransfer.files[0])}}
+
+
 /* ===== 관리자 ===== */
 function admDlg(){if(ADM.pw){ADM.pw=null;try{sessionStorage.removeItem('cpad_admpw')}catch(e){}render();return}
   dlg(`<h3>관리자</h3><div class="pad" style="display:grid;gap:10px;max-width:420px"><label class="note">관리자 비밀번호 (광고 장부와 같음)<input class="t" type="password" id="apw" autocomplete="current-password"></label><div class="note dn" id="amsg"></div>
@@ -408,7 +457,7 @@ function admDlg(){if(ADM.pw){ADM.pw=null;try{sessionStorage.removeItem('cpad_adm
   const go=async()=>{const pw=$('#apw').value;if(!pw)return;try{const r=await fetch('/api/store?admin=check',{method:'POST',headers:{'content-type':'application/json','x-team-key':KEY()},body:JSON.stringify({pw})}).then(r=>r.json());
     if(r&&r.ok){ADM.pw=pw;try{sessionStorage.setItem('cpad_admpw',pw)}catch(e){}closeDlg();render()}else $('#amsg').textContent='비밀번호가 맞지 않습니다.'}catch(e){$('#amsg').textContent='확인하지 못했습니다.'}};
   $('#ago').onclick=go;$('#apw').onkeydown=e=>{if(e.key=='Enter')go()};$('#apw').focus()}
-$('#admbtn').onclick=admDlg;$('#upbtn').onclick=()=>{closeDlg();UI.tab='img';render();$('#gfi').click()};document.addEventListener('keydown',e=>{if(e.key=='Escape'){const v=$('.view');if(v)v.remove();else closeDlg()}});
+$('#admbtn').onclick=admDlg;$('#bulkbtn').onclick=bulkDlg;$('#upbtn').onclick=()=>{closeDlg();UI.tab='img';render();$('#gfi').click()};document.addEventListener('keydown',e=>{if(e.key=='Escape'){const v=$('.view');if(v)v.remove();else closeDlg()}});
 
 function render(){const b=$('#admbtn');b.classList.toggle('on',!!ADM.pw);b.textContent=ADM.pw?'관리자 모드 · 잠그기':'관리자';
   $$('#nav button').forEach(x=>x.setAttribute('aria-selected',x.dataset.t==UI.tab));$$('main>section').forEach(s=>s.hidden=s.id!='t-'+UI.tab);
