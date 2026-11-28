@@ -47,6 +47,9 @@ td.w2 small{display:block;color:var(--mute);font-size:12px}
 </style>
 </head>
 <body>
+<nav class="site" aria-label="페이지 이동"><a href="/ad/" data-p="/ad/">쿠팡 광고 장부</a><a href="/naver/" data-p="/naver/">네이버 광고 장부</a><a href="/erp/" data-p="/erp/">ERP</a><a href="/event/" data-p="/event/">행사 기록</a><a href="/sourcing/" data-p="/sourcing/">소싱</a></nav>
+<style>nav.site{display:flex;gap:0;background:#11161f;padding:0 max(2vw,12px);overflow-x:auto;position:relative;z-index:5}nav.site a{color:#aeb8c8;text-decoration:none;font:600 13px/1 "IBM Plex Sans KR",system-ui,sans-serif;padding:9px 14px;white-space:nowrap;border-bottom:3px solid transparent}nav.site a:hover{color:#fff;background:rgba(255,255,255,.06)}nav.site a.on{color:#fff;border-bottom-color:#f2c94c;background:rgba(255,255,255,.08)}</style>
+<script>(function(){var p=location.pathname.replace(/index\.html$/,'');document.querySelectorAll('nav.site a').forEach(function(a){if(p.indexOf(a.dataset.p)===0)a.classList.add('on')})})()</script>
 <header>
   <h1>소싱</h1>
   <span class="note" style="color:#f5dcc8" id="bt"></span>
@@ -55,9 +58,6 @@ td.w2 small{display:block;color:var(--mute);font-size:12px}
   <button class="hl go" id="aibtn" type="button">🔎 AI 소싱 시작</button>
   <button class="hl" id="upbtn" type="button">⬆ 소싱 엑셀 올리기</button>
   <button class="hl" id="admbtn" type="button">관리자</button>
-  <a class="hl" href="/ad/">쿠팡 광고 장부</a>
-  <a class="hl" href="/erp/">ERP</a>
-  <a class="hl" href="/event/">행사 기록</a>
 </header>
 <main id="main"></main>
 <div id="dlg"></div>
