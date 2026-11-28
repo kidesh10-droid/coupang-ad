@@ -82,7 +82,7 @@ export async function onRequest({ request, env }) {
     return json({ error: 'bad' }, 400);
   }
 
-  /* 소싱 (?ns=src) — 보기 누구나, 올리기·AI 소싱 실행·삭제는 관리자 */
+  /* 소싱 (?ns=src) — 보기·올리기·AI 소싱은 누구나, 삭제는 관리자 */
   if (qp.get('ns') === 'src') {
     const LK = 'src:doc:list', okId = id => /^[a-z0-9]{6,40}$/.test(id || '');
     const img = qp.get('img');
@@ -97,7 +97,7 @@ export async function onRequest({ request, env }) {
         if (A && A.batch && okId(A.batch.id) && !(await env.DB.get('src:applied:' + A.batch.id))) { await env.DB.put('src:applied:' + A.batch.id, '1'); L = (L || []).filter(y => y.id !== A.batch.id).concat([A.batch]); await env.DB.put(LK, JSON.stringify(L)) } } catch (e) { } }
       return json({ batches: L || [], ai: !!env.ANTHROPIC_API_KEY, at: Date.now() });
     }
-    if (!await adminOk(env, decode(request.headers.get('x-admin-key')))) return json({ error: 'admin', msg: '소싱 자료 올리기·AI 소싱·삭제는 관리자만 할 수 있습니다' }, 403);
+    const srcAdm = () => adminOk(env, decode(request.headers.get('x-admin-key'))); // 보기·올리기·AI 소싱은 누구나, 삭제·기준 저장만 관리자
     if (qp.get('run') && request.method === 'POST') { // AI 소싱: Claude API(웹 검색) 응답을 그대로 흘려보냄 → 화면이 받아서 저장
       if (!env.ANTHROPIC_API_KEY) return json({ error: 'nokey', msg: 'AI 소싱을 쓰려면 Cloudflare Pages 환경변수에 ANTHROPIC_API_KEY를 넣어야 합니다' }, 501);
       const b = await body(request) || {};
@@ -115,6 +115,7 @@ export async function onRequest({ request, env }) {
     if (b.op === 'add') { const x = b.batch || {}; if (!okId(x.id) || !Array.isArray(x.items)) return json({ error: 'bad' }, 400);
       let n = 0; for (const it of x.items) { if (typeof it.img === 'string' && it.img.startsWith('data:image/')) { const id = x.id + 'i' + (n++); await env.DB.put('src:img:' + id, it.img); it.img = '/api/store?ns=src&img=' + id } }
       const L2 = L.filter(y => y.id !== x.id).concat([{ ...x, at: x.at || Date.now() }]); if (JSON.stringify(L2).length > 20e6) return json({ error: 'big' }, 413); return keep(L2) }
+    if ((b.op === 'del' || b.op === 'plan') && !await srcAdm()) return json({ error: 'admin', msg: '소싱 자료 삭제는 관리자만 할 수 있습니다' }, 403);
     if (b.op === 'del') { const x = L.find(y => y.id === b.id); if (x) for (const it of x.items || []) { const m = String(it.img || '').match(/img=([a-z0-9]+)/); if (m) await env.DB.delete('src:img:' + m[1]) } return keep(L.filter(y => y.id !== b.id)) }
     if (b.op === 'plan') { const x = L.find(y => y.id === b.id); if (!x) return json({ error: 'none' }, 404); x.cfg = { ...x.cfg, ...(b.cfg || {}) }; if (b.plans) x.items.forEach(it => { if (b.plans[it.cat] != null) it.plan = +b.plans[it.cat] }); return keep(L) }
     return json({ error: 'bad' }, 400);
