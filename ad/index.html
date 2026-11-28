@@ -36,7 +36,7 @@ nav{display:flex;gap:2px;flex-wrap:wrap;flex:1}
 nav button{background:none;border:0;color:#cdd8f2;font:inherit;font-weight:500;padding:0 16px;min-height:46px;cursor:pointer;border-bottom:3px solid transparent}
 nav button[aria-selected=true]{color:#fff;border-bottom-color:#fff;background:rgba(255,255,255,.08)}
 #st{font-size:13px;color:#cdd8f2;white-space:nowrap}
-#erpl{color:#fff;text-decoration:none;font-size:13px;font-weight:600;border:1px solid rgba(255,255,255,.5);padding:5px 10px;border-radius:3px;white-space:nowrap}#erpl:hover{background:rgba(255,255,255,.14)}#evl{color:#fff;text-decoration:none;font-size:13px;font-weight:600;border:1px solid rgba(255,255,255,.5);padding:5px 10px;border-radius:3px;white-space:nowrap}#evl:hover{background:rgba(255,255,255,.14)}
+#erpl{color:#fff;text-decoration:none;font-size:13px;font-weight:600;border:1px solid rgba(255,255,255,.5);padding:5px 10px;border-radius:3px;white-space:nowrap}#erpl:hover{background:rgba(255,255,255,.14)}#evl{color:#fff;text-decoration:none;font-size:13px;font-weight:600;border:1px solid rgba(255,255,255,.5);padding:5px 10px;border-radius:3px;white-space:nowrap}#evl:hover{background:rgba(255,255,255,.14)}#srcl{color:#1b2330;background:#f2c94c;text-decoration:none;font-size:13px;font-weight:700;border:1px solid #f2c94c;padding:5px 10px;border-radius:3px;white-space:nowrap}
 .bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px max(2vw,12px);background:var(--panel);border-bottom:1px solid var(--line)}
 .bar .sp{flex:1}
 main{padding:14px max(2vw,12px) 40px;max-width:1440px;margin:0 auto}
@@ -149,6 +149,7 @@ table.xl th.hl{background:light-dark(#fff59d,#4a4520)!important;color:light-dark
   <span id="st">불러오는 중…</span>
   <a id="erpl" href="/erp/" title="이카운트 자료로 보는 매출·재고·원가">ERP 매출·재고</a>
   <a id="evl" href="/event/" title="행사 일정·기록·이미지">행사 기록</a>
+  <a id="srcl" href="/sourcing/" title="알리바바 소싱 추천 상품">소싱</a>
 </header>
 <div class="bar">
   <button class="b" id="pv" aria-label="이전 달">◀</button>
@@ -1786,7 +1787,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('.xbtn,[data-xall
   if(b.classList.contains('xbtn'))xBox(b.closest('.box'),b);else if(b.dataset.xall=='weeks')xAllWeeks(b);else xTab(b)},true);
 
 /* 새 버전 알림: 사이트가 업데이트되면 '새로고침' 띠를 띄움 (예전 화면으로 계속 작업하는 일 방지) */
-const BUILD='20261127-111833';
+const BUILD='20261128-184842';
 async function verCheck(){if(!/^https?:/.test(location.protocol)||BUILD.startsWith('__'))return;try{const t=await (await fetch(location.pathname,{cache:'no-store'})).text(),m=t.match(/const BUILD='([^']+)'/);
   if(m&&m[1]!==BUILD&&!$('#newver')){const d=document.createElement('div');d.id='newver';d.innerHTML=`<b>새 버전이 올라왔습니다.</b> 지금 화면은 이전 버전이라 업로드 결과가 다를 수 있어요. <button class="b s p" onclick="location.reload()">새로고침</button>`;document.body.prepend(d)}}catch(e){}}
 addEventListener('focus',verCheck);setInterval(()=>{if(document.visibilityState=='visible')verCheck()},120e3);setTimeout(verCheck,3000);

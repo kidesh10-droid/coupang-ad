@@ -1,6 +1,7 @@
 // 쿠팡 광고 장부 공용 저장소 (Cloudflare Pages Functions + KV)
 // 필요한 설정: KV 바인딩 이름 DB. (선택) 환경변수 TEAM_PASSWORD를 넣으면 비밀번호로 잠김, 없으면 누구나 공용
 // ?admin=status|set|check  관리자 비밀번호 (설정 탭·전체 삭제 보호)
+// ?ns=src                  소싱 (보기 누구나, 올리기·AI·삭제 관리자)
 // ?ns=ev                   행사 기록 (입력 누구나, 삭제 관리자)
 // ?ns=erp                  ERP 자료 (보기 누구나, 쓰기 관리자)
 // ?ns=memo                 회의록 폴더 (브라우저에서 암호화된 내용만 저장, 수정·삭제는 그 폴더 비밀번호 필요)
@@ -78,6 +79,41 @@ export async function onRequest({ request, env }) {
       }
       return json({ ok: true, docs: n });
     }
+    return json({ error: 'bad' }, 400);
+  }
+
+  /* 소싱 (?ns=src) — 보기 누구나, 올리기·AI 소싱 실행·삭제는 관리자 */
+  if (qp.get('ns') === 'src') {
+    const LK = 'src:doc:list', okId = id => /^[a-z0-9]{6,40}$/.test(id || '');
+    const img = qp.get('img');
+    if (request.method === 'GET') {
+      if (img) { if (!okId(img)) return new Response('', { status: 400 }); const v = await env.DB.get('src:img:' + img); if (!v) return new Response('', { status: 404 });
+        const m = v.match(/^data:([^;]+);base64,(.*)$/); if (!m) return new Response('', { status: 404 });
+        const bin = Uint8Array.from(atob(m[2]), c => c.charCodeAt(0)); return new Response(bin, { headers: { 'content-type': m[1], 'cache-control': 'public, max-age=31536000, immutable' } }); }
+      let L = await env.DB.get(LK, 'json');
+      if (!L && !(await env.DB.get('src:seeded')) && env.ASSETS) { try { const r = await env.ASSETS.fetch(new URL('/sourcing/seed.json', url.origin)); if (r.ok) { L = (await r.json()).batches || []; await env.DB.put(LK, JSON.stringify(L)) } } catch (e) { } await env.DB.put('src:seeded', '1') }
+      return json({ batches: L || [], ai: !!env.ANTHROPIC_API_KEY, at: Date.now() });
+    }
+    if (!await adminOk(env, decode(request.headers.get('x-admin-key')))) return json({ error: 'admin', msg: '소싱 자료 올리기·AI 소싱·삭제는 관리자만 할 수 있습니다' }, 403);
+    if (qp.get('run') && request.method === 'POST') { // AI 소싱: Claude API(웹 검색) 응답을 그대로 흘려보냄 → 화면이 받아서 저장
+      if (!env.ANTHROPIC_API_KEY) return json({ error: 'nokey', msg: 'AI 소싱을 쓰려면 Cloudflare Pages 환경변수에 ANTHROPIC_API_KEY를 넣어야 합니다' }, 501);
+      const b = await body(request) || {};
+      const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'content-type': 'application/json', 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'anthropic-beta': 'web-fetch-2025-09-10' },
+        body: JSON.stringify({ model: env.SOURCING_MODEL || 'claude-sonnet-5-5', max_tokens: 32000, stream: true, system: String(b.system || '').slice(0, 20000),
+          tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: Math.min(40, +b.searches || 25) }, { type: 'web_fetch_20250910', name: 'web_fetch', max_uses: Math.min(40, +b.fetches || 25) }],
+          messages: [{ role: 'user', content: String(b.prompt || '').slice(0, 20000) }] }) });
+      if (!r.ok) { const t = await r.text(); return json({ error: 'api', msg: 'Claude API 오류 ' + r.status + ': ' + t.slice(0, 300) }, 502) }
+      return new Response(r.body, { headers: { 'content-type': 'text/event-stream; charset=utf-8', 'cache-control': 'no-store' } });
+    }
+    if (request.method !== 'PUT') return json({ error: 'method' }, 405);
+    const b = await body(request); if (!b) return json({ error: 'bad_json' }, 400);
+    const L = (await env.DB.get(LK, 'json')) || [];
+    const keep = async L2 => { await env.DB.put('hist:src:' + String(Date.now()).padStart(14, '0') + ':list', JSON.stringify(L), { expirationTtl: KEEP, metadata: { k: 'list', ts: Date.now(), why: 'up' } }); await env.DB.put(LK, JSON.stringify(L2)); return json({ ok: true, batches: L2 }) };
+    if (b.op === 'add') { const x = b.batch || {}; if (!okId(x.id) || !Array.isArray(x.items)) return json({ error: 'bad' }, 400);
+      let n = 0; for (const it of x.items) { if (typeof it.img === 'string' && it.img.startsWith('data:image/')) { const id = x.id + 'i' + (n++); await env.DB.put('src:img:' + id, it.img); it.img = '/api/store?ns=src&img=' + id } }
+      const L2 = L.filter(y => y.id !== x.id).concat([{ ...x, at: x.at || Date.now() }]); if (JSON.stringify(L2).length > 20e6) return json({ error: 'big' }, 413); return keep(L2) }
+    if (b.op === 'del') { const x = L.find(y => y.id === b.id); if (x) for (const it of x.items || []) { const m = String(it.img || '').match(/img=([a-z0-9]+)/); if (m) await env.DB.delete('src:img:' + m[1]) } return keep(L.filter(y => y.id !== b.id)) }
+    if (b.op === 'plan') { const x = L.find(y => y.id === b.id); if (!x) return json({ error: 'none' }, 404); x.cfg = { ...x.cfg, ...(b.cfg || {}) }; if (b.plans) x.items.forEach(it => { if (b.plans[it.cat] != null) it.plan = +b.plans[it.cat] }); return keep(L) }
     return json({ error: 'bad' }, 400);
   }
 

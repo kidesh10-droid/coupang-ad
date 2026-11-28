@@ -21,3 +21,10 @@ xe = x.replace('const xFile=name=>`ERP_', 'const xFile=name=>`행사_').replace(
 os.makedirs(os.path.join(R, 'event'), exist_ok=True)
 open(os.path.join(R, 'event/index.html'), 'w', encoding='utf-8').write(ev.replace('/*@@CSS@@*/', css).replace('/*@@XEXPORT@@*/', xe))
 print('event/index.html')
+# 소싱 페이지
+sp = open(os.path.join(R, 'scripts/src_src.html'), encoding='utf-8').read()
+xs = x.replace('const xFile=name=>`ERP_', 'const xFile=name=>`').replace("wb.creator='디앤디컴 ERP'", "wb.creator='디앤디컴 소싱'")
+os.makedirs(os.path.join(R, 'sourcing'), exist_ok=True)
+shutil.copy(os.path.join(R, 'scripts/src_parse.js'), os.path.join(R, 'sourcing/src_parse.js'))
+open(os.path.join(R, 'sourcing/index.html'), 'w', encoding='utf-8').write(sp.replace('__V__', V).replace('/*@@CSS@@*/', css).replace('/*@@XEXPORT@@*/', xs))
+print('sourcing/index.html')
