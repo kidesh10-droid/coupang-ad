@@ -148,7 +148,7 @@ const closeDlg=()=>{if(RUN)return;$('#dlg').innerHTML=''};let RUN=false;
 $('#aibtn').onclick=()=>{if(!ADM.pw)return admDlg('AI 소싱은 관리자만 시작할 수 있습니다 (검색 비용이 듭니다).');
   const bt=cur(),c=cfgOf(bt),cats=bt?[...new Set(bt.items.map(x=>x.cat))]:[];
   dlg(`<h3>🔎 AI 소싱 — 알리바바에서 새 상품 찾기<span style="flex:1"></span><button class="b s" data-close type="button">닫기</button></h3><div class="pad">
-  ${AI?'':'<div class="msg err">아직 연결되지 않았습니다: Cloudflare Pages 프로젝트 설정 → 환경변수에 <b>ANTHROPIC_API_KEY</b>(Claude API 키)를 넣어야 이 버튼이 동작합니다. 넣은 뒤 다시 배포되면 바로 쓸 수 있습니다.</div>'}
+  ${AI?'':'<div class="msg">결제 없이 <b>Claude 대화(지금 쓰는 구독)</b>로 진행합니다. 시작을 누르면 Claude 새 대화가 열리고 소싱 요청이 들어갑니다. Claude가 알리바바를 찾아 <b>소싱 엑셀</b>을 만들어 주면, 그 파일을 여기 <b>⬆ 소싱 엑셀 올리기</b>로 올리면 사진까지 바로 보입니다.</div>'}
   <div class="frm">
    <label class="w">찾을 품목·키워드 (줄바꿈으로 여러 개, 비우면 소형가전 전체에서 새 아이템)<textarea id="aq" placeholder="예: 충전식 손난로&#10;미니 가습기&#10;겨울 소형가전 신상">${''}</textarea></label>
    <label>가격대<select id="ab"><option value="">전체 (3만원대·5~8만원대·10만원대)</option><option>3만원대</option><option>5~8만원대</option><option>10만원대</option></select></label>
@@ -158,9 +158,22 @@ $('#aibtn').onclick=()=>{if(!ADM.pw)return admDlg('AI 소싱은 관리자만 시
    <label class="w"><span><input type="checkbox" id="ax" checked> 지금 자료에 있는 상품(${cats.length}개 품목)은 빼고 새로 찾기</span></label>
   </div>
   <p class="note">기준: 수수료 ${P(c.fee)} · 광고비 ${P(c.ad)} · 배송비 ${W(c.ship)}원 · 마진 ${P(c.margin)} · 부대비 공장가의 ${P(c.extra)} — 이 조건으로 남는 공장가만 고릅니다. 웹 검색이라 몇 분 걸리고, 공장가·실적은 검색 시점 값입니다. 사진은 상품 페이지에서 찾은 경우에만 들어갑니다.</p>
-  <div style="display:flex;gap:8px"><button class="b p" id="ago" type="button"${AI?'':' disabled'}>지금 시작</button></div>
+  <div style="display:flex;gap:8px"><button class="b p" id="ago" type="button">${AI?'지금 시작':'Claude에서 시작 ↗'}</button></div>
   <div id="alog" hidden></div></div>`);
-  const go=$('#ago');if(go)go.onclick=()=>runAI({q:$('#aq').value.trim(),band:$('#ab').value,n:+$('#an').value||20,fx:+$('#afx').value||1400,yr:+$('#ay').value||5,ex:$('#ax').checked?cats:[]},c)};
+  const go=$('#ago');if(go)go.onclick=()=>(AI?runAI:openClaude)({q:$('#aq').value.trim(),band:$('#ab').value,n:+$('#an').value||20,fx:+$('#afx').value||1400,yr:+$('#ay').value||5,ex:$('#ax').checked?cats:[]},c)};
+function openClaude(o,c){const pr=`알리바바(alibaba.com) 소싱 부탁해. Claude in Chrome으로 알리바바를 직접 보고 골라 줘.
+- 찾을 품목: ${o.q||'겨울·생활 소형가전 중 디자인 좋은 신상품 (자유롭게)'}
+- 판매 가격대: ${o.band||'3만원대 · 5~8만원대 · 10만원대 모두'} / 상품 수 약 ${o.n}개 (품목마다 1~4개)
+- 업체: 업력 ${o.yr}년 이상, Verified 우선 / 썸네일 디자인 좋은 것
+- 기준: 계획 판매가에서 수수료 ${(c.fee*100).toFixed(1)}%·광고비 ${(c.ad*100).toFixed(1)}%·배송비 ${c.ship}원·마진 ${(c.margin*100).toFixed(0)}% 빼고, 공장가×(1+${c.extra}) 이하만 통과. 환율 ${o.fx}원/$.
+${o.ex.length?`- 이미 있는 품목 제외: ${o.ex.join(', ')}\n`:''}- 결과는 엑셀(.xlsx) 1개, 시트 이름 "디자인 추천", 지난번 소싱 파일과 같은 양식으로:
+  1행 제목, 3행 기준(수수료/광고비/배송비(원)/마진/관세·운송 등 부대비 + 값), 4행 열 제목 [사진, 품목, 상품, 디자인 포인트, 업체, 업력 · 평점, 판매실적, 공장가 최저(원), 공장가 최고(원), MOQ, 필요 최소 판매가(원), 계획 판매가(원), 판정, 상품 링크],
+  가격대 줄은 "① 3만원대 판매 ...", 품목 줄은 "■ 품목명 — 계획 판매가 34,900원 (클릭 = 쿠팡 시세 검색: “검색어”)"(쿠팡 검색 링크),
+  상품 줄마다 A열에 상품 사진을 넣고, 상품 링크 칸에 알리바바 상품 URL 하이퍼링크.
+다 되면 파일 보내 줘. 그 파일을 소싱 페이지(dnd-coupang.pages.dev/sourcing)에 올릴 거야.`;
+  try{navigator.clipboard.writeText(pr)}catch(e){}
+  window.open('https://claude.ai/new?q='+encodeURIComponent(pr),'_blank','noopener');
+  const log=$('#alog');log.hidden=false;log.textContent='Claude 새 대화를 열었습니다. 요청 문장이 비어 있으면 붙여넣기(Ctrl+V) 하세요 — 복사해 두었습니다.\n받은 엑셀은 이 페이지의 ⬆ 소싱 엑셀 올리기로 올리면 됩니다.'}
 async function runAI(o,c){const log=$('#alog');log.hidden=false;const L=t=>{log.textContent+=t+'\n';log.scrollTop=1e9};RUN=true;$('#ago').disabled=true;
   const system=`너는 한국 쿠팡 셀러(소형가전)의 소싱 담당이다. 알리바바(alibaba.com)에서 실제로 있는 상품만 찾고, 지어내지 않는다. 찾은 상품마다 알리바바 상품 페이지 URL이 있어야 한다.`;
   const prompt=`알리바바에서 쿠팡에 팔 소형가전 상품을 찾아 줘.
