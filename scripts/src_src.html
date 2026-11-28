@@ -88,7 +88,7 @@ const cu=it=>it.cu||('https://www.coupang.com/np/search?q='+encodeURIComponent(i
 function calc(b,it){const c=cfgOf(b),need=SRCP.need(it.pmin,c),plan=planOf(b,it);const m=plan&&it.pmin!=null?(plan*(1-c.fee-c.ad)-it.pmin*(1+c.extra)-c.ship)/plan:null;return{need,plan,m,ok:need!=null&&plan!=null?plan>=need:null}}
 
 function render(){const b=$('#admbtn');b.classList.toggle('on',!!ADM.pw);b.textContent=ADM.pw?'관리자 모드 · 잠그기':'관리자';
-  const m=$('#main'),bt=cur();if(!bt){m.innerHTML=`<div class="msg">소싱 자료가 없습니다. 위의 AI 소싱 시작이나 소싱 엑셀 올리기로 넣으세요.</div>`;return}
+  const m=$('#main'),bt=cur();if(!bt){m.innerHTML=`<div class="msg">소싱 자료가 없습니다. ${ADM.pw?'위의 AI 소싱 시작이나 소싱 엑셀 올리기로 넣으세요.':'자료 올리기는 관리자에게 요청하세요.'}</div>`;return}
   const c=cfgOf(bt),bands=[...new Set(bt.items.map(x=>x.band))],cats=[...new Set(bt.items.filter(x=>!UI.band||x.band==UI.band).map(x=>x.cat))];
   let L=bt.items.map((it,i)=>({...it,i,...calc(bt,it)}));
   if(UI.band)L=L.filter(x=>x.band==UI.band);if(UI.cat)L=L.filter(x=>x.cat==UI.cat);if(UI.vd)L=L.filter(x=>UI.vd=='ok'?x.ok:!x.ok);
@@ -135,7 +135,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-x]');if(!b
 /*@@XEXPORT@@*/
 
 /* ===== 엑셀 올리기 ===== */
-$('#upbtn').onclick=()=>$('#fi').click();
+$('#upbtn').onclick=()=>{if(!ADM.pw)return admDlg('소싱 엑셀 올리기는 관리자만 할 수 있습니다.');$('#fi').click()};
 $('#fi').onchange=async e=>{const fs=[...e.target.files];e.target.value='';if(!fs.length)return;st('읽는 중…');
   for(let i=0;i<50&&!(window.XLSX&&window.JSZip);i++)await new Promise(r=>setTimeout(r,200));
   let n=0;for(const f of fs){try{const bs=await SRCP.file(f,XLSX,window.JSZip);for(const b of bs){b.id='f'+Date.now().toString(36)+n;b.at=Date.now();b.by='file';b.file=f.name.replace(/\.xlsx$/i,'');st(`올리는 중… ${b.items.length}개 상품`);const j=await api('',{method:'PUT',body:JSON.stringify({op:'add',batch:b})});B=j.batches;UI.bid=b.id;n++}
@@ -145,7 +145,7 @@ $('#fi').onchange=async e=>{const fs=[...e.target.files];e.target.value='';if(!f
 /* ===== AI 소싱 ===== */
 function dlg(html){$('#dlg').innerHTML=`<div class="dlgw" role="dialog" aria-modal="true"><div class="box">${html}</div></div>`;$$('#dlg [data-close]').forEach(b=>b.onclick=closeDlg)}
 const closeDlg=()=>{if(RUN)return;$('#dlg').innerHTML=''};let RUN=false;
-$('#aibtn').onclick=()=>{
+$('#aibtn').onclick=()=>{if(!ADM.pw)return admDlg('AI 소싱 시작은 관리자만 할 수 있습니다.');
   const bt=cur(),c=cfgOf(bt),cats=bt?[...new Set(bt.items.map(x=>x.cat))]:[];
   dlg(`<h3>🔎 AI 소싱 — 알리바바에서 새 상품 찾기<span style="flex:1"></span><button class="b s" data-close type="button">닫기</button></h3><div class="pad">
   ${AI?'':'<div class="msg">결제 없이 <b>Claude 대화(지금 쓰는 구독)</b>로 진행합니다. 시작을 누르면 Claude 새 대화가 열리고 소싱 요청이 들어갑니다. Claude가 알리바바를 찾아 <b>소싱 엑셀</b>을 만들어 주면, 그 파일을 여기 <b>⬆ 소싱 엑셀 올리기</b>로 올리면 사진까지 바로 보입니다.</div>'}
