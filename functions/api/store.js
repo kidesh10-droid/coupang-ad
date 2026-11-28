@@ -92,6 +92,9 @@ export async function onRequest({ request, env }) {
         const bin = Uint8Array.from(atob(m[2]), c => c.charCodeAt(0)); return new Response(bin, { headers: { 'content-type': m[1], 'cache-control': 'public, max-age=31536000, immutable' } }); }
       let L = await env.DB.get(LK, 'json');
       if (!L && !(await env.DB.get('src:seeded')) && env.ASSETS) { try { const r = await env.ASSETS.fetch(new URL('/sourcing/seed.json', url.origin)); if (r.ok) { L = (await r.json()).batches || []; await env.DB.put(LK, JSON.stringify(L)) } } catch (e) { } await env.DB.put('src:seeded', '1') }
+      // 자동 소싱 결과: 배포에 들어온 sourcing/apply.json 배치를 id마다 한 번만 추가
+      if (env.ASSETS) { try { const r = await env.ASSETS.fetch(new URL('/sourcing/apply.json', url.origin)); const A = r.ok ? await r.json() : null;
+        if (A && A.batch && okId(A.batch.id) && !(await env.DB.get('src:applied:' + A.batch.id))) { await env.DB.put('src:applied:' + A.batch.id, '1'); L = (L || []).filter(y => y.id !== A.batch.id).concat([A.batch]); await env.DB.put(LK, JSON.stringify(L)) } } catch (e) { } }
       return json({ batches: L || [], ai: !!env.ANTHROPIC_API_KEY, at: Date.now() });
     }
     if (!await adminOk(env, decode(request.headers.get('x-admin-key')))) return json({ error: 'admin', msg: '소싱 자료 올리기·AI 소싱·삭제는 관리자만 할 수 있습니다' }, 403);
